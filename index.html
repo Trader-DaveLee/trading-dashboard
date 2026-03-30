@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Trading Desk Dashboard v9.0</title>
+  <title>Trading Desk Dashboard v9.1 (Stable)</title>
   <link rel="stylesheet" href="./css/styles.css" />
 </head>
 <body>
@@ -63,6 +63,11 @@
           <div id="setup-chart" class="chart-box"></div>
         </article>
       </div>
+
+      <div class="grid grid-2">
+        <article class="card"><div class="section-head"><div><h3>주요 실수</h3><p>빈도 및 누적 손실</p></div></div><div id="mistake-list" class="stack"></div></article>
+        <article class="card"><div class="section-head"><div><h3>Desk Notes</h3><p>자동 분석 인사이트</p></div></div><div id="research-notes" class="stack"></div></article>
+      </div>
     </section>
 
     <section id="view-journal" class="view">
@@ -115,10 +120,10 @@
             <div class="section-head" style="margin-top:20px;"><div><h3 style="color:#10b981;">4. LIVE MANAGEMENT</h3><p>실시간 포지션 대응 로그</p></div></div>
             <div style="background:#121928; border:1px solid #2c3850; border-radius:12px; padding:16px;">
                 <div class="mini-head" style="margin-bottom:8px;">
-                    <span style="font-size:12px; color:var(--muted);">포지션 보유 중 발생하는 감정, 시그널, 대응 계획 등을 타임스탬프와 함께 기록하세요.</span>
-                    <button type="button" id="btn-insert-time" style="background:#27272a; color:#fff; border-color:#3f3f46;">🕒 현재 시간 삽입</button>
+                    <span style="font-size:12px; color:var(--muted);">포지션 보유 중 발생하는 감정, 시그널, 대응 등을 기록하세요.</span>
+                    <button type="button" id="btn-insert-time" style="background:#27272a; color:#fff; border-color:#3f3f46;">🕒 시간 삽입</button>
                 </div>
-                <textarea id="live-notes" style="min-height:120px; font-family:monospace; font-size:13px; line-height:1.6;" placeholder="예) [14:30] 5분봉 20선 이탈 확인, 하단 지지선까지 홀딩."></textarea>
+                <textarea id="live-notes" style="min-height:120px; font-family:monospace; font-size:13px; line-height:1.6;" placeholder="예) [14:30] 5분봉 20선 이탈 확인, 지지선까지 홀딩."></textarea>
             </div>
 
             <button type="button" id="toggle-deep-journal" class="toggle-btn" style="margin-top:24px;">📝 SECTION 5: DEEP REVIEW (사후 복기 및 차트) ▼</button>
@@ -156,7 +161,7 @@
             <div class="section-head"><div><h3>Account Status</h3><p>거래소 실제 잔고 현황</p></div></div>
             <div class="input-with-unit" style="margin-bottom:12px; border-color:var(--accent);">
               <span class="unit" style="background:rgba(59,130,246,0.1); color:#fff; font-weight:bold;">$</span>
-              <input type="number" id="actual-balance" placeholder="바이비트 실제 잔고 입력" style="font-size:16px; font-weight:bold; color:#fff;">
+              <input type="number" id="actual-balance" placeholder="실제 잔고 입력" style="font-size:16px; font-weight:bold; color:#fff;">
               <button type="button" id="btn-update-balance" class="gear-btn" style="border-radius:0; border:none; border-left:1px solid #2c3850; padding:0 12px; font-weight:bold; color:var(--accent);">저장</button>
             </div>
             <div id="balance-history" style="font-size:12px; color:var(--muted); max-height:80px; overflow-y:auto; line-height:1.6; padding:0 4px;"></div>
@@ -173,6 +178,7 @@
                   <div>앱 막대바(%)</div><div id="risk-slider" class="mono" style="color:var(--green); font-weight:bold;">0.0%</div>
                   <div>명목 노출</div><div id="risk-notional" class="mono">$0.00</div>
                   <div>손절 거리</div><div id="risk-stop-distance" class="mono">0.00%</div>
+                  <div>예상 수수료</div><div id="risk-fees" class="mono" style="color:var(--yellow);">$0.00</div>
                 </div>
               </div>
             </div>
@@ -189,7 +195,7 @@
       <article class="card">
         <div class="section-head"><div><h3>Trade Library</h3><p>아카이브 검색 · 비교 · 복기</p></div></div>
         <div class="filter-grid filter-grid-extended">
-          <label><span>검색</span><input id="q" placeholder="ticker, setup, tag, text..." /></label>
+          <label><span>검색</span><input id="q" placeholder="ticker, setup, tag..." /></label>
           <label><span>From</span><input id="f-from" type="date" /></label>
           <label><span>To</span><input id="f-to" type="date" /></label>
           <label><span>상태</span><select id="f-status"><option value="ALL">ALL</option><option>OPEN</option><option>CLOSED</option></select></label>
