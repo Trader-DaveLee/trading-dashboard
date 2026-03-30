@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Trading Desk Dashboard v2.4</title>
+  <title>Trading Desk Dashboard v7.0</title>
   <link rel="stylesheet" href="./css/styles.css" />
 </head>
 <body>
@@ -18,183 +18,191 @@
     <div class="topbar-side">
       <nav id="nav"></nav>
       <div class="backup-actions">
-        <button id="export-json" type="button">백업 저장</button>
-        <button id="import-json-btn" type="button">백업 불러오기</button>
+        <button id="export-json" type="button">백업 저장 (Export)</button>
+        <button id="import-json-btn" type="button">데이터 복원 (Import)</button>
         <input id="import-json" type="file" accept="application/json" hidden />
       </div>
       <div class="topbar-status">
-        <strong id="journal-status">입력 상태 정상</strong>
-        <span id="draft-saved-at">임시저장 없음</span>
+        <strong id="journal-status">시스템 정상</strong>
+        <span id="draft-saved-at"></span>
       </div>
     </div>
   </header>
 
   <main class="container">
-    <section id="view-overview" class="view active">
-      <div id="metrics" class="metrics-grid metrics-grid-enhanced"></div>
+    <section id="view-overview" class="view active ds-tab">
+      <div class="section-head">
+        <div><h3 style="font-size:20px; margin-bottom:4px;">Good Morning!</h3><p>현재까지의 핵심 트레이딩 성과입니다.</p></div>
+      </div>
+      
+      <div id="metrics" class="metrics-grid">
+        </div>
+      
       <div class="grid grid-2">
         <article class="card">
-          <div class="section-head">
-            <div>
-              <h3>월간 캘린더</h3>
-              <p>일별 순손익</p>
-            </div>
-            <div class="inline-actions">
-              <button id="prev-month">◀</button>
-              <strong id="calendar-title"></strong>
-              <button id="next-month">▶</button>
-            </div>
+          <div class="cal-header">
+            <button id="prev-month">◀</button>
+            <h2 id="calendar-title" style="margin:0; font-size:16px;">Month Year</h2>
+            <button id="next-month">▶</button>
           </div>
-          <div id="calendar" class="calendar"></div>
+          <div class="cal-grid">
+            <div class="cal-day-name">Sun</div><div class="cal-day-name">Mon</div><div class="cal-day-name">Tue</div>
+            <div class="cal-day-name">Wed</div><div class="cal-day-name">Thu</div><div class="cal-day-name">Fri</div><div class="cal-day-name">Sat</div>
+          </div>
+          <div class="cal-grid" id="cal-days"></div>
         </article>
-        <article class="card">
-          <div class="section-head"><div><h3>Equity Curve</h3><p>닫힌 트레이드 누적 손익</p></div></div>
-          <div id="equity-chart" class="chart-box"></div>
+        
+        <article class="card" style="display:flex; flex-direction:column;">
+          <div class="section-head"><div><h3>Equity Curve</h3><p>누적 자산 성장 곡선</p></div></div>
+          <div id="equity-chart" class="chart-box" style="flex:1;"></div>
         </article>
-      </div>
-      <div class="grid grid-3 overview-secondary-grid">
-        <article class="card"><div class="section-head"><div><h3>셋업 성과</h3><p>Entry setup 평균 R</p></div></div><div id="setup-chart" class="chart-box small"></div></article>
-        <article class="card"><div class="section-head"><div><h3>주요 실수</h3><p>빈도와 비용 기준</p></div></div><div id="mistake-list" class="stack"></div></article>
-        <article class="card"><div class="section-head"><div><h3>Desk Notes</h3><p>현재 기록 기준 인사이트</p></div></div><div id="research-notes" class="stack"></div></article>
       </div>
     </section>
 
-    <section id="view-journal" class="view">
-      <div class="grid grid-journal refined-journal-grid">
-        <article class="card">
-          <div class="section-head"><div><h3>Trade Journal</h3><p>주문 기록 · 계산 · 복기</p></div></div>
-          <form id="trade-form" class="form-stack">
-            <input type="hidden" id="trade-id" />
-            <input type="hidden" id="grade" value="B" />
-            <input type="hidden" id="playbook-score" value="5" />
-            <div class="field-grid cols-4">
-              <label><span>날짜/시간</span><input id="trade-date" type="datetime-local" required /></label>
-              <label><span>티커</span><input id="ticker" list="ticker-list" placeholder="BTCUSDT" required /></label>
-              <label><span>상태</span><select id="status"><option value="CLOSED">CLOSED</option><option value="OPEN">OPEN</option></select></label>
-              <label><span>세션</span><select id="session"><option>ASIA</option><option>LONDON</option><option>NEW YORK</option><option>OVERLAP</option></select></label>
+    <section id="view-journal" class="view ds-tab">
+      <div class="dashboard-grid">
+        <div class="panel">
+            <input type="hidden" id="editId" value="">
+            <div class="panel-title" style="color:var(--accent);">1. EXECUTION & SIZER</div>
+            
+            <div class="row"><span>Ticker / Grade</span> 
+                <div style="display:flex; gap:6px;">
+                    <select id="ticker" class="w-mid"></select>
+                    <button type="button" class="tool-btn" onclick="window.__desk.manageDrops('ticker')">⚙️</button>
+                    <select id="grade" style="width:60px; font-weight:bold;">
+                        <option value="A" class="win">A</option>
+                        <option value="B" class="warn">B</option>
+                        <option value="C" class="loss">C</option>
+                    </select>
+                </div>
             </div>
-            <div class="field-grid cols-4">
-              <label><span>방향</span><select id="side"><option value="LONG">LONG</option><option value="SHORT">SHORT</option></select></label>
-              <label><span>Entry Setup</span><input id="setup-entry" list="setup-entry-list" placeholder="BREAKOUT" /></label>
-              <label><span>Exit Setup</span><input id="setup-exit" list="setup-exit-list" placeholder="TRAIL STOP" /></label>
-              <label><span>보정 손익 ($)</span><input id="adjustment" type="number" step="0.01" value="0" /></label>
+            
+            <div class="row"><span>Entry Setup</span> 
+                <div style="display:flex; gap:6px;">
+                    <select id="setupEntry" class="w-mid" style="width:130px;"></select>
+                    <button type="button" class="tool-btn" onclick="window.__desk.manageDrops('setupE')">⚙️</button>
+                </div>
             </div>
-            <div class="field-grid cols-4">
-              <label><span>계좌 잔고 ($)</span><input id="account-size" type="number" step="0.01" value="10000" /></label>
-              <label><span>허용 리스크 (%)</span><input id="risk-pct" type="number" step="0.01" value="0.5" /></label>
-              <label><span>레버리지</span><input id="leverage" type="number" step="0.1" value="10" /></label>
-              <label><span>손절가</span><input id="stop-price" type="number" step="0.01" /></label>
+            
+            <div class="row"><span>Seed($) / Risk(%)</span> <div><input type="number" id="acc" class="w-mid" value="10000"><input type="number" id="risk" class="w-sml" value="0.5"></div></div>
+            <div class="row"><span>Lev/Mkr/Tkr(%)</span> <div><input type="number" id="lev" class="w-sml" value="10"><input type="number" id="fM" class="w-sml" value="0.02"><input type="number" id="fT" class="w-sml" value="0.05"></div></div>
+            <hr style="border:none; border-top:1px solid var(--border); margin:16px 0;">
+            <div class="row"><span>Pos / Init SL</span> <div><select id="dir" class="w-sml"><option value="1">LONG</option><option value="-1">SHORT</option></select><input type="number" id="sl" class="w-mid" placeholder="SL Price"><select id="slType"><option value="T">Tkr</option><option value="M">Mkr</option></select></div></div>
+            
+            <div style="font-size:11px; color:#71717a; font-weight:700; margin:16px 0 8px;">SCALING-IN (100%)</div>
+            <div id="entries_container"></div>
+            <button type="button" class="btn-add" id="add-entry">+ Add Entry Level</button>
+            <div class="result-box" id="entry_res">Awaiting parameters...</div>
+
+            <div class="panel-title" style="color:var(--warn); margin-top:24px;">2. EXIT STRATEGY</div>
+            <div class="row"><span>Exit Setup</span> 
+                <div style="display:flex; gap:6px;">
+                    <select id="setupExit" class="w-mid" style="width:130px;"></select>
+                    <button type="button" class="tool-btn" onclick="window.__desk.manageDrops('setupX')">⚙️</button>
+                </div>
             </div>
-            <div class="field-grid cols-4">
-              <label><span>Maker Fee (%)</span><input id="maker-fee" type="number" step="0.001" value="0.02" /></label>
-              <label><span>Taker Fee (%)</span><input id="taker-fee" type="number" step="0.001" value="0.05" /></label>
-              <label><span>손절 체결</span><select id="stop-type"><option value="M">Maker</option><option value="T">Taker</option></select></label>
-              <label><span>감정</span><input id="emotion" placeholder="calm / tired / FOMO" /></label>
+            <div style="font-size:11px; color:#71717a; font-weight:700; margin:16px 0 8px;">SCALING-OUT (100%)</div>
+            <div id="exits_container"></div>
+            <button type="button" class="btn-add" id="add-exit">+ Add Exit Level</button>
+            <div class="result-box" id="exit_res" style="border-left-color:var(--warn);">Exits not configured.</div>
+
+            <button type="button" id="toggle-deep-journal" class="toggle-btn" style="margin-top:15px;">📝 딥 저널링 펼치기 (감정, 실수, 차트) ▼</button>
+            
+            <div id="deep-journal-section" class="hidden form-stack" style="margin-top:15px;">
+                <div class="panel-title" style="color:#fafafa; margin-top:10px;">3. DEEP JOURNALING</div>
+                
+                <div class="row"><span>Emotion (감정)</span> 
+                    <div style="display:flex; gap:6px;">
+                        <select id="emotion" class="w-mid" style="width:130px;"></select>
+                        <button type="button" class="tool-btn" onclick="window.__desk.manageDrops('emotion')">⚙️</button>
+                    </div>
+                </div>
+                <div class="row"><span>Fine-tuning (+/- $)</span> <input type="number" id="fineTune" class="w-mid" value="0"></div>
+                
+                <div class="field-grid cols-2" style="margin-top:8px;">
+                  <label><span>태그 (쉼표)</span><input id="tags" placeholder="trend, ny-open" /></label>
+                  <label><span>실수 태그 (쉼표)</span><input id="mistakes" placeholder="fomo, moved sl" /></label>
+                </div>
+                <div class="field-grid cols-2" style="margin-top:0px;">
+                    <div id="quick-tags" class="chips"></div>
+                    <div id="quick-mistakes" class="chips"></div>
+                </div>
+
+                <div style="font-size:11px; color:#71717a; font-weight:700; margin:16px 0 8px;">CHART LINKS (TRADINGVIEW URL)</div>
+                <input type="text" id="img1" class="w-full" placeholder="Entry Chart URL (e.g., tradingview.com/x/...)">
+                <input type="text" id="img2" class="w-full" placeholder="Exit/HTF Chart URL">
+                <textarea id="memo" class="w-full" style="height:80px; margin-top:12px; resize:vertical;" placeholder="매매 복기, 컨텍스트, 배운 점..."></textarea>
             </div>
-            <div class="field-grid cols-2">
-              <div>
-                <div class="mini-head"><h4>진입 분할</h4><button type="button" id="add-entry">+ 추가</button></div>
-                <div id="entries"></div>
-              </div>
-              <div>
-                <div class="mini-head"><h4>청산 분할</h4><button type="button" id="add-exit">+ 추가</button></div>
-                <div id="exits"></div>
-              </div>
+
+            <div class="action-group">
+                <button type="button" class="btn-open" id="btnOpen">🟢 OPEN / UPDATE</button>
+                <button type="button" class="btn-close" id="btnClose">🔴 CLOSE POSITION</button>
             </div>
-            <div id="calc-summary" class="summary-box">유효한 입력값이 필요합니다.</div>
-            <div class="field-grid cols-2">
-              <label><span>태그 (쉼표)</span><input id="tags" placeholder="breakout, ny-open" /></label>
-              <label><span>실수 태그 (쉼표)</span><input id="mistakes" placeholder="late entry, moved stop" /></label>
+            
+            <div class="inline-actions" style="margin-top:10px;">
+              <button type="button" id="reset-form" class="tool-btn" style="flex:1;">초기화</button>
+              <button type="button" id="delete-trade" class="tool-btn" style="flex:1; color:var(--red);">삭제</button>
+              <button type="button" id="btnCancel" class="tool-btn" style="display:none; flex:1;">수정 취소</button>
             </div>
-            <div class="field-grid cols-2">
-              <label><span>시장 컨텍스트</span><textarea id="context" placeholder="예: 4H reclaim after sweep"></textarea></label>
-              <label><span>진입 논리 / 무효화</span><textarea id="thesis" placeholder="왜 진입했고 무엇이 틀리면 폐기되는지"></textarea></label>
+        </div>
+
+        <aside class="stack">
+          <article class="card">
+            <div class="section-head"><div><h3>Risk Planner</h3><p>포지션 사이즈 및 마진 시뮬레이터</p></div></div>
+            <div class="kv" style="font-size:14px; line-height:2.2;">
+                <div>허용 리스크</div><div id="risk-risk-dollar" class="mono" style="color:var(--red); font-weight:800; font-size:16px;">$0.00</div>
+                <div>진입 수량</div><div id="risk-qty" class="mono" style="color:#fff; font-weight:800; font-size:16px;">0.00000</div>
+                <div>요구 증거금</div><div id="risk-margin" class="mono">$0.00</div>
+                <div>앱 막대바(%)</div><div id="risk-slider" class="mono" style="color:var(--green); font-weight:800; font-size:16px;">0.0%</div>
+                <div>명목 노출</div><div id="risk-notional" class="mono">$0.00</div>
+                <div>손절 거리</div><div id="risk-stop-distance" class="mono">0.00%</div>
+                <div>예상 수수료</div><div id="risk-fees" class="mono" style="color:var(--warn);">$0.00</div>
             </div>
-            <div class="field-grid cols-2">
-              <label><span>복기 메모</span><textarea id="review" placeholder="실행 평가, 개선 포인트, 다음 액션"></textarea></label>
-              <label><span>증거 자료 링크 (줄바꿈)</span><textarea id="artifacts" placeholder="https://...&#10;https://..."></textarea></label>
-            </div>
-            <div class="inline-actions">
-              <button type="submit" class="primary">저장</button>
-              <button type="button" id="duplicate-trade">복제</button>
-              <button type="button" id="reset-form">초기화</button>
-              <button type="button" id="delete-trade" class="danger">삭제</button>
-            </div>
-          </form>
-          <datalist id="ticker-list"></datalist>
-          <datalist id="setup-entry-list"></datalist>
-          <datalist id="setup-exit-list"></datalist>
-        </article>
-        <aside class="journal-sidebar stack">
-          <article class="card compact-card">
-            <div class="section-head"><div><h3>Trading Rules</h3><p>항상 보는 개인 원칙</p></div></div>
-            <textarea id="desk-rules" class="rules-box" placeholder="예: 
-1. 손절 전제 없는 진입 금지
-2. 기준 없는 추가 진입 금지
-3. 계획 없는 재진입 금지"></textarea>
           </article>
-          <article class="card compact-card">
-            <div class="section-head"><div><h3>Risk Planner</h3><p>현재 입력 기준 자금관리 요약</p></div></div>
-            <div class="stack">
-              <div class="detail-box risk-box"><div class="kv"><div>허용 손실</div><div id="risk-risk-dollar" class="mono">$0.00</div><div>예상 수량</div><div id="risk-qty" class="mono">0.00000</div><div>증거금 사용</div><div id="risk-margin" class="mono">$0.00</div><div>명목 노출</div><div id="risk-notional" class="mono">$0.00</div><div>손절 거리</div><div id="risk-stop-distance" class="mono">0.00%</div><div>총 수수료</div><div id="risk-fees" class="mono">$0.00</div></div></div>
-              <div class="note-box small-note">주관 평가 항목은 제거하고, 실행과 자금관리 수치에 집중하도록 정리했습니다.</div>
-            </div>
+          <article class="card">
+            <div class="section-head"><div><h3>Trading Rules</h3><p>나의 매매 원칙</p></div></div>
+            <textarea id="desk-rules" style="height:250px; background:#0f1219; border:1px solid #27272a; color:#a1a1aa; padding:12px;" placeholder="1. 뇌동매매 금지..."></textarea>
           </article>
         </aside>
       </div>
     </section>
 
-    <section id="view-library" class="view">
-      <article class="card">
-        <div class="section-head"><div><h3>Trade Library</h3><p>아카이브 검색 · 비교 · 복기</p></div></div>
-        <div class="filter-grid filter-grid-extended simplified-filters">
-          <label><span>검색</span><input id="q" placeholder="ticker, setup, tag, date" /></label>
+    <section id="view-library" class="view ds-tab">
+      <article class="card" style="margin-bottom:20px;">
+        <div class="section-head"><div><h3>Trade Library</h3><p>과거 매매 기록 검색 및 필터링</p></div></div>
+        <div class="filter-grid">
+          <label><span>검색 (Search)</span><input id="q" placeholder="ticker, setup, tag..." /></label>
           <label><span>From</span><input id="f-from" type="date" /></label>
           <label><span>To</span><input id="f-to" type="date" /></label>
           <label><span>상태</span><select id="f-status"><option value="ALL">ALL</option><option>OPEN</option><option>CLOSED</option></select></label>
-          <label><span>방향</span><select id="f-side"><option value="ALL">ALL</option><option>LONG</option><option>SHORT</option></select></label>
-          <label><span>세션</span><select id="f-session"><option value="ALL">ALL</option><option>ASIA</option><option>LONDON</option><option>NEW YORK</option><option>OVERLAP</option></select></label>
-          <label><span>셋업</span><input id="f-setup" placeholder="BREAKOUT" /></label>
-          <label><span>태그</span><input id="f-tag" placeholder="trend-day" /></label>
-          <label><span>실수 태그</span><input id="f-mistake" placeholder="moved stop" /></label>
-          <label><span>정렬</span><select id="sort"><option value="newest">최신순</option><option value="oldest">오래된순</option><option value="bestR">R 높은순</option><option value="worstR">R 낮은순</option><option value="bestPnl">PnL 높은순</option><option value="worstPnl">PnL 낮은순</option></select></label>
-          <div class="inline-actions align-end">
-            <button id="clear-filters" type="button">필터 초기화</button>
-          </div>
+          <label><span>정렬 기준</span><select id="sort"><option value="newest">최신순</option><option value="oldest">오래된순</option><option value="bestR">R 높은순</option><option value="worstR">R 낮은순</option></select></label>
         </div>
-        <div class="inline-actions toolbar-bottom toolbar-split">
-          <div class="inline-actions">
-            <span id="library-result-count" class="subtle-pill">0개 결과</span>
-          </div>
-          <div class="inline-actions">
-            <button id="compact-toggle" type="button">컴팩트 밀도</button>
-          </div>
+        <div style="display:flex; justify-content:space-between; margin-bottom:15px; align-items:center;">
+          <span id="library-result-count" style="font-weight:bold; color:var(--accent);">0개 결과</span>
+          <button id="clear-filters" type="button" class="tool-btn">필터 초기화</button>
         </div>
-        <div class="review-bar">
-          <div class="review-meta">
-            <span class="subtle-pill" id="review-position">0 / 0</span>
-            <span class="subtle-pill" id="review-breadcrumb">선택 없음</span>
-          </div>
-          <div class="inline-actions">
-            <button id="prev-trade" type="button">이전</button>
-            <button id="next-trade" type="button">다음</button>
-            <button id="filter-same-setup" type="button">같은 셋업</button>
-            <button id="filter-same-ticker" type="button">같은 종목</button>
-            <button id="clear-quick-filter" type="button">빠른 필터 해제</button>
-          </div>
-        </div>
+        
         <div class="table-wrap">
           <table>
-            <thead>
-              <tr><th>날짜</th><th>상태</th><th>티커</th><th>방향</th><th>세션</th><th>셋업</th><th>Avg In</th><th>Avg Out</th><th>PnL</th><th>R</th><th>리스크</th><th>태그</th></tr>
-            </thead>
-            <tbody id="trade-table"></tbody>
+            <thead><tr><th>STAT</th><th>DATE</th><th>TICKER</th><th>GRD</th><th>POS</th><th>AVG IN</th><th>AVG OUT</th><th>NET PnL</th><th>NET R</th></tr></thead>
+            <tbody id="history_body"></tbody>
           </table>
         </div>
       </article>
-      <div class="grid grid-2 detail-grid">
-        <article class="card"><div class="section-head"><div><h3>상세 복기</h3><p>행 클릭 시 로드</p></div></div><div id="detail"></div></article>
-        <article class="card"><div class="section-head"><div><h3>Review Console</h3><p>비교 샘플 · 빠른 평가</p></div></div><div id="detail-insights" class="stack"></div></article>
+
+      <div class="grid grid-2">
+        <article class="card">
+          <div class="section-head"><div><h3>Detail Review</h3><p>클릭한 매매의 상세 정보</p></div></div>
+          <div id="detail"></div>
+          <div class="chart-vault" id="chart_vault">
+              <div style="font-size:13px; font-weight:700; color:#fafafa; border-bottom:1px solid var(--border); padding-bottom:10px;">📂 Chart Vault (원본 이미지)</div>
+              <div class="vault-links" id="vault_links" style="display:flex; gap:10px; margin-top:10px;"></div>
+          </div>
+        </article>
+        <article class="card">
+          <div class="section-head"><div><h3>Review Console</h3><p>유사 샘플 및 인사이트</p></div></div>
+          <div id="detail-insights" class="stack"></div>
+        </article>
       </div>
     </section>
   </main>
