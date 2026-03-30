@@ -13,7 +13,7 @@ const els = {};
 const ID_LIST = [
   'nav','force-save-draft','export-json','import-json-btn','import-json','journal-status','draft-saved-at',
   'view-overview','metrics','overview-from','overview-to','overview-clear','prev-month','calendar-title','next-month','calendar','equity-chart','setup-chart','mistake-list','research-notes',
-  'view-journal','trade-form','trade-id','trade-date','ticker','btn-manage-ticker','status','session','side','setup-entry','btn-manage-setup-entry','setup-exit','btn-manage-setup-exit','account-size','risk-pct','leverage','maker-fee','taker-fee','stop-price','stop-type','adjustment','tags','mistakes','emotion','btn-manage-emotion','context','thesis','review','artifacts',
+  'view-journal','trade-form','trade-id','trade-date','btn-now','ticker','btn-manage-ticker','status','session','side','setup-entry','btn-manage-setup-entry','setup-exit','btn-manage-setup-exit','account-size','risk-pct','leverage','maker-fee','taker-fee','stop-price','stop-type','adjustment','tags','mistakes','emotion','btn-manage-emotion','context','thesis','review','artifacts',
   'add-entry','entries','add-exit','exits','calc-summary','toggle-deep-journal','deep-journal-section','quick-tags','quick-mistakes','live-notes','btn-insert-time',
   'actual-balance','btn-update-balance','balance-history',
   'duplicate-trade','reset-form','delete-trade',
@@ -26,10 +26,10 @@ window.__desk = {
   applySameSetupFilter: () => filterBySelectedSetup(),
   applySameTickerFilter: () => filterBySelectedTicker(),
   loadSelectedIntoJournal: () => openSelectedInJournal(),
-  manageDrops: t => manageDrops(t)
+  manageDrops: t => manageDrops(t),
+  deleteBalanceHist: id => deleteBalanceHist(id)
 };
 
-// Safe Helpers
 function setVal(id, val) { if(els[id]) els[id].value = val; }
 function getVal(id, def = '') { return els[id] ? els[id].value : def; }
 function setHtml(id, html) { if(els[id]) els[id].innerHTML = html; }
@@ -77,6 +77,8 @@ function bindEvents() {
   if(els['prev-month']) els['prev-month'].onclick = () => { state.month.setMonth(state.month.getMonth() - 1); renderCalendar(); };
   if(els['next-month']) els['next-month'].onclick = () => { state.month.setMonth(state.month.getMonth() + 1); renderCalendar(); };
   
+  if(els['btn-now']) els['btn-now'].onclick = () => { setVal('trade-date', inputDate(new Date().toISOString())); markDirty(); };
+
   if(els['add-entry']) els['add-entry'].onclick = () => { state.draftEntries.push({ price: 0, type: 'M', weight: 0 }); renderLegs('entry'); updatePreview(); };
   if(els['add-exit']) els['add-exit'].onclick = () => { state.draftExits.push({ price: 0, type: 'M', weight: 0 }); renderLegs('exit'); updatePreview(); };
   
@@ -106,9 +108,17 @@ function bindEvents() {
     const val = Math.round(Number(els['actual-balance'].value));
     if(isNaN(val) || val <= 0) return;
     const hist = state.db.meta.balanceHistory;
-    if(hist.length > 0 && Math.round(hist[0].val) === val) { alert("최근 잔고와 동일한 금액입니다."); return; }
+    
+    if(hist.length > 0) {
+        if (Math.round(hist[0].val) === val) { alert("최근 잔고와 동일한 금액입니다."); return; }
+        const changePct = Math.abs(val - hist[0].val) / hist[0].val * 100;
+        if (changePct > 30) {
+            if(!confirm(`잔고가 이전 대비 ${changePct.toFixed(1)}%나 급변했습니다. 정말 입력하시겠습니까?\n(오타가 아니라면 확인을 눌러주세요)`)) return;
+        }
+    }
+    
     state.db.meta.accountBalance = val;
-    state.db.meta.balanceHistory.unshift({ date: new Date().toISOString(), val: val });
+    state.db.meta.balanceHistory.unshift({ id: Date.now(), date: new Date().toISOString(), val: val });
     saveDB(state.db); setVal('account-size', val); renderAccountBalance(); updatePreview(); persistDraft();
   };
 
@@ -119,13 +129,8 @@ function bindEvents() {
   if(els['clear-quick-filter']) els['clear-quick-filter'].onclick = clearQuickFilter;
   if(els['trade-form']) els['trade-form'].addEventListener('submit', handleSubmit);
   
-  // Overview Date Filter
-  ['overview-from', 'overview-to'].forEach(id => {
-      if(els[id]) els[id].addEventListener('change', renderOverview);
-  });
-  if(els['overview-clear']) els['overview-clear'].onclick = () => {
-      setVal('overview-from', ''); setVal('overview-to', ''); renderOverview();
-  };
+  ['overview-from', 'overview-to'].forEach(id => { if(els[id]) els[id].addEventListener('change', renderOverview); });
+  if(els['overview-clear']) els['overview-clear'].onclick = () => { setVal('overview-from', ''); setVal('overview-to', ''); renderOverview(); };
 
   bindKeyboardShortcuts();
 
@@ -165,16 +170,32 @@ function renderAccountBalance() {
     if (i < hist.length - 1) {
       const prev = Math.round(hist[i+1].val);
       const diff = curr - prev;
-      if (diff > 0) diffHtml = `<span style="color:var(--green); font-size:11px; font-weight:bold;">+$${diff.toLocaleString()}</span>`;
-      else if (diff < 0) diffHtml = `<span style="color:var(--red); font-size:11px; font-weight:bold;">-$${Math.abs(diff).toLocaleString()}</span>`;
-      else diffHtml = `<span style="color:var(--muted); font-size:11px;">-</span>`;
+      if (diff > 0) diffHtml = `<span style="color:var(--green); font-size:11px; font-weight:bold; margin-right:6px;">+$${diff.toLocaleString()}</span>`;
+      else if (diff < 0) diffHtml = `<span style="color:var(--red); font-size:11px; font-weight:bold; margin-right:6px;">-$${Math.abs(diff).toLocaleString()}</span>`;
     }
-    histHtml += `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; padding-bottom:6px; border-bottom:1px solid rgba(255,255,255,0.05);">
+    histHtml += `<div class="balance-hist-item">
       <span style="font-size:11px;">${new Date(h.date).toLocaleDateString('ko-KR',{month:'short',day:'numeric'})}</span>
-      <div style="display:flex; align-items:center; gap:8px;">${diffHtml}<strong style="color:#eef2ff; font-size:13px;">$${curr.toLocaleString()}</strong></div>
+      <div style="display:flex; align-items:center;">
+        ${diffHtml}<strong style="color:#eef2ff; font-size:13px;">$${curr.toLocaleString()}</strong>
+        <button type="button" class="btn-del" style="margin-left:6px; padding:2px;" onclick="window.__desk.deleteBalanceHist(${h.id})" title="기록 삭제">✕</button>
+      </div>
     </div>`;
   });
   setHtml('balance-history', histHtml || '<div class="empty-state">내역 없음</div>');
+}
+
+function deleteBalanceHist(id) {
+  if(!confirm("이 잔고 기록을 삭제하시겠습니까?\n(가장 최신 기록이 삭제되면 이전 잔고로 롤백됩니다.)")) return;
+  state.db.meta.balanceHistory = state.db.meta.balanceHistory.filter(h => h.id !== id);
+  if(state.db.meta.balanceHistory.length > 0) {
+      state.db.meta.accountBalance = state.db.meta.balanceHistory[0].val;
+  } else {
+      state.db.meta.accountBalance = 10000;
+  }
+  saveDB(state.db);
+  setVal('account-size', state.db.meta.accountBalance);
+  renderAccountBalance();
+  updatePreview();
 }
 
 function renderOverview() {
