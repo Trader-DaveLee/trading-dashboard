@@ -15,7 +15,7 @@ const ID_LIST = [
   'view-overview','metrics','overview-from','overview-to','overview-clear','prev-month','calendar-title','next-month','calendar','equity-chart','setup-chart','mistake-list','research-notes',
   'view-journal','trade-form','trade-id','trade-date','btn-now','ticker','btn-manage-ticker','status','session','side','setup-entry','btn-manage-setup-entry','setup-exit','btn-manage-setup-exit','account-size','risk-pct','leverage','maker-fee','taker-fee','stop-price','stop-type','adjustment','tags','mistakes','emotion','btn-manage-emotion','context','thesis','review','artifacts',
   'add-entry','entries','add-exit','exits','calc-summary','toggle-deep-journal','deep-journal-section','quick-tags','quick-mistakes','live-notes','btn-insert-time',
-  'actual-balance','btn-update-balance','balance-history',
+  'actual-balance','balance-memo','btn-update-balance','balance-history',
   'duplicate-trade','reset-form','delete-trade',
   'desk-rules','risk-risk-dollar','risk-qty','risk-margin','risk-slider','risk-notional','risk-stop-distance','risk-fees',
   'view-library','q','f-from','f-to','f-status','sort','clear-filters','library-result-count','review-position','review-breadcrumb','prev-trade','next-trade','filter-same-setup','filter-same-ticker','clear-quick-filter','trade-table','detail','detail-insights'
@@ -94,7 +94,7 @@ function bindEvents() {
   
   if(els['toggle-deep-journal']) els['toggle-deep-journal'].onclick = (e) => {
     els['deep-journal-section'].classList.toggle('hidden');
-    e.target.textContent = els['deep-journal-section'].classList.contains('hidden') ? '📝 DEEP REVIEW (사후 복기 및 차트) ▼' : '📝 DEEP REVIEW (접기) ▲';
+    e.target.textContent = els['deep-journal-section'].classList.contains('hidden') ? '📝 SECTION 5: DEEP REVIEW (사후 복기 및 차트) ▼' : '📝 SECTION 5: DEEP REVIEW (접기) ▲';
   };
 
   if(els['btn-insert-time']) els['btn-insert-time'].onclick = () => {
@@ -106,11 +106,12 @@ function bindEvents() {
 
   if(els['btn-update-balance']) els['btn-update-balance'].onclick = () => {
     const val = Math.round(Number(els['actual-balance'].value));
+    const memo = getVal('balance-memo').trim();
     if(isNaN(val) || val <= 0) return;
     const hist = state.db.meta.balanceHistory;
     
     if(hist.length > 0) {
-        if (Math.round(hist[0].val) === val) { alert("최근 잔고와 동일한 금액입니다."); return; }
+        if (Math.round(hist[0].val) === val && hist[0].memo === memo) { alert("최근 잔고 및 메모와 동일합니다."); return; }
         const changePct = Math.abs(val - hist[0].val) / hist[0].val * 100;
         if (changePct > 30) {
             if(!confirm(`잔고가 이전 대비 ${changePct.toFixed(1)}%나 급변했습니다. 정말 입력하시겠습니까?\n(오타가 아니라면 확인을 눌러주세요)`)) return;
@@ -118,8 +119,13 @@ function bindEvents() {
     }
     
     state.db.meta.accountBalance = val;
-    state.db.meta.balanceHistory.unshift({ id: Date.now(), date: new Date().toISOString(), val: val });
-    saveDB(state.db); setVal('account-size', val); renderAccountBalance(); updatePreview(); persistDraft();
+    state.db.meta.balanceHistory.unshift({ id: Date.now(), date: new Date().toISOString(), val: val, memo: memo });
+    saveDB(state.db); 
+    setVal('account-size', val); 
+    setVal('balance-memo', ''); 
+    renderAccountBalance(); 
+    updatePreview(); 
+    persistDraft();
   };
 
   if(els['prev-trade']) els['prev-trade'].onclick = () => stepSelectedTrade(-1);
@@ -176,12 +182,17 @@ function renderAccountBalance() {
       if (diff > 0) diffHtml = `<span style="color:var(--green); font-size:11px; font-weight:bold; margin-right:6px;">+$${diff.toLocaleString()}</span>`;
       else if (diff < 0) diffHtml = `<span style="color:var(--red); font-size:11px; font-weight:bold; margin-right:6px;">-$${Math.abs(diff).toLocaleString()}</span>`;
     }
+    const memoHtml = h.memo ? `<div class="balance-hist-memo">📝 ${escapeHtml(h.memo)}</div>` : '';
+
     histHtml += `<div class="balance-hist-item">
-      <span style="font-size:11px;">${new Date(h.date).toLocaleDateString('ko-KR',{month:'short',day:'numeric'})}</span>
-      <div style="display:flex; align-items:center;">
-        ${diffHtml}<strong style="color:#eef2ff; font-size:13px;">$${curr.toLocaleString()}</strong>
-        <button type="button" class="btn-del" style="margin-left:6px; padding:2px;" onclick="window.__desk.deleteBalanceHist(${h.id})" title="기록 삭제">✕</button>
+      <div class="balance-hist-main">
+          <span style="font-size:11px;">${new Date(h.date).toLocaleDateString('ko-KR',{month:'short',day:'numeric'})}</span>
+          <div style="display:flex; align-items:center;">
+            ${diffHtml}<strong style="color:#eef2ff; font-size:13px;">$${curr.toLocaleString()}</strong>
+            <button type="button" class="btn-del" style="margin-left:6px; padding:2px;" onclick="window.__desk.deleteBalanceHist(${h.id})" title="기록 삭제">✕</button>
+          </div>
       </div>
+      ${memoHtml}
     </div>`;
   });
   setHtml('balance-history', histHtml || '<div class="empty-state">내역 없음</div>');
