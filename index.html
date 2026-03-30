@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Trading Desk Dashboard v11.0 (Premium)</title>
+  <title>Trading Desk Dashboard v12.0 (Premium)</title>
   <link rel="stylesheet" href="./css/styles.css" />
 </head>
 <body>
@@ -173,14 +173,23 @@
         </article>
         
         <aside class="journal-sidebar stack">
-          <article class="card compact-card">
-            <div class="section-head"><div><h3>Account Status</h3><p>거래소 실제 잔고 현황</p></div></div>
-            <div class="input-with-unit" style="margin-bottom:12px; border-color:var(--accent);">
-              <span class="unit" style="background:rgba(59,130,246,0.1); color:#fff; font-weight:bold;">$</span>
-              <input type="number" step="1" id="actual-balance" placeholder="실제 잔고 입력" style="font-size:16px; font-weight:bold; color:#fff;">
-              <button type="button" id="btn-update-balance" style="background:var(--accent); border:none; padding:0 16px; font-weight:bold; color:#fff; cursor:pointer; transition:0.2s;">저장</button>
+          <article class="card premium-balance-card">
+            <div class="section-head" style="border:none; padding-bottom:0; margin-bottom:12px;">
+              <div><h3 style="color:#fff; font-size:16px; display:flex; align-items:center; gap:6px;">💳 Account Status</h3><p style="color:#94a3b8;">거래소 실제 잔고 및 입출금</p></div>
             </div>
-            <div id="balance-history" style="font-size:12px; color:var(--muted); max-height:140px; overflow-y:auto; padding-right:4px;"></div>
+            
+            <div class="balance-input-wrapper">
+              <div class="input-with-unit" style="border-bottom-left-radius:0; border-bottom-right-radius:0; border:none; background:rgba(0,0,0,0.2);">
+                <span class="unit" style="background:transparent; color:#60a5fa; font-weight:bold; font-size:16px; border:none;">$</span>
+                <input type="number" step="1" id="actual-balance" placeholder="최종 잔고 입력" style="font-size:18px; font-weight:800; color:#fff; letter-spacing:0.5px;">
+              </div>
+              <div class="balance-memo-row">
+                <input type="text" id="balance-memo" placeholder="변동 사유 (예: 입금, 출금, 펀딩비)" />
+                <button type="button" id="btn-update-balance" class="btn-save-balance">업데이트</button>
+              </div>
+            </div>
+            
+            <div id="balance-history" class="balance-history-container"></div>
           </article>
 
           <article class="card compact-card">
@@ -222,6 +231,8 @@
           </div>
         </div>
         
+        <input type="hidden" id="f-side" value="ALL"><input type="hidden" id="f-session" value="ALL"><input type="hidden" id="f-setup" value=""><input type="hidden" id="f-tag" value=""><input type="hidden" id="f-mistake" value=""><input type="hidden" id="f-grade" value="ALL">
+
         <div class="review-bar">
           <div class="review-meta">
             <span class="subtle-pill" id="library-result-count" style="color:var(--accent); font-weight:bold;">0개 결과</span>
