@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Trading Desk Dashboard v2.4</title>
+  <title>Trading Desk Dashboard v2.3</title>
   <link rel="stylesheet" href="./css/styles.css" />
 </head>
 <body>
@@ -12,16 +12,11 @@
       <div class="brand-mark">₿</div>
       <div>
         <h1>Trading Desk Dashboard</h1>
-        <p>Performance · Journal · Review</p>
+        <p>Journal · Review · Performance</p>
       </div>
     </div>
     <div class="topbar-side">
       <nav id="nav"></nav>
-      <div class="backup-actions">
-        <button id="export-json" type="button">백업 저장</button>
-        <button id="import-json-btn" type="button">백업 불러오기</button>
-        <input id="import-json" type="file" accept="application/json" hidden />
-      </div>
       <div class="topbar-status">
         <strong id="journal-status">입력 상태 정상</strong>
         <span id="draft-saved-at">임시저장 없음</span>
@@ -30,8 +25,33 @@
   </header>
 
   <main class="container">
+    <section class="hero card">
+      <div>
+        <div class="eyebrow">Professional Trading Dashboard</div>
+        <h2>매매 기록과 복기를 한 화면에서 정리하는 개인 트레이딩 데스크</h2>
+        <p>
+          분할 진입/청산, 수수료, R, 태그, 실수, 감정, 플레이북 점수, 증거 자료를 빠르게 정리합니다.
+          불필요한 장식은 줄이고, 실제 매매 복기와 퍼포먼스 점검에 필요한 정보만 남겼습니다.
+        </p>
+      </div>
+      <div class="hero-side">
+        <div>
+          <span class="eyebrow">Desk Focus</span>
+          <strong id="hero-focus">데이터 축적 단계</strong>
+        </div>
+        <div>
+          <span class="eyebrow">Risk Leak</span>
+          <strong id="hero-leak">실수 태그 부족</strong>
+        </div>
+        <div>
+          <span class="eyebrow">Data Quality</span>
+          <strong id="hero-health">초기 세팅</strong>
+        </div>
+      </div>
+    </section>
+
     <section id="view-overview" class="view active">
-      <div id="metrics" class="metrics-grid metrics-grid-enhanced"></div>
+      <div id="metrics" class="metrics-grid"></div>
       <div class="grid grid-2">
         <article class="card">
           <div class="section-head">
@@ -52,21 +72,35 @@
           <div id="equity-chart" class="chart-box"></div>
         </article>
       </div>
-      <div class="grid grid-3 overview-secondary-grid">
+      <div class="grid grid-3">
         <article class="card"><div class="section-head"><div><h3>셋업 성과</h3><p>Entry setup 평균 R</p></div></div><div id="setup-chart" class="chart-box small"></div></article>
         <article class="card"><div class="section-head"><div><h3>주요 실수</h3><p>빈도와 비용 기준</p></div></div><div id="mistake-list" class="stack"></div></article>
-        <article class="card"><div class="section-head"><div><h3>Desk Notes</h3><p>현재 기록 기준 인사이트</p></div></div><div id="research-notes" class="stack"></div></article>
+        <article class="card"><div class="section-head"><div><h3>Desk Notes</h3><p>자동 인사이트</p></div></div><div id="research-notes" class="stack"></div></article>
       </div>
     </section>
 
     <section id="view-journal" class="view">
-      <div class="grid grid-journal refined-journal-grid">
+      <div class="grid grid-journal">
         <article class="card">
-          <div class="section-head"><div><h3>Trade Journal</h3><p>주문 기록 · 계산 · 복기</p></div></div>
+          <div class="section-head"><div><h3>Trade Journal</h3><p>실행 + 복기 입력</p></div></div>
+          <div class="desktop-tools">
+            <div class="quick-panel">
+              <div class="quick-row"><span>자주 쓰는 티커</span><div id="quick-tickers" class="chip-row"></div></div>
+              <div class="quick-row"><span>Entry Setup</span><div id="quick-entry-setups" class="chip-row"></div></div>
+              <div class="quick-row"><span>Exit Setup</span><div id="quick-exit-setups" class="chip-row"></div></div>
+              <div class="quick-row"><span>태그 빠른 입력</span><div id="quick-tags" class="chip-row"></div></div>
+              <div class="quick-row"><span>실수 빠른 입력</span><div id="quick-mistakes" class="chip-row"></div></div>
+            </div>
+            <div class="shortcut-box">
+              <div><strong>단축키</strong></div>
+              <div>⌘/Ctrl + S 저장</div>
+              <div>⌘/Ctrl + D 복제</div>
+              <div>⌘/Ctrl + K 라이브러리 검색</div>
+              <div>N 새 입력</div>
+            </div>
+          </div>
           <form id="trade-form" class="form-stack">
             <input type="hidden" id="trade-id" />
-            <input type="hidden" id="grade" value="B" />
-            <input type="hidden" id="playbook-score" value="5" />
             <div class="field-grid cols-4">
               <label><span>날짜/시간</span><input id="trade-date" type="datetime-local" required /></label>
               <label><span>티커</span><input id="ticker" list="ticker-list" placeholder="BTCUSDT" required /></label>
@@ -77,18 +111,24 @@
               <label><span>방향</span><select id="side"><option value="LONG">LONG</option><option value="SHORT">SHORT</option></select></label>
               <label><span>Entry Setup</span><input id="setup-entry" list="setup-entry-list" placeholder="BREAKOUT" /></label>
               <label><span>Exit Setup</span><input id="setup-exit" list="setup-exit-list" placeholder="TRAIL STOP" /></label>
-              <label><span>보정 손익 ($)</span><input id="adjustment" type="number" step="0.01" value="0" /></label>
+              <label><span>Grade</span><select id="grade"><option>A</option><option selected>B</option><option>C</option></select></label>
             </div>
             <div class="field-grid cols-4">
-              <label><span>계좌 잔고 ($)</span><input id="account-size" type="number" step="0.01" value="10000" /></label>
-              <label><span>허용 리스크 (%)</span><input id="risk-pct" type="number" step="0.01" value="0.5" /></label>
+              <label><span>계좌 ($)</span><input id="account-size" type="number" step="0.01" value="10000" /></label>
+              <label><span>리스크 (%)</span><input id="risk-pct" type="number" step="0.01" value="0.5" /></label>
               <label><span>레버리지</span><input id="leverage" type="number" step="0.1" value="10" /></label>
-              <label><span>손절가</span><input id="stop-price" type="number" step="0.01" /></label>
+              <label><span>플레이북 점수</span><input id="playbook-score" type="number" min="0" max="10" step="1" value="5" /></label>
             </div>
             <div class="field-grid cols-4">
               <label><span>Maker Fee (%)</span><input id="maker-fee" type="number" step="0.001" value="0.02" /></label>
               <label><span>Taker Fee (%)</span><input id="taker-fee" type="number" step="0.001" value="0.05" /></label>
+              <label><span>손절가</span><input id="stop-price" type="number" step="0.01" /></label>
               <label><span>손절 체결</span><select id="stop-type"><option value="M">Maker</option><option value="T">Taker</option></select></label>
+            </div>
+            <div class="field-grid cols-4">
+              <label><span>보정 손익 ($)</span><input id="adjustment" type="number" step="0.01" value="0" /></label>
+              <label><span>태그 (쉼표)</span><input id="tags" placeholder="breakout, ny-open" /></label>
+              <label><span>실수 태그 (쉼표)</span><input id="mistakes" placeholder="late entry, moved stop" /></label>
               <label><span>감정</span><input id="emotion" placeholder="calm / tired / FOMO" /></label>
             </div>
             <div class="field-grid cols-2">
@@ -101,19 +141,15 @@
                 <div id="exits"></div>
               </div>
             </div>
-            <div id="calc-summary" class="summary-box">유효한 입력값이 필요합니다.</div>
-            <div class="field-grid cols-2">
-              <label><span>태그 (쉼표)</span><input id="tags" placeholder="breakout, ny-open" /></label>
-              <label><span>실수 태그 (쉼표)</span><input id="mistakes" placeholder="late entry, moved stop" /></label>
-            </div>
             <div class="field-grid cols-2">
               <label><span>시장 컨텍스트</span><textarea id="context" placeholder="예: 4H reclaim after sweep"></textarea></label>
               <label><span>진입 논리 / 무효화</span><textarea id="thesis" placeholder="왜 진입했고 무엇이 틀리면 폐기되는지"></textarea></label>
             </div>
             <div class="field-grid cols-2">
-              <label><span>복기 메모</span><textarea id="review" placeholder="실행 평가, 개선 포인트, 다음 액션"></textarea></label>
+              <label><span>잘된 점 / 안 된 점 / 다음 액션</span><textarea id="review" placeholder="Plan respected / Cut runner early / Need firmer exit rules"></textarea></label>
               <label><span>증거 자료 링크 (줄바꿈)</span><textarea id="artifacts" placeholder="https://...&#10;https://..."></textarea></label>
             </div>
+            <div id="calc-summary" class="summary-box">유효한 입력값이 필요합니다.</div>
             <div class="inline-actions">
               <button type="submit" class="primary">저장</button>
               <button type="button" id="duplicate-trade">복제</button>
@@ -125,29 +161,23 @@
           <datalist id="setup-entry-list"></datalist>
           <datalist id="setup-exit-list"></datalist>
         </article>
-        <aside class="journal-sidebar stack">
-          <article class="card compact-card">
-            <div class="section-head"><div><h3>Trading Rules</h3><p>항상 보는 개인 원칙</p></div></div>
-            <textarea id="desk-rules" class="rules-box" placeholder="예: 
-1. 손절 전제 없는 진입 금지
-2. 기준 없는 추가 진입 금지
-3. 계획 없는 재진입 금지"></textarea>
-          </article>
-          <article class="card compact-card">
-            <div class="section-head"><div><h3>Risk Planner</h3><p>현재 입력 기준 자금관리 요약</p></div></div>
-            <div class="stack">
-              <div class="detail-box risk-box"><div class="kv"><div>허용 손실</div><div id="risk-risk-dollar" class="mono">$0.00</div><div>예상 수량</div><div id="risk-qty" class="mono">0.00000</div><div>증거금 사용</div><div id="risk-margin" class="mono">$0.00</div><div>명목 노출</div><div id="risk-notional" class="mono">$0.00</div><div>손절 거리</div><div id="risk-stop-distance" class="mono">0.00%</div><div>총 수수료</div><div id="risk-fees" class="mono">$0.00</div></div></div>
-              <div class="note-box small-note">주관 평가 항목은 제거하고, 실행과 자금관리 수치에 집중하도록 정리했습니다.</div>
-            </div>
-          </article>
-        </aside>
+        <article class="card">
+          <div class="section-head"><div><h3>입력 가이드</h3><p>데이터 품질 규칙</p></div></div>
+          <div class="stack">
+            <div class="note-box">1. 손익보다 먼저 <strong>컨텍스트·논리·실수</strong>를 남기십시오.</div>
+            <div class="note-box">2. 같은 셋업이라도 <strong>세션·감정·실행 품질</strong>이 다르면 다른 샘플로 보십시오.</div>
+            <div class="note-box">3. 실수 태그는 공격적으로 붙이십시오. 나중에 가장 큰 알파가 됩니다.</div>
+            <div class="note-box">4. 저장되는 수치는 원본 입력값 기준으로 항상 재계산됩니다.</div>
+            <div class="note-box">5. 복제 버튼은 비슷한 플레이를 빠르게 누적하는 용도입니다. 날짜만 바꿔 새 샘플로 저장하십시오.</div>
+          </div>
+        </article>
       </div>
     </section>
 
     <section id="view-library" class="view">
       <article class="card">
         <div class="section-head"><div><h3>Trade Library</h3><p>아카이브 검색 · 비교 · 복기</p></div></div>
-        <div class="filter-grid filter-grid-extended simplified-filters">
+        <div class="filter-grid filter-grid-extended">
           <label><span>검색</span><input id="q" placeholder="ticker, setup, tag, date" /></label>
           <label><span>From</span><input id="f-from" type="date" /></label>
           <label><span>To</span><input id="f-to" type="date" /></label>
@@ -157,6 +187,7 @@
           <label><span>셋업</span><input id="f-setup" placeholder="BREAKOUT" /></label>
           <label><span>태그</span><input id="f-tag" placeholder="trend-day" /></label>
           <label><span>실수 태그</span><input id="f-mistake" placeholder="moved stop" /></label>
+          <label><span>Grade</span><select id="f-grade"><option value="ALL">ALL</option><option>A</option><option>B</option><option>C</option></select></label>
           <label><span>정렬</span><select id="sort"><option value="newest">최신순</option><option value="oldest">오래된순</option><option value="bestR">R 높은순</option><option value="worstR">R 낮은순</option><option value="bestPnl">PnL 높은순</option><option value="worstPnl">PnL 낮은순</option></select></label>
           <div class="inline-actions align-end">
             <button id="clear-filters" type="button">필터 초기화</button>
@@ -164,9 +195,12 @@
         </div>
         <div class="inline-actions toolbar-bottom toolbar-split">
           <div class="inline-actions">
-            <span id="library-result-count" class="subtle-pill">0개 결과</span>
+            <button id="export-json">내보내기</button>
+            <button id="import-json-btn">가져오기</button>
+            <input id="import-json" type="file" accept="application/json" hidden />
           </div>
           <div class="inline-actions">
+            <span id="library-result-count" class="subtle-pill">0개 결과</span>
             <button id="compact-toggle" type="button">컴팩트 밀도</button>
           </div>
         </div>
@@ -195,6 +229,22 @@
       <div class="grid grid-2 detail-grid">
         <article class="card"><div class="section-head"><div><h3>상세 복기</h3><p>행 클릭 시 로드</p></div></div><div id="detail"></div></article>
         <article class="card"><div class="section-head"><div><h3>Review Console</h3><p>비교 샘플 · 빠른 평가</p></div></div><div id="detail-insights" class="stack"></div></article>
+      </div>
+    </section>
+
+    <section id="view-research" class="view">
+      <div class="grid grid-2">
+        <article class="card"><div class="section-head"><div><h3>셋업 리서치</h3><p>표본 수와 평균 R</p></div></div><div id="research-setups" class="stack"></div></article>
+        <article class="card"><div class="section-head"><div><h3>실수 비용</h3><p>누적 손익과 평균 R</p></div></div><div id="research-mistakes" class="stack"></div></article>
+      </div>
+      <div class="grid grid-3">
+        <article class="card"><div class="section-head"><div><h3>감정별 성과</h3><p>Emotion bucket</p></div></div><div id="research-emotions" class="stack"></div></article>
+        <article class="card"><div class="section-head"><div><h3>플레이북 점수</h3><p>점수대별 평균 R</p></div></div><div id="research-discipline" class="stack"></div></article>
+        <article class="card"><div class="section-head"><div><h3>세션별 성과</h3><p>언제 돈을 버는지</p></div></div><div id="research-sessions" class="stack"></div></article>
+      </div>
+      <div class="grid grid-2">
+        <article class="card"><div class="section-head"><div><h3>Grade 성과</h3><p>주관 평가와 실제 수익 비교</p></div></div><div id="research-grades" class="stack"></div></article>
+        <article class="card"><div class="section-head"><div><h3>최근 20트레이드 진단</h3><p>단기 컨디션 체크</p></div></div><div id="research-recent" class="stack"></div></article>
       </div>
     </section>
   </main>

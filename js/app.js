@@ -1,5 +1,5 @@
 import { recalcTrade } from './calc.js';
-import { summarize, groupAverageR, countTags, tagStats, bucketStats, recentWindowStats } from './analytics.js';
+import { summarize, groupAverageR, countTags, tagStats, emotionStats, playbookBuckets, bucketStats, recentWindowStats } from './analytics.js';
 import { loadDB, saveDB, exportDB, parseImport, normalizeTrade, loadDraft, saveDraft, clearDraft, loadPrefs, savePrefs } from './storage.js';
 
 const state = {
@@ -14,7 +14,7 @@ const state = {
   draftMeta: null,
 };
 
-const views = ['overview', 'journal', 'library'];
+const views = ['overview', 'journal', 'library', 'research'];
 const els = {};
 window.__desk = {
   selectTrade: id => selectTrade(id),
@@ -22,7 +22,7 @@ window.__desk = {
   applySameTickerFilter: () => filterBySelectedTicker(),
   loadSelectedIntoJournal: () => openSelectedInJournal(),
 };
-const ID_LIST = ['nav','metrics','calendar','calendar-title','equity-chart','setup-chart','mistake-list','research-notes','entries','exits','calc-summary','trade-form','trade-id','trade-date','ticker','status','session','side','setup-entry','setup-exit','grade','account-size','risk-pct','leverage','playbook-score','maker-fee','taker-fee','stop-price','stop-type','adjustment','tags','mistakes','emotion','context','thesis','review','artifacts','trade-table','detail','detail-insights','q','f-from','f-to','f-status','f-side','f-session','f-setup','f-tag','f-mistake','sort','ticker-list','setup-entry-list','setup-exit-list','journal-status','draft-saved-at','library-result-count','compact-toggle','review-position','review-breadcrumb','prev-trade','next-trade','filter-same-setup','filter-same-ticker','clear-quick-filter','export-json','import-json-btn','import-json','desk-rules','risk-risk-dollar','risk-qty','risk-margin','risk-notional','risk-stop-distance','risk-fees'];
+const ID_LIST = ['nav','metrics','calendar','calendar-title','equity-chart','setup-chart','mistake-list','research-notes','hero-focus','hero-leak','hero-health','entries','exits','calc-summary','trade-form','trade-id','trade-date','ticker','status','session','side','setup-entry','setup-exit','grade','account-size','risk-pct','leverage','playbook-score','maker-fee','taker-fee','stop-price','stop-type','adjustment','tags','mistakes','emotion','context','thesis','review','artifacts','trade-table','detail','detail-insights','q','f-from','f-to','f-status','f-side','f-session','f-setup','f-tag','f-mistake','f-grade','sort','ticker-list','setup-entry-list','setup-exit-list','research-setups','research-mistakes','research-emotions','research-discipline','research-sessions','research-grades','research-recent','journal-status','draft-saved-at','quick-tickers','quick-entry-setups','quick-exit-setups','quick-tags','quick-mistakes','library-result-count','compact-toggle','review-position','review-breadcrumb','prev-trade','next-trade','filter-same-setup','filter-same-ticker','clear-quick-filter'];
 
 bootstrap();
 
@@ -58,11 +58,11 @@ function bindEvents() {
   els['trade-form'].addEventListener('submit', handleSubmit);
   bindKeyboardShortcuts();
 
-  ['trade-date','ticker','status','session','side','setup-entry','setup-exit','grade','account-size','risk-pct','leverage','playbook-score','maker-fee','taker-fee','stop-price','stop-type','adjustment','tags','mistakes','emotion','context','thesis','review','artifacts','desk-rules'].forEach(id => {
+  ['trade-date','ticker','status','session','side','setup-entry','setup-exit','grade','account-size','risk-pct','leverage','playbook-score','maker-fee','taker-fee','stop-price','stop-type','adjustment','tags','mistakes','emotion','context','thesis','review','artifacts'].forEach(id => {
     els[id].addEventListener('input', () => { markDirty(); updatePreview(); persistDraft(); });
     els[id].addEventListener('change', () => { markDirty(); updatePreview(); persistDraft(); });
   });
-  ['q','f-from','f-to','f-status','f-side','f-session','f-setup','f-tag','f-mistake','sort'].forEach(id => {
+  ['q','f-from','f-to','f-status','f-side','f-session','f-setup','f-tag','f-mistake','f-grade','sort'].forEach(id => {
     els[id].addEventListener('input', renderLibrary);
     els[id].addEventListener('change', renderLibrary);
   });
@@ -72,7 +72,9 @@ function render() {
   renderNav();
   renderMetaLists();
   renderOverview();
+  renderQuickFill();
   renderLibrary();
+  renderResearch();
   applyPrefs();
   updatePreview();
   refreshJournalStatus();
@@ -90,8 +92,6 @@ function switchView(view) {
 }
 
 function renderMetaLists() {
-  els['desk-rules'].value = state.prefs.deskRules || '';
-
   els['ticker-list'].innerHTML = uniq(state.db.meta.tickers).sort().map(v => `<option value="${escapeHtml(v)}"></option>`).join('');
   els['setup-entry-list'].innerHTML = uniq(state.db.meta.entrySetups).sort().map(v => `<option value="${escapeHtml(v)}"></option>`).join('');
   els['setup-exit-list'].innerHTML = uniq(state.db.meta.exitSetups).sort().map(v => `<option value="${escapeHtml(v)}"></option>`).join('');
@@ -100,20 +100,23 @@ function renderMetaLists() {
 function renderOverview() {
   const s = summarize(state.db.trades);
   const metrics = [
-    { label: 'Net PnL', value: money(s.net), sub: `${s.closed.length} closed trades`, tone: 'metric-profit', size: 'primary' },
-    { label: 'Profit Factor', value: s.profitFactor === Infinity ? 'MAX' : s.profitFactor.toFixed(2), sub: 'gross profit / gross loss', tone: 'metric-accent', size: 'primary' },
-    { label: 'Win Rate', value: `${s.winRate.toFixed(1)}%`, sub: `${s.wins.length}W / ${s.losses.length}L`, tone: 'metric-accent', size: 'primary' },
-    { label: 'Expectancy', value: money(s.expectancy), sub: '평균 달러 기대값', tone: 'metric-neutral', size: 'secondary' },
-    { label: 'Average R', value: `${s.avgR.toFixed(2)}R`, sub: '닫힌 트레이드 기준', tone: 'metric-accent', size: 'secondary' },
-    { label: 'Max Drawdown', value: money(s.maxDD), sub: '누적 손익 기준', tone: 'metric-loss', size: 'secondary' },
-    { label: 'Fees Paid', value: money(s.fees), sub: '닫힌 트레이드 총 수수료', tone: 'metric-warn', size: 'secondary' },
-    { label: 'Leak Rate', value: `${s.leakRate.toFixed(1)}%`, sub: '실수 태그 포함 비율', tone: 'metric-warn', size: 'tertiary' },
-    { label: 'Avg Win', value: money(s.avgWin), sub: '이긴 트레이드 평균', tone: 'metric-profit', size: 'tertiary' },
-    { label: 'Avg Loss', value: money(s.avgLoss), sub: '진 트레이드 평균', tone: 'metric-loss', size: 'tertiary' },
-    { label: 'Open Trades', value: `${state.db.trades.filter(t => t.status === 'OPEN').length}`, sub: '미청산 기록', tone: 'metric-neutral', size: 'tertiary' },
-    { label: 'Best Setup', value: bestSetupLabel(s.closed), sub: '표본 2개 이상 우선', tone: 'metric-accent', size: 'tertiary' },
+    ['Net PnL', money(s.net), `${s.closed.length} closed trades`],
+    ['Profit Factor', s.profitFactor === Infinity ? 'MAX' : s.profitFactor.toFixed(2), 'gross profit / gross loss'],
+    ['Win Rate', `${s.winRate.toFixed(1)}%`, `${s.wins.length}W / ${s.losses.length}L`],
+    ['Expectancy', money(s.expectancy), '평균 달러 기대값'],
+    ['Average R', `${s.avgR.toFixed(2)}R`, '닫힌 트레이드 기준'],
+    ['Max Drawdown', money(s.maxDD), '누적 손익 기준'],
+    ['Fees Paid', money(s.fees), '닫힌 트레이드 총 수수료'],
+    ['Leak Rate', `${s.leakRate.toFixed(1)}%`, '실수 태그 포함 비율'],
+    ['Avg Win', money(s.avgWin), '이긴 트레이드 평균'],
+    ['Avg Loss', money(s.avgLoss), '진 트레이드 평균'],
+    ['Open Trades', `${state.db.trades.filter(t => t.status === 'OPEN').length}`, '미청산 기록'],
+    ['Best Setup', bestSetupLabel(s.closed), '표본 2개 이상 우선'],
   ];
-  els.metrics.innerHTML = metrics.map(item => `<div class="metric ${item.tone} ${item.size}"><div class="label">${item.label}</div><div class="value ${numberClass(item.value)}">${item.value}</div><div class="sub">${item.sub}</div></div>`).join('');
+  els.metrics.innerHTML = metrics.map(([labelText, value, sub]) => `<div class="metric"><div class="label">${labelText}</div><div class="value ${numberClass(value)}">${value}</div><div class="sub">${sub}</div></div>`).join('');
+  els['hero-focus'].textContent = bestFocus(s.closed);
+  els['hero-leak'].textContent = biggestLeak(s.closed);
+  els['hero-health'].textContent = systemHealth(s.closed);
   renderCalendar();
   renderEquity(s.closed);
   renderSetupChart(s.closed);
@@ -204,6 +207,7 @@ function filteredTrades() {
   const setup = els['f-setup'].value.trim().toLowerCase();
   const tag = els['f-tag'].value.trim().toLowerCase();
   const mistake = els['f-mistake'].value.trim().toLowerCase();
+  const grade = els['f-grade'].value;
   const sort = els.sort.value;
   const arr = state.db.trades.filter(t => {
     const day = t.date.slice(0, 10);
@@ -214,6 +218,7 @@ function filteredTrades() {
     if (status !== 'ALL' && t.status !== status) return false;
     if (side !== 'ALL' && t.side !== side) return false;
     if (session !== 'ALL' && t.session !== session) return false;
+    if (grade !== 'ALL' && t.grade !== grade) return false;
     if (setup && !String(t.setupEntry || '').toLowerCase().includes(setup)) return false;
     if (tag && !(t.tags || []).some(x => x.toLowerCase().includes(tag))) return false;
     if (mistake && !(t.mistakes || []).some(x => x.toLowerCase().includes(mistake))) return false;
@@ -264,6 +269,7 @@ function renderDetail() {
         <div>셋업</div><div>${escapeHtml(trade.setupEntry)} / ${escapeHtml(trade.setupExit)}</div>
         <div>손익</div><div class="mono ${trade.metrics.pnl >= 0 ? 'positive' : 'negative'}">${money(trade.metrics.pnl)}</div>
         <div>R</div><div class="mono ${trade.metrics.r >= 0 ? 'positive' : 'negative'}">${trade.metrics.r.toFixed(2)}R</div>
+        <div>플레이북</div><div>${trade.playbookScore}/10 · Grade ${trade.grade}</div>
         <div>수수료</div><div class="mono">${money(trade.metrics.totalFees)}</div>
       </div>
     </div>
@@ -285,6 +291,36 @@ function renderDetail() {
     <div class="detail-box"><strong>유사 샘플</strong><div class="similar-list">${similar.length ? similar.map(item => `<div class="similar-item" onclick="window.__desk.selectTrade('${item.id}')"><strong>${fmtDateTime(item.date)}</strong><div>${escapeHtml(item.ticker)} · ${escapeHtml(item.setupEntry)} · <span class="${item.metrics.r >= 0 ? 'positive' : 'negative'}">${item.metrics.r.toFixed(2)}R</span></div></div>`).join('') : '<span class="neutral">비교할 샘플 부족</span>'}</div></div>
   `;
   loadTradeIntoForm(trade);
+}
+
+function renderResearch() {
+  const closed = state.db.trades.filter(t => t.status === 'CLOSED');
+  const setups = groupAverageR(closed, t => t.setupEntry);
+  els['research-setups'].innerHTML = setups.length ? setups.map(x => `<div class="note-box"><strong>${escapeHtml(x.label)}</strong><div>표본 ${x.count}개 · 평균 ${x.value.toFixed(2)}R</div></div>`).join('') : emptyState('데이터 없음');
+
+  const mistakes = tagStats(closed, t => t.mistakes).slice(0, 10);
+  els['research-mistakes'].innerHTML = mistakes.length ? mistakes.map(x => `<div class="note-box"><strong>${escapeHtml(x.label)}</strong><div>표본 ${x.count}개 · 누적 ${money(x.totalPnl)} · 평균 ${x.avgR.toFixed(2)}R · 승률 ${x.winRate.toFixed(1)}%</div></div>`).join('') : emptyState('실수 태그 없음');
+
+  const emotions = emotionStats(closed);
+  els['research-emotions'].innerHTML = emotions.length ? emotions.map(x => `<div class="note-box"><strong>${escapeHtml(x.label)}</strong><div>표본 ${x.count}개 · 평균 ${x.avgR.toFixed(2)}R · 승률 ${x.winRate.toFixed(1)}%</div></div>`).join('') : emptyState('감정 데이터 없음');
+
+  const playbook = playbookBuckets(closed);
+  els['research-discipline'].innerHTML = playbook.length ? playbook.map(x => `<div class="note-box"><strong>점수 ${escapeHtml(x.label)}</strong><div>표본 ${x.count}개 · 평균 ${x.avgR.toFixed(2)}R · 평균 ${money(x.avgPnl)}</div></div>`).join('') : emptyState('플레이북 점수 데이터 없음');
+
+  const sessions = bucketStats(closed, t => t.session);
+  els['research-sessions'].innerHTML = sessions.length ? sessions.map(x => `<div class="note-box"><strong>${escapeHtml(x.label)}</strong><div>표본 ${x.count}개 · 평균 ${x.avgR.toFixed(2)}R · 누적 ${money(x.totalPnl)}</div></div>`).join('') : emptyState('세션 데이터 없음');
+
+  const grades = bucketStats(closed, t => t.grade);
+  els['research-grades'].innerHTML = grades.length ? grades.map(x => `<div class="note-box"><strong>Grade ${escapeHtml(x.label)}</strong><div>표본 ${x.count}개 · 평균 ${x.avgR.toFixed(2)}R · 승률 ${x.winRate.toFixed(1)}%</div></div>`).join('') : emptyState('Grade 데이터 없음');
+
+  const recent = recentWindowStats(closed, 20);
+  const recentNotes = [];
+  if (recent.count) recentNotes.push(`<strong>최근 ${recent.count}개</strong> · 평균 ${recent.avgR.toFixed(2)}R · 순손익 ${money(recent.netPnl)} · 승률 ${recent.winRate.toFixed(1)}%`);
+  const recentSetups = groupAverageR([...closed].sort((a, b) => new Date(a.date) - new Date(b.date)).slice(-20), t => t.setupEntry).slice(0, 3);
+  if (recentSetups[0]) recentNotes.push(`최근 구간 최고 셋업은 <strong>${escapeHtml(recentSetups[0].label)}</strong>입니다.`);
+  const recentMistakes = countTags([...closed].sort((a, b) => new Date(a.date) - new Date(b.date)).slice(-20), t => t.mistakes).slice(0, 3);
+  if (recentMistakes[0]) recentNotes.push(`최근 구간에서 가장 반복된 실수는 <strong>${escapeHtml(recentMistakes[0].label)}</strong>입니다.`);
+  els['research-recent'].innerHTML = recentNotes.length ? recentNotes.map(x => `<div class="note-box">${x}</div>`).join('') : emptyState('최근 데이터 없음');
 }
 
 function handleSubmit(event) {
@@ -492,38 +528,19 @@ function renderLegs(kind) {
 function updatePreview() {
   const metrics = recalcTrade(readForm());
   if (metrics.directionError) {
-    resetRiskPlanner();
     els['calc-summary'].innerHTML = '손절 방향이 포지션 방향과 맞지 않습니다.';
     return;
   }
   if (!metrics.valid) {
-    resetRiskPlanner();
     els['calc-summary'].innerHTML = '유효한 진입가, 손절가, 진입 비중 100%가 필요합니다.';
     return;
   }
   const exitWeight = sum(state.draftExits.map(x => Number(x.weight || 0)));
-  els['risk-risk-dollar'].textContent = money(metrics.riskDollar);
-  els['risk-qty'].textContent = metrics.qty.toFixed(5);
-  els['risk-margin'].textContent = money(metrics.margin);
-  els['risk-notional'].textContent = money(metrics.qty * metrics.avgEntry);
-  const stopDistance = metrics.avgEntry ? Math.abs(metrics.avgEntry - Number(els['stop-price'].value || 0)) / metrics.avgEntry * 100 : 0;
-  els['risk-stop-distance'].textContent = `${stopDistance.toFixed(2)}%`;
-  els['risk-fees'].textContent = money(metrics.totalFees);
   els['calc-summary'].innerHTML = `
     Qty <strong>${metrics.qty.toFixed(5)}</strong> · Avg Entry <strong>${num(metrics.avgEntry)}</strong> · Margin <strong>${money(metrics.margin)}</strong><br>
     Avg Exit <strong>${metrics.avgExit ? num(metrics.avgExit) : '-'}</strong> · Exit Weight <strong>${exitWeight}%</strong> · Fees <strong>${money(metrics.totalFees)}</strong><br>
     Risk <strong>${money(metrics.riskDollar)}</strong> · Net PnL <strong class="${metrics.pnl >= 0 ? 'positive' : 'negative'}">${money(metrics.pnl)}</strong> · <strong class="${metrics.r >= 0 ? 'positive' : 'negative'}">${metrics.r.toFixed(2)}R</strong>
   `;
-}
-
-
-function resetRiskPlanner() {
-  els['risk-risk-dollar'].textContent = money(0);
-  els['risk-qty'].textContent = '0.00000';
-  els['risk-margin'].textContent = money(0);
-  els['risk-notional'].textContent = money(0);
-  els['risk-stop-distance'].textContent = '0.00%';
-  els['risk-fees'].textContent = money(0);
 }
 
 function handleImport(event) {
@@ -546,7 +563,7 @@ function handleImport(event) {
 
 function clearFilters() {
   ['q','f-from','f-to','f-setup','f-tag','f-mistake'].forEach(id => els[id].value = '');
-  ['f-status','f-side','f-session'].forEach(id => els[id].value = 'ALL');
+  ['f-status','f-side','f-session','f-grade'].forEach(id => els[id].value = 'ALL');
   els.sort.value = 'newest';
   renderLibrary();
 }
@@ -635,6 +652,7 @@ function openSelectedInJournal() {
 function tradeInsights(trade) {
   const arr = [];
   arr.push(`이 트레이드는 <strong>${trade.setupEntry || 'UNLABELED'}</strong> 셋업 샘플입니다.`);
+  arr.push(`플레이북 점수는 <strong>${trade.playbookScore}/10</strong>, Grade는 <strong>${trade.grade}</strong>입니다.`);
   arr.push((trade.mistakes || []).length ? `실수 태그가 <strong>${trade.mistakes.length}개</strong> 달려 있습니다.` : '실수 태그가 없습니다. 결과가 좋아도 실행 검토가 필요합니다.');
   arr.push(trade.metrics.totalFees > 0 ? `수수료는 <strong>${money(trade.metrics.totalFees)}</strong>입니다.` : '수수료 정보가 충분하지 않습니다.');
   arr.push(trade.status === 'OPEN' ? '미청산 기록입니다. 종료 후 재평가가 필요합니다.' : `이 트레이드의 결과는 <strong>${trade.metrics.r.toFixed(2)}R</strong>입니다.`);
@@ -695,8 +713,6 @@ function applyDraftToForm(draft) {
 function persistDraft() {
   const draft = snapshotDraft();
   saveDraft(draft);
-  state.prefs.deskRules = els['desk-rules'].value;
-  savePrefs(state.prefs);
   state.draftMeta = new Date().toISOString();
   refreshJournalStatus();
 }
@@ -855,7 +871,7 @@ function barSvg(data) {
   }).join('')}</svg>`;
 }
 
-function label(v) { return ({ overview: 'Overview', journal: 'Journal', library: 'Library' })[v]; }
+function label(v) { return ({ overview: 'Overview', journal: 'Journal', library: 'Library', research: 'Research' })[v]; }
 function money(n) { const v = Number(n || 0); return `${v < 0 ? '-' : ''}$${Math.abs(v).toFixed(2)}`; }
 function num(n) { return Number(n || 0).toFixed(2); }
 function numberClass(v) {
