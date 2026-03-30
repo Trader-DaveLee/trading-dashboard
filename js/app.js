@@ -94,7 +94,7 @@ function bindEvents() {
   
   if(els['toggle-deep-journal']) els['toggle-deep-journal'].onclick = (e) => {
     els['deep-journal-section'].classList.toggle('hidden');
-    e.target.textContent = els['deep-journal-section'].classList.contains('hidden') ? '📝 SECTION 5: DEEP REVIEW (사후 복기 및 차트) ▼' : '📝 SECTION 5: DEEP REVIEW (접기) ▲';
+    e.target.textContent = els['deep-journal-section'].classList.contains('hidden') ? '📝 DEEP REVIEW (사후 복기 및 차트) ▼' : '📝 DEEP REVIEW (접기) ▲';
   };
 
   if(els['btn-insert-time']) els['btn-insert-time'].onclick = () => {
@@ -144,7 +144,10 @@ function bindEvents() {
   });
 }
 
-function render() { renderNav(); renderOverview(); renderQuickFill(); renderLibrary(); renderAccountBalance(); updatePreview(); refreshJournalStatus(); }
+function render() { 
+  if(els['desk-rules'] && state.prefs) { els['desk-rules'].value = state.prefs.deskRules || ''; }
+  renderNav(); renderOverview(); renderQuickFill(); renderLibrary(); renderAccountBalance(); updatePreview(); refreshJournalStatus(); 
+}
 
 function renderNav() {
   if(!els.nav) return;
