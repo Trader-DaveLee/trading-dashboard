@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Trading Desk Dashboard v10.0 (Premium)</title>
+  <title>Trading Desk Dashboard v11.0 (Premium)</title>
   <link rel="stylesheet" href="./css/styles.css" />
 </head>
 <body>
@@ -83,8 +83,10 @@
           <form id="trade-form" class="form-stack">
             <input type="hidden" id="trade-id" />
             
-            <div class="section-head" style="margin-top:0;"><div><h3 style="color:var(--accent);">1. TRADE CONTEXT</h3><p>기본 거래 정보</p></div></div>
-            <div class="field-grid cols-4">
+            <div class="section-head premium-sec-head" style="border-left-color: var(--accent);">
+              <div><h3 style="color:var(--text);">TRADE CONTEXT</h3><p>기본 거래 정보</p></div>
+            </div>
+            <div class="field-grid responsive-cols">
               <label><span>날짜/시간</span>
                 <div class="input-group">
                   <input id="trade-date" type="datetime-local" required />
@@ -94,29 +96,29 @@
               <label><span>티커</span><div class="input-group"><select id="ticker" required></select><button type="button" id="btn-manage-ticker" class="gear-btn">⚙️</button></div></label>
               <label><span>상태</span><select id="status"><option value="CLOSED">CLOSED</option><option value="OPEN">OPEN</option></select></label>
               <label><span>방향</span><select id="side"><option value="LONG">LONG</option><option value="SHORT">SHORT</option></select></label>
-            </div>
-            <div class="field-grid cols-4">
               <label><span>Entry Setup</span><div class="input-group"><select id="setup-entry"></select><button type="button" id="btn-manage-setup-entry" class="gear-btn">⚙️</button></div></label>
               <label><span>Exit Setup</span><div class="input-group"><select id="setup-exit"></select><button type="button" id="btn-manage-setup-exit" class="gear-btn">⚙️</button></div></label>
               <label><span>세션</span><select id="session"><option>ASIA</option><option>LONDON</option><option>NEW YORK</option><option>OVERLAP</option></select></label>
               <label><span>감정 (Emotion)</span><div class="input-group"><select id="emotion"></select><button type="button" id="btn-manage-emotion" class="gear-btn">⚙️</button></div></label>
             </div>
             
-            <div class="section-head" style="margin-top:20px;"><div><h3 style="color:var(--warn);">2. RISK & SIZING</h3><p>증거금 및 리스크 계산</p></div></div>
-            <div class="field-grid cols-4">
+            <div class="section-head premium-sec-head" style="border-left-color: var(--warn); margin-top:20px;">
+              <div><h3 style="color:var(--text);">RISK & SIZING</h3><p>증거금 및 리스크 계산</p></div>
+            </div>
+            <div class="field-grid responsive-cols">
               <label><span>매매용 시드 ($)</span><input id="account-size" type="number" step="1" value="10000" /></label>
               <label><span>리스크 (%)</span><input id="risk-pct" type="number" step="0.01" value="0.5" /></label>
               <label><span>레버리지</span><input id="leverage" type="number" step="0.1" value="10" /></label>
               <label><span>손절가 (SL)</span><input id="stop-price" type="number" step="0.01" /></label>
-            </div>
-            <div class="field-grid cols-4">
               <label><span>Maker Fee (%)</span><input id="maker-fee" type="number" step="0.001" value="0.02" /></label>
               <label><span>Taker Fee (%)</span><input id="taker-fee" type="number" step="0.001" value="0.05" /></label>
               <label><span>손절 체결 방식</span><select id="stop-type"><option value="M">Maker</option><option value="T">Taker</option></select></label>
               <label><span>미세 보정 (+/- $)</span><input id="adjustment" type="number" step="0.01" value="0" /></label>
             </div>
             
-            <div class="section-head" style="margin-top:20px;"><div><h3 style="color:#a78bfa;">3. EXECUTION</h3><p>타점 및 청산 분할 기록</p></div></div>
+            <div class="section-head premium-sec-head" style="border-left-color: #a78bfa; margin-top:20px;">
+              <div><h3 style="color:var(--text);">EXECUTION</h3><p>타점 및 청산 분할 기록</p></div>
+            </div>
             <div class="field-grid cols-2">
               <div>
                 <div class="mini-head"><h4 style="color:var(--muted);">SCALING-IN (진입 합계 100%)</h4><button type="button" id="add-entry" class="tool-btn">+ 추가</button></div>
@@ -129,7 +131,9 @@
             </div>
             <div id="calc-summary" class="summary-box">유효한 입력값이 필요합니다.</div>
 
-            <div class="section-head" style="margin-top:20px;"><div><h3 style="color:#10b981;">4. LIVE MANAGEMENT</h3><p>실시간 포지션 대응 로그</p></div></div>
+            <div class="section-head premium-sec-head" style="border-left-color: var(--green); margin-top:20px;">
+              <div><h3 style="color:var(--text);">LIVE MANAGEMENT</h3><p>실시간 포지션 대응 로그</p></div>
+            </div>
             <div style="background:#0e131d; border:1px solid #2c3850; border-radius:12px; padding:16px;">
                 <div class="mini-head" style="margin-bottom:8px;">
                     <span style="font-size:12px; color:var(--muted);">보유 중 발생하는 시그널, 대응 등을 자유롭게 기록하세요.</span>
@@ -138,7 +142,7 @@
                 <textarea id="live-notes" style="min-height:120px; font-family:monospace; font-size:13px; line-height:1.6;" placeholder="예) [14:30] 5분봉 20선 이탈 확인, 지지선까지 홀딩."></textarea>
             </div>
 
-            <button type="button" id="toggle-deep-journal" class="toggle-btn" style="margin-top:24px;">📝 SECTION 5: DEEP REVIEW (사후 복기 및 차트) ▼</button>
+            <button type="button" id="toggle-deep-journal" class="toggle-btn" style="margin-top:24px;">📝 DEEP REVIEW (사후 복기 및 차트) ▼</button>
             
             <div id="deep-journal-section" class="hidden form-stack" style="margin-top:15px; padding-top:15px; border-top:1px dashed var(--line);">
               <div class="field-grid cols-2">
@@ -159,7 +163,7 @@
               </div>
             </div>
 
-            <div class="inline-actions" style="margin-top:30px; display:flex; gap:12px;">
+            <div class="inline-actions" style="margin-top:24px; display:flex; gap:12px;">
               <button type="submit" class="btn-save-trade" style="flex:2;">💾 Save & Update Trade</button>
               <button type="button" id="duplicate-trade" class="tool-btn" style="flex:1; padding:16px;">복제</button>
               <button type="button" id="reset-form" class="tool-btn" style="flex:1; padding:16px;">초기화</button>
@@ -195,6 +199,11 @@
               </div>
             </div>
           </article>
+          
+          <article class="card compact-card premium-rules">
+            <div class="section-head"><div><h3>Trading Rules</h3><p>나만의 매매 원칙</p></div></div>
+            <textarea id="desk-rules" class="rules-box" placeholder="1. 손절 없이 진입 금지&#10;2. 뇌동매매 금지..."></textarea>
+          </article>
         </aside>
       </div>
     </section>
@@ -203,7 +212,7 @@
       <article class="card">
         <div class="section-head"><div><h3>Trade Library</h3><p>아카이브 검색 · 비교 · 복기</p></div></div>
         <div class="filter-grid filter-grid-extended">
-          <label><span>검색</span><input id="q" placeholder="ticker, setup, tag..." /></label>
+          <label><span>검색</span><input id="q" placeholder="ticker, setup, tag, text..." /></label>
           <label><span>From</span><input id="f-from" type="date" /></label>
           <label><span>To</span><input id="f-to" type="date" /></label>
           <label><span>상태</span><select id="f-status"><option value="ALL">ALL</option><option>OPEN</option><option>CLOSED</option></select></label>
@@ -213,8 +222,6 @@
           </div>
         </div>
         
-        <input type="hidden" id="f-side" value="ALL"><input type="hidden" id="f-session" value="ALL"><input type="hidden" id="f-setup" value=""><input type="hidden" id="f-tag" value=""><input type="hidden" id="f-mistake" value=""><input type="hidden" id="f-grade" value="ALL">
-
         <div class="review-bar">
           <div class="review-meta">
             <span class="subtle-pill" id="library-result-count" style="color:var(--accent); font-weight:bold;">0개 결과</span>
@@ -237,7 +244,7 @@
         </div>
       </article>
       
-      <div class="grid grid-2 detail-grid" style="margin-top:24px;">
+      <div class="grid grid-2 detail-grid" style="margin-top:20px;">
         <article class="card"><div class="section-head"><div><h3>상세 복기</h3><p>행 클릭 시 로드</p></div></div><div id="detail"></div></article>
         <article class="card"><div class="section-head"><div><h3>Review Console</h3><p>비교 샘플 및 평가</p></div></div><div id="detail-insights" class="stack"></div></article>
       </div>
