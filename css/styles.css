@@ -15,6 +15,7 @@ button, input, select, textarea { font: inherit; }
 button { cursor: pointer; }
 .hidden { display: none !important; }
 
+/* Topbar */
 .topbar { position: sticky; top: 0; z-index: 50; display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 16px 24px; backdrop-filter: blur(16px); background: rgba(9, 11, 16, 0.85); border-bottom: 1px solid rgba(255,255,255,0.05); }
 .brand { display: flex; gap: 14px; align-items: center; }
 .brand h1 { margin: 0; font-size: 19px; color:#fff; letter-spacing:-0.5px;}
@@ -42,10 +43,12 @@ button { cursor: pointer; }
 .view.active { display: block; animation: fadeIn 0.3s ease; }
 @keyframes fadeIn { from {opacity:0; transform:translateY(8px);} to {opacity:1; transform:translateY(0);} }
 
+/* Overview Date Filter */
 .date-filter-box { display:flex; align-items:center; gap:8px; background: rgba(255,255,255,0.03); padding: 8px 16px; border-radius: 12px; border: 1px solid var(--line); }
 .date-filter-box input { background: transparent; border: none; padding: 4px 8px; color: #fff; width: 110px; font-size:13px; outline:none; font-family:inherit;}
 .date-filter-box input::-webkit-calendar-picker-indicator { filter: invert(1); cursor:pointer;}
 
+/* Metrics - Gradient & Hover Effects */
 .metrics-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 16px; margin-bottom: 24px; }
 .metric { 
   position: relative; overflow: hidden;
@@ -83,7 +86,7 @@ button { cursor: pointer; }
 .section-head h3 { margin: 0; font-size: 16px; font-weight:700; color:#fff;}
 .section-head p { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
 
-/* Premium Section Header (No numbers) */
+/* Premium Section Header */
 .premium-sec-head { border-bottom: none; border-left: 4px solid var(--accent); padding-left: 12px; padding-bottom: 0; background: linear-gradient(90deg, rgba(255,255,255,0.03), transparent); padding: 10px 12px; border-radius: 4px; margin-bottom: 20px;}
 .premium-sec-head h3 { font-size: 15px; letter-spacing: 0.5px; }
 
@@ -93,25 +96,30 @@ button { cursor: pointer; }
 .cols-4 { grid-template-columns: repeat(4, minmax(0,1fr)); }
 .cols-2 { grid-template-columns: repeat(2, minmax(0,1fr)); }
 
-/* Responsive Grid to prevent overlap */
-.responsive-cols { grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); }
+/* 💡 중첩 방지 (Overlap Fix): 컬럼 최소 너비 확대 */
+.responsive-cols { grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); }
 
 label { display: grid; gap: 6px; }
 label span { font-size: 11px; color: var(--muted); font-weight:700; text-transform:uppercase; letter-spacing:0.5px;}
 
 input, select, textarea { width: 100%; background: #0b0e14; color: var(--text); border: 1px solid #2c3850; border-radius: 8px; padding: 10px 12px; font-family:monospace; font-size:13px; transition: border-color 0.2s; outline:none;}
 textarea { min-height: 80px; resize: vertical; font-family:inherit; line-height:1.5;}
-input:focus, select:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(79,140,255,.15); }
-input[type="datetime-local"]::-webkit-calendar-picker-indicator { filter: invert(1); cursor:pointer;}
+input:focus, select:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(79,140,255,.16); }
+
+/* 💡 중첩 방지: 달력 아이콘 공간 최적화 */
+input[type="datetime-local"] { letter-spacing: -0.5px; padding-right: 4px; }
+input[type="datetime-local"]::-webkit-calendar-picker-indicator { filter: invert(1); cursor:pointer; margin-left: 0; }
 
 .input-with-unit { display: flex; align-items: stretch; background: #0b0e14; border: 1px solid #2c3850; border-radius: 8px; overflow: hidden; transition:0.2s;}
 .input-with-unit input { border: none; background: transparent; padding: 10px 8px; width: 100%; border-radius: 0; }
 .input-with-unit input:focus { box-shadow: none; }
-.input-with-unit:focus-within { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(79,140,255,.15); }
+.input-with-unit:focus-within { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(79,140,255,.16); }
 .input-with-unit .unit { padding: 0 12px; color: var(--muted); font-size: 13px; background: rgba(255,255,255,0.03); display:flex; align-items:center; border-right:1px solid #2c3850;}
 
-.input-group { display: flex; gap: 4px; }
-.input-group input, .input-group select { flex: 1; }
+/* 💡 중첩 방지 (Overlap Fix): Flex Child 삐져나옴 방지 */
+.input-group { display: flex; gap: 4px; width: 100%; }
+.input-group input, .input-group select { flex: 1; min-width: 0; } /* 핵심: min-width:0 으로 flex 밖으로 튀어나가는 것을 막음 */
+
 .gear-btn { padding: 0 8px; background: #171e2c; border: 1px solid #2c3850; border-radius: 6px; color: var(--muted); cursor: pointer; transition:0.2s;}
 .gear-btn:hover { background: #2c3850; color: #fff; }
 
@@ -141,6 +149,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator { filter: invert
 .toggle-btn { width: 100%; padding: 14px; background: rgba(255,255,255,0.02); color: var(--muted); border: 1px dashed var(--line); border-radius: 10px; font-size: 13px; font-weight: 700; cursor: pointer; transition: 0.2s; }
 .toggle-btn:hover { background: rgba(255,255,255,0.05); color: #fff; border-color:#4a5568;}
 
+/* Calendar Large */
 .calendar { display: grid; grid-template-columns: repeat(7, minmax(0,1fr)); gap: 10px; }
 .calendar .dow { text-align: center; font-size: 13px; color: var(--muted); text-transform: uppercase; font-weight:700; padding-bottom:8px;}
 .calendar .day { background: var(--panel-2); border: 1px solid var(--line); padding: 12px; display: flex; flex-direction: column; gap: 4px; border-radius:10px; transition:all 0.2s;}
@@ -153,6 +162,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator { filter: invert
 .calendar .day.loss { border-top: 3px solid var(--red); }
 .chart-box { min-height: 300px; display: grid; place-items: center; }
 
+/* Modern Table */
 .table-wrap { overflow: auto; border: 1px solid var(--line); border-radius: 12px; max-height:600px;}
 table { width: 100%; min-width: 1100px; border-collapse: collapse; }
 th, td { padding: 16px 16px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: middle; font-size:12px;}
@@ -204,7 +214,6 @@ svg { width: 100%; height: 100%; }
 .rules-box{min-height:220px; background:transparent; color:var(--text); border:none; padding:0; width:100%; resize:vertical; line-height:1.6;}
 .rules-box:focus { box-shadow:none; }
 
-/* Premium Rules Box */
 .premium-rules { background: linear-gradient(180deg, rgba(79,140,255,0.05), transparent); border: 1px solid rgba(79,140,255,0.2); }
 .premium-rules:focus-within { border-color: var(--accent); box-shadow: 0 0 15px rgba(79,140,255,0.1); }
 
