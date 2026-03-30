@@ -1,6 +1,4 @@
-# BTC Trading Research Dashboard v2
-
-이 버전은 기존 단일 HTML 구조를 멀티 파일 구조로 재구성한 1차 구현본입니다.
+# Trading Research Dashboard
 
 ## 포함 범위
 - Overview / Journal / Library / Research 4개 화면
