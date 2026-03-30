@@ -12,7 +12,9 @@ export function summarize(trades) {
   const fees = sum(closed.map(t => t.metrics.totalFees));
   const leakRate = closed.length ? closed.filter(t => (t.mistakes || []).length).length / closed.length * 100 : 0;
   const profitFactor = grossLossAbs ? grossProfit / grossLossAbs : (grossProfit ? Infinity : 0);
-  return { closed, wins, losses, grossProfit, grossLossAbs, net, winRate, expectancy, avgR, maxDD, fees, leakRate, profitFactor };
+  const avgWin = avg(wins.map(t => t.metrics.pnl));
+  const avgLoss = avg(losses.map(t => t.metrics.pnl));
+  return { closed, wins, losses, grossProfit, grossLossAbs, net, winRate, expectancy, avgR, maxDD, fees, leakRate, profitFactor, avgWin, avgLoss };
 }
 
 export function groupAverageR(trades, field) {
@@ -26,6 +28,24 @@ export function groupAverageR(trades, field) {
   return [...map.entries()].map(([label, values]) => ({ label, value: avg(values), count: values.length })).sort((a, b) => b.value - a.value);
 }
 
+export function bucketStats(trades, field) {
+  const map = new Map();
+  for (const trade of trades) {
+    const key = field(trade);
+    if (!key) continue;
+    if (!map.has(key)) map.set(key, []);
+    map.get(key).push(trade);
+  }
+  return [...map.entries()].map(([label, rows]) => ({
+    label,
+    count: rows.length,
+    totalPnl: sum(rows.map(r => r.metrics.pnl)),
+    avgPnl: avg(rows.map(r => r.metrics.pnl)),
+    avgR: avg(rows.map(r => r.metrics.r)),
+    winRate: rows.length ? rows.filter(r => r.metrics.pnl > 0).length / rows.length * 100 : 0,
+  })).sort((a, b) => b.avgR - a.avgR);
+}
+
 export function countTags(trades, selector) {
   const counts = new Map();
   for (const trade of trades) {
@@ -34,35 +54,41 @@ export function countTags(trades, selector) {
   return [...counts.entries()].map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value);
 }
 
-export function tagPnl(trades, selector) {
+export function tagStats(trades, selector) {
   const map = new Map();
   for (const trade of trades) {
     for (const tag of selector(trade)) {
       if (!map.has(tag)) map.set(tag, []);
-      map.get(tag).push(trade.metrics.pnl);
+      map.get(tag).push(trade);
     }
   }
-  return [...map.entries()].map(([label, values]) => ({ label, count: values.length, totalPnl: sum(values), avgPnl: avg(values), avgR: avg(values) })).sort((a, b) => a.totalPnl - b.totalPnl);
+  return [...map.entries()].map(([label, rows]) => ({
+    label,
+    count: rows.length,
+    totalPnl: sum(rows.map(r => r.metrics.pnl)),
+    avgPnl: avg(rows.map(r => r.metrics.pnl)),
+    avgR: avg(rows.map(r => r.metrics.r)),
+    winRate: rows.length ? rows.filter(r => r.metrics.pnl > 0).length / rows.length * 100 : 0,
+  })).sort((a, b) => a.totalPnl - b.totalPnl);
 }
 
 export function emotionStats(trades) {
-  const buckets = new Map();
-  for (const trade of trades) {
-    const key = (trade.emotion || 'unlabeled').trim();
-    if (!buckets.has(key)) buckets.set(key, []);
-    buckets.get(key).push(trade.metrics.r);
-  }
-  return [...buckets.entries()].map(([label, arr]) => ({ label, count: arr.length, avgR: avg(arr) })).sort((a, b) => b.avgR - a.avgR);
+  return bucketStats(trades, trade => (trade.emotion || 'UNLABELED').trim().toUpperCase());
 }
 
 export function playbookBuckets(trades) {
-  const buckets = new Map();
-  for (const trade of trades) {
-    const key = String(trade.playbookScore ?? 'na');
-    if (!buckets.has(key)) buckets.set(key, []);
-    buckets.get(key).push(trade.metrics.r);
-  }
-  return [...buckets.entries()].map(([label, arr]) => ({ label, count: arr.length, avgR: avg(arr) })).sort((a, b) => Number(a.label) - Number(b.label));
+  return bucketStats(trades, trade => String(trade.playbookScore ?? 'NA'))
+    .sort((a, b) => Number(a.label) - Number(b.label));
+}
+
+export function recentWindowStats(trades, size = 20) {
+  const rows = [...trades].sort((a, b) => new Date(a.date) - new Date(b.date)).slice(-size);
+  return {
+    count: rows.length,
+    avgR: avg(rows.map(r => r.metrics.r)),
+    netPnl: sum(rows.map(r => r.metrics.pnl)),
+    winRate: rows.length ? rows.filter(r => r.metrics.pnl > 0).length / rows.length * 100 : 0,
+  };
 }
 
 function calcDrawdown(trades) {

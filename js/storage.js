@@ -1,6 +1,8 @@
 import { recalcTrade } from './calc.js';
 
 export const STORAGE_KEY = 'btc_trading_research_dashboard_v2';
+export const DRAFT_KEY = 'btc_trading_research_dashboard_v2_draft';
+export const PREFS_KEY = 'btc_trading_research_dashboard_v2_prefs';
 
 const DEFAULT_DB = {
   schemaVersion: 2,
@@ -151,4 +153,35 @@ function normalizeArtifacts(value) {
 function normalizeLegs(value, defaultEntry) {
   if (!Array.isArray(value) || !value.length) return defaultEntry ? [{ price: 0, type: 'M', weight: 100 }] : [];
   return value.map(x => ({ price: Number(x.price || 0), type: x.type || 'M', weight: Number(x.weight || 0) }));
+}
+
+
+export function loadDraft() {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveDraft(draft) {
+  localStorage.setItem(DRAFT_KEY, JSON.stringify({ savedAt: new Date().toISOString(), ...draft }));
+}
+
+export function clearDraft() {
+  localStorage.removeItem(DRAFT_KEY);
+}
+
+export function loadPrefs() {
+  try {
+    const raw = localStorage.getItem(PREFS_KEY);
+    return raw ? JSON.parse(raw) : { compactTable: false };
+  } catch {
+    return { compactTable: false };
+  }
+}
+
+export function savePrefs(prefs) {
+  localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
 }

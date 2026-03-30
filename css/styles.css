@@ -35,6 +35,10 @@ button { cursor: pointer; }
   background: linear-gradient(135deg, var(--accent), #815cff); font-weight: 800;
 }
 #nav { display: flex; gap: 8px; flex-wrap: wrap; }
+.topbar-side { display: flex; align-items: center; gap: 16px; }
+.topbar-status { display: grid; gap: 2px; min-width: 170px; }
+.topbar-status strong { font-size: 12px; }
+.topbar-status span { color: var(--muted); font-size: 11px; }
 #nav button, .inline-actions button {
   border: 1px solid var(--line); background: var(--panel-2); color: var(--text);
   padding: 10px 14px; border-radius: 12px; transition: .18s ease;
@@ -124,12 +128,52 @@ svg { width: 100%; height: 100%; }
 .area { fill: rgba(79,140,255,.12); }
 .bar-pos { fill: rgba(52,211,153,.8); }
 .bar-neg { fill: rgba(251,113,133,.82); }
+
+.desktop-tools { display: grid; grid-template-columns: 1fr 220px; gap: 12px; margin-bottom: 14px; }
+.quick-panel { display: grid; gap: 10px; background: rgba(255,255,255,.02); border: 1px solid var(--line); border-radius: 14px; padding: 12px; }
+.quick-row { display: grid; grid-template-columns: 120px 1fr; gap: 10px; align-items: start; }
+.quick-row span { color: var(--muted); font-size: 12px; padding-top: 7px; }
+.chip-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip-button { font-size: 11px; padding: 7px 10px; border-radius: 999px; background: #10192a; border: 1px solid #31415f; color: var(--text); }
+.chip-button:hover { border-color: var(--accent); color: white; }
+.shortcut-box { background: rgba(255,255,255,.02); border: 1px solid var(--line); border-radius: 14px; padding: 12px; color: var(--muted); line-height: 1.7; font-size: 12px; }
+.toolbar-split { justify-content: space-between; }
+.subtle-pill { display: inline-flex; align-items: center; padding: 8px 12px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); font-size: 12px; }
+.detail-grid > .card:last-child { position: sticky; top: 92px; align-self: start; }
+.compact-table th, .compact-table td { padding: 8px 10px; font-size: 12px; }
+.compact-table .chip { padding: 4px 8px; }
+.compact-table .badge { padding: 4px 8px; }
+
 @media (max-width: 1280px) {
   .metrics-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .grid-2, .grid-3, .grid-journal, .hero, .filter-grid, .cols-4, .cols-3, .cols-2 { grid-template-columns: 1fr; }
+  .grid-2, .grid-3, .grid-journal, .hero, .filter-grid, .cols-4, .cols-3, .cols-2, .desktop-tools { grid-template-columns: 1fr; }
+  .quick-row { grid-template-columns: 1fr; }
+  .detail-grid > .card:last-child { position: static; }
 }
 @media (max-width: 760px) {
   .topbar { padding: 14px 16px; flex-direction: column; align-items: stretch; }
+  .topbar-side { flex-direction: column; align-items: stretch; }
   .container { padding: 16px; }
   .leg-row { grid-template-columns: 1fr; }
 }
+
+.filter-grid-extended { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.align-end { align-self: end; }
+.table-wrap tbody tr.selected { background: rgba(79,140,255,.12); }
+.table-wrap tbody tr.selected:hover { background: rgba(79,140,255,.18); }
+.detail-grid { align-items: start; }
+a { color: #c7dcff; }
+button:hover { transform: translateY(-1px); }
+
+.review-bar { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:12px; padding:12px 14px; border:1px solid var(--line); background: rgba(255,255,255,.02); border-radius:14px; }
+.review-meta{display:flex; gap:8px; flex-wrap:wrap; align-items:center;}
+.detail-actions{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;}
+.detail-actions button{border:1px solid var(--line); background:var(--panel-2); color:var(--text); padding:9px 12px; border-radius:10px;}
+.similar-list{display:grid; gap:8px;}
+.similar-item{padding:10px 12px; border:1px solid var(--line); border-radius:12px; background:rgba(255,255,255,.02); cursor:pointer;}
+.similar-item:hover{border-color:var(--accent);}
+.review-grid{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px;}
+.review-stat{padding:12px; border:1px solid var(--line); border-radius:12px; background:rgba(255,255,255,.02);}
+.review-stat strong{display:block; font-size:18px; margin-top:4px;}
+.hero h2 { max-width: 900px; }
+.hero-side strong { font-size: 18px; }
