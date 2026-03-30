@@ -32,8 +32,6 @@ export function recalcTrade(trade) {
 
   const qty = riskDollar / riskPerUnit;
   const margin = qty * avgEntry / Math.max(1, Number(trade.leverage || 1));
-  const sliderPct = accountSize ? (margin / accountSize) * 100 : 0; // 바이비트 막대바 %
-  
   let totalFees = 0;
   for (const leg of entries) totalFees += Number(leg.price) * qty * (Number(leg.weight) / 100) * (leg.type === 'M' ? maker : taker);
 
@@ -60,7 +58,6 @@ export function recalcTrade(trade) {
     avgExit,
     qty,
     margin,
-    sliderPct, // UI 연동용
     pnl,
     r: riskDollar ? pnl / riskDollar : 0,
     totalFees,
@@ -68,5 +65,5 @@ export function recalcTrade(trade) {
 }
 
 function baseMetrics(riskDollar = 0, avgEntry = 0, directionError = false) {
-  return { valid: false, directionError, riskDollar, avgEntry, avgExit: 0, qty: 0, margin: 0, sliderPct: 0, pnl: 0, r: 0, totalFees: 0 };
+  return { valid: false, directionError, riskDollar, avgEntry, avgExit: 0, qty: 0, margin: 0, pnl: 0, r: 0, totalFees: 0 };
 }
