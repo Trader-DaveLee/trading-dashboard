@@ -10,10 +10,9 @@ const state = {
 const views = ['overview', 'journal', 'library'];
 const els = {};
 
-// 1. Safe Element Caching (에러 방지 핵심)
 const ID_LIST = [
   'nav','force-save-draft','export-json','import-json-btn','import-json','journal-status','draft-saved-at',
-  'view-overview','metrics','prev-month','calendar-title','next-month','calendar','equity-chart','setup-chart','mistake-list','research-notes',
+  'view-overview','metrics','overview-from','overview-to','overview-clear','prev-month','calendar-title','next-month','calendar','equity-chart','setup-chart','mistake-list','research-notes',
   'view-journal','trade-form','trade-id','trade-date','ticker','btn-manage-ticker','status','session','side','setup-entry','btn-manage-setup-entry','setup-exit','btn-manage-setup-exit','account-size','risk-pct','leverage','maker-fee','taker-fee','stop-price','stop-type','adjustment','tags','mistakes','emotion','btn-manage-emotion','context','thesis','review','artifacts',
   'add-entry','entries','add-exit','exits','calc-summary','toggle-deep-journal','deep-journal-section','quick-tags','quick-mistakes','live-notes','btn-insert-time',
   'actual-balance','btn-update-balance','balance-history',
@@ -104,7 +103,10 @@ function bindEvents() {
   };
 
   if(els['btn-update-balance']) els['btn-update-balance'].onclick = () => {
-    const val = Number(els['actual-balance'].value); if(isNaN(val) || val <= 0) return;
+    const val = Math.round(Number(els['actual-balance'].value));
+    if(isNaN(val) || val <= 0) return;
+    const hist = state.db.meta.balanceHistory;
+    if(hist.length > 0 && Math.round(hist[0].val) === val) { alert("최근 잔고와 동일한 금액입니다."); return; }
     state.db.meta.accountBalance = val;
     state.db.meta.balanceHistory.unshift({ date: new Date().toISOString(), val: val });
     saveDB(state.db); setVal('account-size', val); renderAccountBalance(); updatePreview(); persistDraft();
@@ -117,6 +119,14 @@ function bindEvents() {
   if(els['clear-quick-filter']) els['clear-quick-filter'].onclick = clearQuickFilter;
   if(els['trade-form']) els['trade-form'].addEventListener('submit', handleSubmit);
   
+  // Overview Date Filter
+  ['overview-from', 'overview-to'].forEach(id => {
+      if(els[id]) els[id].addEventListener('change', renderOverview);
+  });
+  if(els['overview-clear']) els['overview-clear'].onclick = () => {
+      setVal('overview-from', ''); setVal('overview-to', ''); renderOverview();
+  };
+
   bindKeyboardShortcuts();
 
   const inputs = ['trade-date','ticker','status','session','side','setup-entry','setup-exit','account-size','risk-pct','leverage','maker-fee','taker-fee','stop-price','stop-type','adjustment','tags','mistakes','emotion','context','thesis','review','artifacts','desk-rules','live-notes'];
@@ -146,24 +156,48 @@ function switchView(view) {
 
 function renderAccountBalance() {
   if(!els['actual-balance']) return;
-  els['actual-balance'].value = state.db.meta.accountBalance || 10000;
+  els['actual-balance'].value = Math.round(state.db.meta.accountBalance || 10000);
   let histHtml = '';
-  (state.db.meta.balanceHistory || []).slice(0, 4).forEach(h => {
-    histHtml += `<div style="display:flex; justify-content:space-between; margin-bottom:4px;"><span>${new Date(h.date).toLocaleDateString('ko-KR',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</span><strong style="color:#eef2ff;">$${Number(h.val).toFixed(2)}</strong></div>`;
+  const hist = state.db.meta.balanceHistory || [];
+  hist.slice(0, 5).forEach((h, i) => {
+    const curr = Math.round(h.val);
+    let diffHtml = '';
+    if (i < hist.length - 1) {
+      const prev = Math.round(hist[i+1].val);
+      const diff = curr - prev;
+      if (diff > 0) diffHtml = `<span style="color:var(--green); font-size:11px; font-weight:bold;">+$${diff.toLocaleString()}</span>`;
+      else if (diff < 0) diffHtml = `<span style="color:var(--red); font-size:11px; font-weight:bold;">-$${Math.abs(diff).toLocaleString()}</span>`;
+      else diffHtml = `<span style="color:var(--muted); font-size:11px;">-</span>`;
+    }
+    histHtml += `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; padding-bottom:6px; border-bottom:1px solid rgba(255,255,255,0.05);">
+      <span style="font-size:11px;">${new Date(h.date).toLocaleDateString('ko-KR',{month:'short',day:'numeric'})}</span>
+      <div style="display:flex; align-items:center; gap:8px;">${diffHtml}<strong style="color:#eef2ff; font-size:13px;">$${curr.toLocaleString()}</strong></div>
+    </div>`;
   });
-  setHtml('balance-history', histHtml || '내역 없음');
+  setHtml('balance-history', histHtml || '<div class="empty-state">내역 없음</div>');
 }
 
 function renderOverview() {
-  const s = summarize(state.db.trades);
+  let filtered = state.db.trades;
+  const from = getVal('overview-from');
+  const to = getVal('overview-to');
+  if (from || to) {
+    filtered = filtered.filter(t => {
+      const d = t.date.slice(0, 10);
+      if (from && d < from) return false;
+      if (to && d > to) return false;
+      return true;
+    });
+  }
+  const s = summarize(filtered);
   const metrics = [
-    { label: 'Net PnL', value: money(s.net), sub: `${s.closed.length} closed trades`, tone: 'metric-profit', size: 'large' },
+    { label: 'Net PnL', value: s.net>=0?`+$${s.net.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}`:`-$${Math.abs(s.net).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}`, sub: `${s.closed.length} closed trades`, tone: 'metric-profit', size: 'large' },
     { label: 'Win Rate', value: `${s.winRate.toFixed(1)}%`, sub: `${s.wins.length}W / ${s.losses.length}L`, tone: 'metric-accent', size: 'large' },
     { label: 'Average R', value: `${s.avgR.toFixed(2)}R`, sub: 'Per Trade', tone: 'metric-accent', size: 'medium' },
     { label: 'Profit Factor', value: s.profitFactor === Infinity ? 'MAX' : s.profitFactor.toFixed(2), sub: 'Gross P / Gross L', tone: 'metric-neutral', size: 'medium' },
-    { label: 'Max Drawdown', value: money(s.maxDD), sub: 'Peak to trough', tone: 'metric-loss', size: 'small' }
+    { label: 'Max Drawdown', value: s.maxDD===0?`$0.00`:`-$${s.maxDD.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}`, sub: 'Peak to trough', tone: 'metric-loss', size: 'small' }
   ];
-  setHtml('metrics', metrics.map(item => `<div class="metric ${item.size} ${item.tone}"><div class="label">${item.label}</div><div class="value ${numberClass(item.value)}">${item.value}</div><div class="sub">${item.sub}</div></div>`).join(''));
+  setHtml('metrics', metrics.map(item => `<div class="metric ${item.size} ${item.tone}"><div class="label">${item.label}</div><div class="value">${item.value}</div><div class="sub">${item.sub}</div></div>`).join(''));
   
   renderCalendar();
   renderEquity(s.closed);
@@ -393,7 +427,7 @@ function loadTradeIntoForm(trade) {
   setVal('trade-id', trade.id); setVal('trade-date', inputDate(new Date(trade.date)));
   setVal('ticker', trade.ticker); setVal('status', trade.status); setVal('session', trade.session); setVal('side', trade.side);
   setVal('setup-entry', trade.setupEntry); setVal('setup-exit', trade.setupExit); setVal('emotion', trade.emotion || 'CALM');
-  setVal('account-size', trade.accountSize); setVal('risk-pct', trade.riskPct); setVal('leverage', trade.leverage);
+  setVal('account-size', Math.round(trade.accountSize)); setVal('risk-pct', trade.riskPct); setVal('leverage', trade.leverage);
   setVal('maker-fee', trade.makerFee); setVal('taker-fee', trade.takerFee); setVal('stop-price', trade.stopPrice); setVal('stop-type', trade.stopType);
   setVal('adjustment', trade.adjustment ?? 0);
   setVal('tags', (trade.tags || []).join(', ')); setVal('mistakes', (trade.mistakes || []).join(', '));
@@ -504,7 +538,7 @@ function applyDraftToForm(draft) {
   setVal('trade-id', draft.id || ''); setVal('trade-date', draft.tradeDate || inputDate(new Date().toISOString()));
   setVal('ticker', draft.ticker || 'BTCUSDT'); setVal('status', draft.status || 'CLOSED'); setVal('session', draft.session || 'NEW YORK'); setVal('side', draft.side || 'LONG');
   setVal('setup-entry', draft.setupEntry || 'BREAKOUT'); setVal('setup-exit', draft.setupExit || 'TRAIL STOP'); setVal('emotion', draft.emotion || 'CALM');
-  setVal('account-size', draft.accountSize ?? (state.db.meta.accountBalance || 10000)); setVal('risk-pct', draft.riskPct ?? 0.5); setVal('leverage', draft.leverage ?? 10);
+  setVal('account-size', Math.round(draft.accountSize ?? (state.db.meta.accountBalance || 10000))); setVal('risk-pct', draft.riskPct ?? 0.5); setVal('leverage', draft.leverage ?? 10);
   setVal('maker-fee', draft.makerFee ?? 0.02); setVal('taker-fee', draft.takerFee ?? 0.05); setVal('stop-price', draft.stopPrice ?? ''); setVal('stop-type', draft.stopType || 'M');
   setVal('adjustment', draft.adjustment ?? 0); setVal('tags', draft.tags || ''); setVal('mistakes', draft.mistakes || ''); setVal('context', draft.context || ''); setVal('thesis', draft.thesis || ''); setVal('review', draft.review || ''); setVal('artifacts', draft.artifacts || ''); setVal('live-notes', draft.liveNotes || '');
   state.draftEntries = Array.isArray(draft.entries) && draft.entries.length ? draft.entries : [{ price: 0, type: 'M', weight: 100 }]; state.draftExits = Array.isArray(draft.exits) ? draft.exits : [];
@@ -542,7 +576,7 @@ function barSvg(data) {
 }
 
 function label(v) { return ({ overview: 'Overview', journal: 'Journal', library: 'Library' })[v]; }
-function money(n) { const v = Number(n || 0); return `${v < 0 ? '-' : ''}$${Math.abs(v).toFixed(2)}`; }
+function money(n) { const v = Number(n || 0); return `${v < 0 ? '-' : ''}$${Math.abs(v).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}`; }
 function num(n) { return Number(n || 0).toFixed(2); }
 function numberClass(v) { const s = String(v); if (s === 'MAX') return 'positive'; return s.startsWith('-') ? 'negative' : 'positive'; }
 function pad(n) { return String(n).padStart(2, '0'); }
