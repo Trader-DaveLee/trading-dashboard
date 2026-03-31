@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Trading Desk Dashboard v12.0 (Premium)</title>
+  <title>Trading Desk Dashboard v13.0 (Ultimate)</title>
   <link rel="stylesheet" href="./css/styles.css" />
 </head>
 <body>
@@ -83,7 +83,7 @@
           <form id="trade-form" class="form-stack">
             <input type="hidden" id="trade-id" />
             
-            <div class="section-head premium-sec-head" style="border-left-color: var(--accent);">
+            <div class="section-head premium-sec-head" style="border-left-color: var(--accent); margin-top:0;">
               <div><h3 style="color:var(--text);">TRADE CONTEXT</h3><p>기본 거래 정보</p></div>
             </div>
             <div class="field-grid responsive-cols">
@@ -146,6 +146,9 @@
             
             <div id="deep-journal-section" class="hidden form-stack" style="margin-top:15px; padding-top:15px; border-top:1px dashed var(--line);">
               <div class="field-grid cols-2">
+                <label><span>Grade (선택)</span><select id="grade"><option value="B">B (기본)</option><option value="A">A (완벽한 셋업)</option><option value="C">C (원칙 위반)</option></select></label>
+                <div></div> </div>
+              <div class="field-grid cols-2">
                 <label><span>태그 (쉼표)</span><input id="tags" placeholder="breakout, ny-open" /></label>
                 <label><span>실수 태그 (쉼표)</span><input id="mistakes" placeholder="late entry, moved stop" /></label>
               </div>
@@ -175,7 +178,7 @@
         <aside class="journal-sidebar stack">
           <article class="card premium-balance-card">
             <div class="section-head" style="border:none; padding-bottom:0; margin-bottom:12px;">
-              <div><h3 style="color:#fff; font-size:16px; display:flex; align-items:center; gap:6px;">💳 Account Status</h3><p style="color:#94a3b8;">거래소 실제 잔고 및 입출금</p></div>
+              <div><h3 style="color:#fff; font-size:16px; display:flex; align-items:center; gap:6px;">💳 Account Status</h3><p style="color:#94a3b8;">거래소 실제 잔고 및 변동 내역</p></div>
             </div>
             
             <div class="balance-input-wrapper">
@@ -188,7 +191,6 @@
                 <button type="button" id="btn-update-balance" class="btn-save-balance">업데이트</button>
               </div>
             </div>
-            
             <div id="balance-history" class="balance-history-container"></div>
           </article>
 
@@ -260,6 +262,14 @@
         <article class="card"><div class="section-head"><div><h3>Review Console</h3><p>비교 샘플 및 평가</p></div></div><div id="detail-insights" class="stack"></div></article>
       </div>
     </section>
+
+    <section id="view-playbook" class="view">
+      <div class="section-head" style="margin-bottom:24px;">
+        <div><h3 style="font-size:24px; margin-bottom:6px;">A+ Playbook</h3><p>최고의 성과(2R 이상 또는 Grade A)를 낸 나만의 셋업 갤러리입니다.</p></div>
+      </div>
+      <div id="playbook-gallery" class="playbook-grid"></div>
+    </section>
+
   </main>
 
   <script type="module" src="./js/app.js"></script>
