@@ -17,14 +17,13 @@ export function summarize(trades) {
   const profitFactor = grossLossAbs ? grossProfit / grossLossAbs : (grossProfit ? Infinity : 0);
   const avgWin = avg(wins.map(t => t.metrics.pnl));
   const avgLoss = avg(losses.map(t => t.metrics.pnl));
-  const avgScore = avg(closed.map(t => t.playbookScore));
   const realized = sum(trades.map(t => t.metrics.realizedPnl));
   const unrealized = sum(open.map(t => t.metrics.unrealizedPnl));
 
   return {
     trades, closed, wins, losses, open,
     grossProfit, grossLossAbs, net, totalNet, winRate, expectancy, avgR, maxDD, fees,
-    leakRate, profitFactor, avgWin, avgLoss, avgScore, realized, unrealized,
+    leakRate, profitFactor, avgWin, avgLoss, realized, unrealized,
   };
 }
 
@@ -56,7 +55,6 @@ export function bucketStats(trades, field) {
     avgPnl: avg(rows.map(r => r.metrics.pnl)),
     avgR: avg(rows.map(r => r.metrics.r)),
     winRate: rows.length ? rows.filter(r => r.metrics.pnl > 0).length / rows.length * 100 : 0,
-    avgScore: avg(rows.map(r => r.playbookScore)),
     feeDrag: sum(rows.map(r => r.metrics.totalFees)),
   })).sort((a, b) => b.avgR - a.avgR);
 }
@@ -64,7 +62,7 @@ export function bucketStats(trades, field) {
 export function tagStats(trades, selector) {
   const map = new Map();
   for (const trade of trades) {
-    for (const tag of selector(trade)) {
+    for (const tag of selector(trade) || []) {
       if (!map.has(tag)) map.set(tag, []);
       map.get(tag).push(trade);
     }
@@ -76,17 +74,11 @@ export function tagStats(trades, selector) {
     avgPnl: avg(rows.map(r => r.metrics.pnl)),
     avgR: avg(rows.map(r => r.metrics.r)),
     winRate: rows.length ? rows.filter(r => r.metrics.pnl > 0).length / rows.length * 100 : 0,
-    avgScore: avg(rows.map(r => r.playbookScore)),
   })).sort((a, b) => a.totalPnl - b.totalPnl);
 }
 
 export function emotionStats(trades) {
   return bucketStats(trades, trade => (trade.emotion || 'UNLABELED').trim().toUpperCase());
-}
-
-export function playbookBuckets(trades) {
-  return bucketStats(trades, trade => String(trade.playbookScore ?? 'NA'))
-    .sort((a, b) => Number(a.label) - Number(b.label));
 }
 
 export function recentWindowStats(trades, size = 20) {
@@ -99,7 +91,6 @@ export function recentWindowStats(trades, size = 20) {
     unrealizedPnl: sum(rows.map(r => r.metrics.unrealizedPnl)),
     winRate: rows.length ? rows.filter(r => r.metrics.pnl > 0).length / rows.length * 100 : 0,
     feeDrag: sum(rows.map(r => r.metrics.totalFees)),
-    avgScore: avg(rows.map(r => r.playbookScore)),
   };
 }
 
