@@ -7,7 +7,8 @@ const state = {
   draftEntries: [{ price: 0, type: 'M', weight: 100 }], draftExits: [], dirty: false, prefs: loadPrefs(), draftMeta: null,
 };
 
-const views = ['overview', 'journal', 'library'];
+// 💡 뷰(View) 목록에 'playbook' 추가
+const views = ['overview', 'journal', 'library', 'playbook'];
 const els = {};
 
 const ID_LIST = [
@@ -15,10 +16,11 @@ const ID_LIST = [
   'view-overview','metrics','overview-from','overview-to','overview-clear','prev-month','calendar-title','next-month','calendar','equity-chart','setup-chart','mistake-list','research-notes',
   'view-journal','trade-form','trade-id','trade-date','btn-now','ticker','btn-manage-ticker','status','session','side','setup-entry','btn-manage-setup-entry','setup-exit','btn-manage-setup-exit','account-size','risk-pct','leverage','maker-fee','taker-fee','stop-price','stop-type','adjustment','tags','mistakes','emotion','btn-manage-emotion','context','thesis','review','artifacts',
   'add-entry','entries','add-exit','exits','calc-summary','toggle-deep-journal','deep-journal-section','quick-tags','quick-mistakes','live-notes','btn-insert-time',
-  'actual-balance','btn-update-balance','balance-history',
-  'duplicate-trade','reset-form','delete-trade',
+  'actual-balance','balance-memo','btn-update-balance','balance-history',
+  'duplicate-trade','reset-form','delete-trade','grade',
   'desk-rules','risk-risk-dollar','risk-qty','risk-margin','risk-slider','risk-notional','risk-stop-distance','risk-fees',
-  'view-library','q','f-from','f-to','f-status','sort','clear-filters','library-result-count','review-position','review-breadcrumb','prev-trade','next-trade','filter-same-setup','filter-same-ticker','clear-quick-filter','trade-table','detail','detail-insights'
+  'view-library','q','f-from','f-to','f-status','sort','clear-filters','library-result-count','review-position','review-breadcrumb','prev-trade','next-trade','filter-same-setup','filter-same-ticker','clear-quick-filter','trade-table','detail','detail-insights',
+  'view-playbook', 'playbook-gallery' // 💡 Playbook ID 매핑
 ];
 
 window.__desk = {
@@ -94,7 +96,6 @@ function bindEvents() {
   
   if(els['toggle-deep-journal']) els['toggle-deep-journal'].onclick = (e) => {
     els['deep-journal-section'].classList.toggle('hidden');
-    // 💡 버그 수정: 'SECTION 5' 텍스트를 제거하고 일관성 있게 유지
     e.target.textContent = els['deep-journal-section'].classList.contains('hidden') ? '📝 DEEP REVIEW (사후 복기 및 차트) ▼' : '📝 DEEP REVIEW (접기) ▲';
   };
 
@@ -107,11 +108,12 @@ function bindEvents() {
 
   if(els['btn-update-balance']) els['btn-update-balance'].onclick = () => {
     const val = Math.round(Number(els['actual-balance'].value));
+    const memo = getVal('balance-memo').trim();
     if(isNaN(val) || val <= 0) return;
     const hist = state.db.meta.balanceHistory;
     
     if(hist.length > 0) {
-        if (Math.round(hist[0].val) === val) { alert("최근 잔고와 동일한 금액입니다."); return; }
+        if (Math.round(hist[0].val) === val && hist[0].memo === memo) { alert("최근 잔고 및 메모와 동일합니다."); return; }
         const changePct = Math.abs(val - hist[0].val) / hist[0].val * 100;
         if (changePct > 30) {
             if(!confirm(`잔고가 이전 대비 ${changePct.toFixed(1)}%나 급변했습니다. 정말 입력하시겠습니까?\n(오타가 아니라면 확인을 눌러주세요)`)) return;
@@ -119,8 +121,13 @@ function bindEvents() {
     }
     
     state.db.meta.accountBalance = val;
-    state.db.meta.balanceHistory.unshift({ id: Date.now(), date: new Date().toISOString(), val: val });
-    saveDB(state.db); setVal('account-size', val); renderAccountBalance(); updatePreview(); persistDraft();
+    state.db.meta.balanceHistory.unshift({ id: Date.now(), date: new Date().toISOString(), val: val, memo: memo });
+    saveDB(state.db); 
+    setVal('account-size', val); 
+    setVal('balance-memo', ''); 
+    renderAccountBalance(); 
+    updatePreview(); 
+    persistDraft();
   };
 
   if(els['prev-trade']) els['prev-trade'].onclick = () => stepSelectedTrade(-1);
@@ -135,7 +142,7 @@ function bindEvents() {
 
   bindKeyboardShortcuts();
 
-  const inputs = ['trade-date','ticker','status','session','side','setup-entry','setup-exit','account-size','risk-pct','leverage','maker-fee','taker-fee','stop-price','stop-type','adjustment','tags','mistakes','emotion','context','thesis','review','artifacts','desk-rules','live-notes'];
+  const inputs = ['trade-date','ticker','status','session','side','setup-entry','setup-exit','account-size','risk-pct','leverage','maker-fee','taker-fee','stop-price','stop-type','adjustment','tags','mistakes','emotion','context','thesis','review','artifacts','desk-rules','live-notes','grade'];
   inputs.forEach(id => {
     if(els[id]) { els[id].addEventListener('input', () => { markDirty(); updatePreview(); persistDraft(); }); els[id].addEventListener('change', () => { markDirty(); updatePreview(); persistDraft(); }); }
   });
@@ -147,7 +154,7 @@ function bindEvents() {
 
 function render() { 
   if(els['desk-rules'] && state.prefs) { els['desk-rules'].value = state.prefs.deskRules || ''; }
-  renderNav(); renderOverview(); renderQuickFill(); renderLibrary(); renderAccountBalance(); updatePreview(); refreshJournalStatus(); 
+  renderNav(); renderOverview(); renderQuickFill(); renderLibrary(); renderPlaybook(); renderAccountBalance(); updatePreview(); refreshJournalStatus(); 
 }
 
 function renderNav() {
@@ -161,6 +168,7 @@ function switchView(view) {
   views.forEach(v => { if(els[`view-${v}`]) els[`view-${v}`].classList.toggle('active', v === view); });
   renderNav();
   if(view === 'overview') renderOverview();
+  if(view === 'playbook') renderPlaybook();
 }
 
 function renderAccountBalance() {
@@ -177,12 +185,17 @@ function renderAccountBalance() {
       if (diff > 0) diffHtml = `<span style="color:var(--green); font-size:11px; font-weight:bold; margin-right:6px;">+$${diff.toLocaleString()}</span>`;
       else if (diff < 0) diffHtml = `<span style="color:var(--red); font-size:11px; font-weight:bold; margin-right:6px;">-$${Math.abs(diff).toLocaleString()}</span>`;
     }
+    const memoHtml = h.memo ? `<div class="balance-hist-memo">📝 ${escapeHtml(h.memo)}</div>` : '';
+
     histHtml += `<div class="balance-hist-item">
-      <span style="font-size:11px;">${new Date(h.date).toLocaleDateString('ko-KR',{month:'short',day:'numeric'})}</span>
-      <div style="display:flex; align-items:center;">
-        ${diffHtml}<strong style="color:#eef2ff; font-size:13px;">$${curr.toLocaleString()}</strong>
-        <button type="button" class="btn-del" style="margin-left:6px; padding:2px;" onclick="window.__desk.deleteBalanceHist(${h.id})" title="기록 삭제">✕</button>
+      <div class="balance-hist-main">
+          <span style="font-size:11px;">${new Date(h.date).toLocaleDateString('ko-KR',{month:'short',day:'numeric'})}</span>
+          <div style="display:flex; align-items:center;">
+            ${diffHtml}<strong style="color:#eef2ff; font-size:13px;">$${curr.toLocaleString()}</strong>
+            <button type="button" class="btn-del" style="margin-left:6px; padding:2px;" onclick="window.__desk.deleteBalanceHist(${h.id})" title="기록 삭제">✕</button>
+          </div>
       </div>
+      ${memoHtml}
     </div>`;
   });
   setHtml('balance-history', histHtml || '<div class="empty-state">내역 없음</div>');
@@ -337,6 +350,31 @@ function artifactLinks(arr = []) {
   return html;
 }
 
+// 💡 타임라인 시각화 HTML 생성 함수
+function buildTimelineHtml(trade) {
+  if (!trade.entries || !trade.exits || trade.entries.length === 0) return '';
+  
+  let html = `<div class="timeline-container"><h4 style="margin:0 0 10px; font-size:12px; color:var(--muted);">타점 & 분할 청산 타임라인</h4><div class="timeline">`;
+  
+  html += `<div class="timeline-step entry">
+    <div class="timeline-label">Avg Entry<br><span style="color:var(--accent)">100%</span></div>
+    <div class="timeline-dot"></div>
+    <div class="timeline-val">${num(trade.metrics.avgEntry)}</div>
+  </div>`;
+
+  const validExits = trade.exits.filter(x => Number(x.price) > 0 && Number(x.weight) > 0);
+  validExits.forEach((ex, i) => {
+    html += `<div class="timeline-step exit">
+      <div class="timeline-label">Exit ${i+1}<br><span style="color:var(--yellow)">${Number(ex.weight).toFixed(0)}%</span></div>
+      <div class="timeline-dot"></div>
+      <div class="timeline-val">${num(ex.price)}</div>
+    </div>`;
+  });
+  
+  html += `</div></div>`;
+  return html;
+}
+
 function renderDetail() {
   const trade = state.db.trades.find(t => t.id === state.selectedTradeId);
   if (!trade) {
@@ -360,6 +398,7 @@ function renderDetail() {
         <div>손익</div><div class="mono ${trade.metrics.pnl >= 0 ? 'positive' : 'negative'}">${money(trade.metrics.pnl)} (${trade.metrics.r.toFixed(2)}R)</div>
       </div>
     </div>
+    ${buildTimelineHtml(trade)}
     <div class="detail-box"><strong>증거 자료 (Charts)</strong><div>${artifactLinks(trade.artifacts)}</div></div>
     ${liveNoteHtml}
     <div class="detail-box"><strong>사후 복기 및 컨텍스트</strong><br><br><span style="line-height:1.6; color:#eef2ff;">${nl(escapeHtml(trade.review || '-'))}</span></div>
@@ -374,6 +413,37 @@ window.__desk.loadSelectedIntoJournal = () => {
   const trade = state.db.trades.find(t => t.id === state.selectedTradeId);
   if (trade) { switchView('journal'); loadTradeIntoForm(trade); }
 };
+
+// 💡 셋업 갤러리(Playbook) 렌더링 함수
+function renderPlaybook() {
+  if (!els['playbook-gallery']) return;
+  const bestTrades = state.db.trades.filter(t => t.status === 'CLOSED' && (t.grade === 'A' || t.metrics.r >= 2) && t.artifacts && t.artifacts.length > 0);
+  
+  if (!bestTrades.length) {
+    els['playbook-gallery'].innerHTML = emptyState('아직 A등급이거나 2R 이상 수익이 난 차트 기록이 없습니다.');
+    return;
+  }
+  
+  let html = '';
+  bestTrades.forEach(t => {
+    const tvLink = t.artifacts.find(u => u.includes('tradingview.com/x/'));
+    const imgSrc = tvLink ? `https://s3.tradingview.com/x/${tvLink.split('/x/')[1].replace('/','')}.png` : '';
+    const imgHtml = imgSrc ? `<img src="${imgSrc}" class="playbook-img" loading="lazy" />` : `<div class="playbook-img" style="display:grid; place-items:center; color:var(--muted);">No Chart Link</div>`;
+    
+    html += `<div class="playbook-card" onclick="if(document.getElementById('q')){document.getElementById('q').value='${t.id}';} window.__desk_lib_jump();">
+      ${imgHtml}
+      <div class="playbook-info">
+        <div class="playbook-header">
+          <strong style="font-size:16px; color:#fff;">${escapeHtml(t.ticker)}</strong>
+          <span class="badge ${t.metrics.r >= 0 ? 'badge-good' : 'badge-bad'}">${t.metrics.r.toFixed(2)}R</span>
+        </div>
+        <div style="font-size:12px; color:var(--accent); font-weight:bold;">${escapeHtml(t.setupEntry)}</div>
+        <div style="font-size:11px; color:var(--muted); display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">${escapeHtml(t.review || t.context || '메모 없음')}</div>
+      </div>
+    </div>`;
+  });
+  els['playbook-gallery'].innerHTML = html;
+}
 
 function handleSubmit(event) {
   event.preventDefault();
@@ -414,6 +484,7 @@ function readForm() {
     side: getVal('side'),
     setupEntry: getVal('setup-entry').trim().toUpperCase(),
     setupExit: getVal('setup-exit').trim().toUpperCase(),
+    grade: getVal('grade') || 'B',
     emotion: getVal('emotion').trim(),
     accountSize: Number(getVal('account-size') || 0),
     riskPct: Number(getVal('risk-pct') || 0),
@@ -439,7 +510,7 @@ function resetForm(options = {}) {
   setVal('trade-id', ''); setVal('trade-date', inputDate(new Date().toISOString()));
   setVal('stop-price', ''); setVal('adjustment', 0); setVal('tags', ''); setVal('mistakes', '');
   setVal('context', ''); setVal('thesis', ''); setVal('review', ''); setVal('artifacts', ''); setVal('live-notes', '');
-  
+  setVal('grade', 'B');
   setVal('account-size', state.db.meta.accountBalance || 10000);
   
   state.draftEntries = [{ price: 0, type: 'M', weight: 100 }]; state.draftExits = [];
@@ -452,12 +523,10 @@ function loadTradeIntoForm(trade) {
   setVal('trade-id', trade.id); setVal('trade-date', inputDate(new Date(trade.date)));
   setVal('ticker', trade.ticker); setVal('status', trade.status); setVal('session', trade.session); setVal('side', trade.side);
   setVal('setup-entry', trade.setupEntry); setVal('setup-exit', trade.setupExit); setVal('emotion', trade.emotion || 'CALM');
-  setVal('account-size', Math.round(trade.accountSize)); setVal('risk-pct', trade.riskPct); setVal('leverage', trade.leverage);
-  setVal('maker-fee', trade.makerFee); setVal('taker-fee', trade.takerFee); setVal('stop-price', trade.stopPrice); setVal('stop-type', trade.stopType);
-  setVal('adjustment', trade.adjustment ?? 0);
-  setVal('tags', (trade.tags || []).join(', ')); setVal('mistakes', (trade.mistakes || []).join(', '));
-  setVal('context', trade.context || ''); setVal('thesis', trade.thesis || ''); setVal('review', trade.review || ''); setVal('artifacts', (trade.artifacts || []).join('\n'));
-  setVal('live-notes', trade.liveNotes || '');
+  setVal('grade', trade.grade || 'B');
+  setVal('account-size', Math.round(trade.accountSize ?? (state.db.meta.accountBalance || 10000))); setVal('risk-pct', trade.riskPct ?? 0.5); setVal('leverage', trade.leverage ?? 10);
+  setVal('maker-fee', trade.makerFee ?? 0.02); setVal('taker-fee', trade.takerFee ?? 0.05); setVal('stop-price', trade.stopPrice ?? ''); setVal('stop-type', trade.stopType || 'M');
+  setVal('adjustment', trade.adjustment ?? 0); setVal('tags', (trade.tags || []).join(', ')); setVal('mistakes', (trade.mistakes || []).join(', ')); setVal('context', trade.context || ''); setVal('thesis', trade.thesis || ''); setVal('review', trade.review || ''); setVal('artifacts', (trade.artifacts || []).join('\n')); setVal('live-notes', trade.liveNotes || '');
   
   state.draftEntries = structuredClone(trade.entries || []); state.draftExits = structuredClone(trade.exits || []);
   renderLegs('entry'); renderLegs('exit'); state.dirty = false; updatePreview(); refreshJournalStatus();
@@ -563,6 +632,7 @@ function applyDraftToForm(draft) {
   setVal('trade-id', draft.id || ''); setVal('trade-date', draft.tradeDate || inputDate(new Date().toISOString()));
   setVal('ticker', draft.ticker || 'BTCUSDT'); setVal('status', draft.status || 'CLOSED'); setVal('session', draft.session || 'NEW YORK'); setVal('side', draft.side || 'LONG');
   setVal('setup-entry', draft.setupEntry || 'BREAKOUT'); setVal('setup-exit', draft.setupExit || 'TRAIL STOP'); setVal('emotion', draft.emotion || 'CALM');
+  setVal('grade', draft.grade || 'B');
   setVal('account-size', Math.round(draft.accountSize ?? (state.db.meta.accountBalance || 10000))); setVal('risk-pct', draft.riskPct ?? 0.5); setVal('leverage', draft.leverage ?? 10);
   setVal('maker-fee', draft.makerFee ?? 0.02); setVal('taker-fee', draft.takerFee ?? 0.05); setVal('stop-price', draft.stopPrice ?? ''); setVal('stop-type', draft.stopType || 'M');
   setVal('adjustment', draft.adjustment ?? 0); setVal('tags', draft.tags || ''); setVal('mistakes', draft.mistakes || ''); setVal('context', draft.context || ''); setVal('thesis', draft.thesis || ''); setVal('review', draft.review || ''); setVal('artifacts', draft.artifacts || ''); setVal('live-notes', draft.liveNotes || '');
@@ -570,7 +640,7 @@ function applyDraftToForm(draft) {
   renderLegs('entry'); renderLegs('exit'); updatePreview();
 }
 function persistDraft() { const draft = snapshotDraft(); saveDraft(draft); if(els['desk-rules']) { state.prefs.deskRules = els['desk-rules'].value; savePrefs(state.prefs); } state.draftMeta = new Date().toISOString(); refreshJournalStatus(); }
-function snapshotDraft() { return { id: getVal('trade-id') || '', tradeDate: getVal('trade-date'), ticker: getVal('ticker'), status: getVal('status'), session: getVal('session'), side: getVal('side'), setupEntry: getVal('setup-entry'), setupExit: getVal('setup-exit'), emotion: getVal('emotion'), accountSize: getVal('account-size'), riskPct: getVal('risk-pct'), leverage: getVal('leverage'), makerFee: getVal('maker-fee'), takerFee: getVal('taker-fee'), stopPrice: getVal('stop-price'), stopType: getVal('stop-type'), adjustment: getVal('adjustment'), tags: getVal('tags'), mistakes: getVal('mistakes'), context: getVal('context'), thesis: getVal('thesis'), review: getVal('review'), liveNotes: getVal('live-notes'), artifacts: getVal('artifacts'), entries: structuredClone(state.draftEntries), exits: structuredClone(state.draftExits) }; }
+function snapshotDraft() { return { id: getVal('trade-id') || '', tradeDate: getVal('trade-date'), ticker: getVal('ticker'), status: getVal('status'), session: getVal('session'), side: getVal('side'), setupEntry: getVal('setup-entry'), setupExit: getVal('setup-exit'), emotion: getVal('emotion'), grade: getVal('grade'), accountSize: getVal('account-size'), riskPct: getVal('risk-pct'), leverage: getVal('leverage'), makerFee: getVal('maker-fee'), takerFee: getVal('taker-fee'), stopPrice: getVal('stop-price'), stopType: getVal('stop-type'), adjustment: getVal('adjustment'), tags: getVal('tags'), mistakes: getVal('mistakes'), context: getVal('context'), thesis: getVal('thesis'), review: getVal('review'), liveNotes: getVal('live-notes'), artifacts: getVal('artifacts'), entries: structuredClone(state.draftEntries), exits: structuredClone(state.draftExits) }; }
 function markDirty() { state.dirty = true; refreshJournalStatus(); }
 function refreshJournalStatus(message = '') { if(!els['journal-status']) return; els['journal-status'].textContent = message || (state.dirty ? '저장 안 됨' : '정상'); els['draft-saved-at'].textContent = state.draftMeta ? `임시저장 ${fmtSavedAt(state.draftMeta)}` : ''; }
 function fmtSavedAt(iso) { return new Date(iso).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }); }
@@ -600,7 +670,7 @@ function barSvg(data) {
   }).join('')}</svg>`;
 }
 
-function label(v) { return ({ overview: 'Overview', journal: 'Journal', library: 'Library' })[v]; }
+function label(v) { return ({ overview: 'Overview', journal: 'Journal', library: 'Library', playbook: 'Playbook' })[v]; }
 function money(n) { const v = Number(n || 0); return `${v < 0 ? '-' : ''}$${Math.abs(v).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}`; }
 function num(n) { return Number(n || 0).toFixed(2); }
 function numberClass(v) { const s = String(v); if (s === 'MAX') return 'positive'; return s.startsWith('-') ? 'negative' : 'positive'; }
