@@ -121,23 +121,12 @@ function fromV2Trade(t) {
   const artifacts = Array.isArray(t.artifacts) ? t.artifacts : [];
   return {
     ...t,
-    playbookScore: Number(t.playbookScore || 5),
-    book: t.book || 'INTRADAY',
-    marketRegime: t.marketRegime || 'TREND',
-    biasTimeframe: t.biasTimeframe || 'NEUTRAL',
-    catalyst: t.catalyst || '',
-    invalidationNote: t.invalidationNote || '',
-    checklist: normalizeList(t.checklist),
-    verdict: t.verdict || 'NEUTRAL',
-    improvements: normalizeList(t.improvements),
+    grade: t.grade || 'B',
     markPrice: Number(t.markPrice || 0),
-    stopMoved: Boolean(t.stopMoved),
-    breakevenMoved: Boolean(t.breakevenMoved),
     liveNotes: t.liveNotes || '',
     evidence: t.evidence || {
       entryChart: artifacts[0] || '',
       exitChart: artifacts[1] || '',
-      extra: artifacts.slice(2),
     },
   };
 }
@@ -150,13 +139,9 @@ function fromV5Trade(t) {
     status: t.status || 'CLOSED',
     side: t.dir === -1 ? 'SHORT' : 'LONG',
     session: 'NEW YORK',
-    book: 'INTRADAY',
-    marketRegime: 'TREND',
-    biasTimeframe: 'NEUTRAL',
     setupEntry: t.setupE || '',
     setupExit: t.setupX || '',
     grade: t.grade || 'B',
-    playbookScore: 5,
     accountSize: Number(t.acc || 10000),
     riskPct: Number(t.risk || 0.5),
     leverage: Number(t.lev || 5),
@@ -166,24 +151,16 @@ function fromV5Trade(t) {
     stopType: t.slT || 'M',
     adjustment: Number(t.fine || 0),
     markPrice: 0,
-    stopMoved: false,
-    breakevenMoved: false,
     context: '',
     thesis: '',
-    catalyst: '',
-    invalidationNote: '',
     review: t.memo || '',
     liveNotes: '',
     tags: [],
     mistakes: [],
     emotion: '',
-    verdict: 'NEUTRAL',
-    checklist: [],
-    improvements: [],
     evidence: {
       entryChart: t.img1 || '',
       exitChart: t.img2 || '',
-      extra: [],
     },
     entries: (t.entries || []).map(x => ({ price: Number(x.price || 0), type: x.type || 'M', weight: Number(x.weight || 0) })),
     exits: (t.exits || []).map(x => ({ price: Number(x.price || 0), type: x.type || 'M', weight: Number(x.weight || 0) })),
@@ -198,13 +175,9 @@ export function normalizeTrade(t = {}) {
     status: String(t.status || 'OPEN').toUpperCase(),
     side: String(t.side || 'LONG').toUpperCase(),
     session: String(t.session || 'NEW YORK').trim().toUpperCase(),
-    book: String(t.book || 'INTRADAY').trim().toUpperCase(),
-    marketRegime: String(t.marketRegime || 'TREND').trim().toUpperCase(),
-    biasTimeframe: String(t.biasTimeframe || 'NEUTRAL').trim().toUpperCase(),
     setupEntry: String(t.setupEntry || '').trim().toUpperCase(),
     setupExit: String(t.setupExit || '').trim().toUpperCase(),
     grade: String(t.grade || 'B').trim().toUpperCase(),
-    playbookScore: clamp(Math.round(Number(t.playbookScore || 5)), 1, 10),
 
     accountSize: Math.max(0, Number(t.accountSize || 10000)),
     riskPct: Math.max(0, Number(t.riskPct || 0.5)),
@@ -215,22 +188,15 @@ export function normalizeTrade(t = {}) {
     stopType: String(t.stopType || 'M').toUpperCase(),
     adjustment: Number(t.adjustment || 0),
     markPrice: Number(t.markPrice || 0),
-    stopMoved: Boolean(t.stopMoved),
-    breakevenMoved: Boolean(t.breakevenMoved),
 
     context: String(t.context || '').trim(),
     thesis: String(t.thesis || '').trim(),
-    catalyst: String(t.catalyst || '').trim(),
-    invalidationNote: String(t.invalidationNote || '').trim(),
     review: String(t.review || '').trim(),
     liveNotes: String(t.liveNotes || '').trim(),
 
     emotion: String(t.emotion || '').trim().toUpperCase(),
-    verdict: String(t.verdict || 'NEUTRAL').trim().toUpperCase(),
     tags: normalizeLowerList(t.tags),
     mistakes: normalizeLowerList(t.mistakes),
-    checklist: normalizeList(t.checklist),
-    improvements: normalizeList(t.improvements),
 
     evidence: normalizeEvidence(t.evidence, t.artifacts),
     entries: normalizeLegs(t.entries, true),
@@ -247,9 +213,6 @@ function normalizeEvidence(evidence, artifacts) {
   return {
     entryChart: String(obj.entryChart || fallback[0] || '').trim(),
     exitChart: String(obj.exitChart || fallback[1] || '').trim(),
-    extra: Array.isArray(obj.extra)
-      ? obj.extra.map(v => String(v).trim()).filter(Boolean)
-      : fallback.slice(2).map(v => String(v).trim()).filter(Boolean),
   };
 }
 
@@ -282,10 +245,6 @@ function normalizeUpperList(value) {
 
 function normalizeLowerList(value) {
   return normalizeList(value).map(v => v.toLowerCase());
-}
-
-function clamp(value, min, max) {
-  return Math.min(max, Math.max(min, value));
 }
 
 export function loadDraft() {
