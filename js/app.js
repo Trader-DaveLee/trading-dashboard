@@ -1,6 +1,6 @@
 import { recalcTrade } from './calc.js';
 import {
-  summarize, groupAverageR, tagStats, emotionStats,
+  summarize, groupAverageR, tagStats,
   recentWindowStats, sessionSetupStats, gradeStats, filterTradesByDate
 } from './analytics.js';
 import {
@@ -29,13 +29,13 @@ const ID_LIST = [
   'view-overview','metrics','overview-from','overview-to','overview-clear','prev-month','calendar-title','next-month','calendar','equity-chart','setup-chart','mistake-list','research-notes','overview-portfolio',
   'view-journal','trade-form','trade-id','trade-date','btn-now','ticker','btn-manage-ticker','status','session','side','setup-entry','btn-manage-setup-entry','setup-exit','btn-manage-setup-exit',
   'account-size','risk-pct','leverage','maker-fee','taker-fee','stop-price','mark-price','stop-type','adjustment',
-  'context','thesis','review','chart-entry','chart-exit','tags','mistakes','emotion','btn-manage-emotion',
+  'context','thesis','review','chart-entry','chart-exit','tags','mistakes',
   'add-entry','entries','add-exit','exits','calc-summary','quick-tags','quick-mistakes','live-notes','btn-insert-time',
   'bal-cash','bal-crypto','bal-usdt','bal-stock','bal-total','balance-memo','btn-update-balance','balance-history',
   'duplicate-trade','reset-form','delete-trade','grade','deep-review-r',
   'desk-rules','master-checklist-list','new-check-input','btn-add-check','trade-checklist-container',
   'risk-risk-dollar','risk-qty','risk-margin','risk-slider','risk-notional','risk-stop-distance','risk-fees','risk-realized','risk-unrealized','risk-residual',
-  'view-library','q','f-from','f-to','f-status','f-side','f-session','f-setup','f-emotion','f-tag','f-mistake','f-grade','sort','clear-filters','library-result-count','review-position','review-breadcrumb','prev-trade','next-trade','filter-same-setup','filter-same-ticker','clear-quick-filter','trade-table','detail','detail-insights',
+  'view-library','q','f-from','f-to','f-status','f-side','f-session','f-setup','f-tag','f-mistake','f-grade','sort','clear-filters','library-result-count','review-position','review-breadcrumb','prev-trade','next-trade','filter-same-setup','filter-same-ticker','clear-quick-filter','trade-table','detail','detail-insights',
   'view-playbook','playbook-gallery'
 ];
 
@@ -72,7 +72,6 @@ function cacheEls() {
 }
 
 function initMeta() {
-  state.db.meta.emotions = state.db.meta.emotions || ['CALM', 'FOCUSED', 'FOMO', 'TIRED', 'REVENGE'];
   state.db.meta.tagPresets = state.db.meta.tagPresets || ['trend', 'sweep'];
   state.db.meta.mistakePresets = state.db.meta.mistakePresets || ['fomo', 'early exit'];
   state.db.meta.balanceHistory = Array.isArray(state.db.meta.balanceHistory) ? state.db.meta.balanceHistory : [];
@@ -87,7 +86,6 @@ function bindEvents() {
   els['btn-manage-ticker'].onclick = () => manageList('tickers', 'Ticker', 'upper');
   els['btn-manage-setup-entry'].onclick = () => manageList('entrySetups', 'Entry Setup', 'upper');
   els['btn-manage-setup-exit'].onclick = () => manageList('exitSetups', 'Exit Setup', 'upper');
-  els['btn-manage-emotion'].onclick = () => manageList('emotions', 'Emotion', 'upper');
 
   els['btn-now'].onclick = () => {
     setVal('trade-date', inputDate(new Date().toISOString()));
@@ -137,7 +135,7 @@ function bindEvents() {
     renderOverview();
   };
 
-  const filterIds = ['q','f-from','f-to','f-status','f-side','f-session','f-setup','f-emotion','f-tag','f-mistake','f-grade','sort'];
+  const filterIds = ['q','f-from','f-to','f-status','f-side','f-session','f-setup','f-tag','f-mistake','f-grade','sort'];
   filterIds.forEach(id => els[id].addEventListener('input', renderLibrary));
   filterIds.forEach(id => els[id].addEventListener('change', renderLibrary));
   els['clear-filters'].onclick = clearFilters;
@@ -169,7 +167,6 @@ function bindEvents() {
     });
   }
 
-  // ✨ 체크리스트 마스터 추가 로직
   if(els['btn-add-check']) {
     els['btn-add-check'].onclick = () => {
       const val = getVal('new-check-input').trim();
@@ -189,7 +186,7 @@ function bindEvents() {
     'trade-date','ticker','status','session','side','setup-entry','setup-exit',
     'account-size','risk-pct','leverage','maker-fee','taker-fee','stop-price','mark-price','stop-type','adjustment',
     'context','thesis','review','chart-entry','chart-exit',
-    'tags','mistakes','emotion','grade','live-notes'
+    'tags','mistakes','grade','live-notes'
   ].forEach(id => {
     if (!els[id]) return;
     els[id].addEventListener('input', handleFormMutation);
@@ -261,7 +258,6 @@ function render() {
   updatePreview();
 }
 
-// ✨ 마스터 체크리스트 렌더링 (사이드바)
 window.__desk_del_check = (idx) => {
   state.db.meta.checklists.splice(idx, 1);
   saveDB(state.db);
@@ -280,7 +276,6 @@ function renderMasterChecklist() {
   `).join('') : '<span class="muted-caption" style="font-size:12px;">등록된 체크리스트가 없습니다.</span>';
 }
 
-// ✨ 개별 트레이드 체크리스트 렌더링 (폼 내부)
 function renderTradeChecklist(checkedValues = []) {
   if(!els['trade-checklist-container']) return;
   const list = state.db.meta.checklists || [];
@@ -311,7 +306,6 @@ function renderDropdowns() {
   populateSelect('ticker', state.db.meta.tickers);
   populateSelect('setup-entry', state.db.meta.entrySetups);
   populateSelect('setup-exit', state.db.meta.exitSetups);
-  populateSelect('emotion', state.db.meta.emotions);
 }
 
 function populateSelect(id, rows) {
@@ -446,7 +440,6 @@ function resetForm() {
   setVal('taker-fee', 0.05);
   setVal('stop-type', 'M');
   setVal('ticker', state.db.meta.tickers[0] || 'BTCUSDT');
-  setVal('emotion', state.db.meta.emotions[0] || 'CALM');
   setVal('setup-entry', state.db.meta.entrySetups[0] || '');
   setVal('setup-exit', state.db.meta.exitSetups[0] || '');
 
@@ -454,7 +447,7 @@ function resetForm() {
   state.draftExits = [];
   renderLegs('entry');
   renderLegs('exit');
-  renderTradeChecklist([]); // 폼 초기화 시 체크 해제
+  renderTradeChecklist([]);
   updatePreview();
   refreshJournalStatus('새 폼 준비');
 }
@@ -501,10 +494,9 @@ function readForm() {
     thesis: getVal('thesis'),
     review: getVal('review'),
     liveNotes: getVal('live-notes'),
-    emotion: getVal('emotion'),
     tags: splitCsv(getVal('tags')),
     mistakes: splitCsv(getVal('mistakes')),
-    checkedRules: getCheckedRules(), // ✨ 읽어올 때 체크된 항목 배열로 변환
+    checkedRules: getCheckedRules(),
     evidence: {
       entryChart: getVal('chart-entry'),
       exitChart: getVal('chart-exit'),
@@ -546,7 +538,6 @@ function syncMetaFromTrade(trade) {
   pushUnique(state.db.meta.tickers, trade.ticker);
   pushUnique(state.db.meta.entrySetups, trade.setupEntry);
   pushUnique(state.db.meta.exitSetups, trade.setupExit);
-  pushUnique(state.db.meta.emotions, trade.emotion);
   trade.tags.forEach(tag => pushUnique(state.db.meta.tagPresets, tag));
   trade.mistakes.forEach(tag => pushUnique(state.db.meta.mistakePresets, tag));
   renderDropdowns();
@@ -592,7 +583,6 @@ function applyTradeToForm(trade, options = {}) {
   setVal('thesis', trade.thesis || '');
   setVal('review', trade.review || '');
   setVal('live-notes', trade.liveNotes || '');
-  setVal('emotion', trade.emotion || '');
   setVal('tags', (trade.tags || []).join(', '));
   setVal('mistakes', (trade.mistakes || []).join(', '));
   setVal('chart-entry', trade.evidence?.entryChart || '');
@@ -602,7 +592,7 @@ function applyTradeToForm(trade, options = {}) {
   
   renderLegs('entry');
   renderLegs('exit');
-  renderTradeChecklist(trade.checkedRules || []); // ✨ 폼 적용 시 체크 항목 복원
+  renderTradeChecklist(trade.checkedRules || []);
   updatePreview();
 }
 
@@ -678,13 +668,14 @@ function renderOverview() {
   
   const aPlusCount = stats.closed.filter(t => t.grade === 'S' || t.grade === 'A').length;
 
+  // ✨ Net PnL 최우선, Max Drawdown 맨 뒤로 순서 조정
   const metrics = [
-    metricCard('Win Rate', `${stats.winRate.toFixed(1)}%`, 'metric-blue'),
     metricCard('Net PnL', money(stats.net), 'metric-green'),
+    metricCard('Win Rate', `${stats.winRate.toFixed(1)}%`, 'metric-blue'),
     metricCard('Avg R', `${stats.avgR.toFixed(2)}R`, 'metric-purple'),
     metricCard('Profit Factor', stats.profitFactor === Infinity ? '∞' : stats.profitFactor.toFixed(2), 'metric-orange'),
-    metricCard('Max Drawdown', money(stats.maxDD), 'metric-red'),
     metricCard('A+ Setups', `${aPlusCount}건`, 'metric-teal'),
+    metricCard('Max Drawdown', money(stats.maxDD), 'metric-red'),
   ];
   setHtml('metrics', metrics.join(''));
 
@@ -967,7 +958,6 @@ function filterLibraryTrades() {
   const side = getVal('f-side');
   const session = getVal('f-session');
   const setup = getVal('f-setup').trim().toLowerCase();
-  const emotion = getVal('f-emotion').trim().toLowerCase();
   const tag = getVal('f-tag').trim().toLowerCase();
   const mistake = getVal('f-mistake').trim().toLowerCase();
   const grade = getVal('f-grade');
@@ -981,7 +971,6 @@ function filterLibraryTrades() {
     if (session !== 'ALL' && trade.session !== session) return false;
     if (grade !== 'ALL' && trade.grade !== grade) return false;
     if (setup && !(trade.setupEntry || '').toLowerCase().includes(setup)) return false;
-    if (emotion && !(trade.emotion || '').toLowerCase().includes(emotion)) return false;
     if (tag && !(trade.tags || []).some(value => value.includes(tag))) return false;
     if (mistake && !(trade.mistakes || []).some(value => value.includes(mistake))) return false;
     if (q) {
@@ -1024,7 +1013,6 @@ function renderTradeDetail(trade) {
       <div>PnL / R</div><div class="mono ${trade.metrics.pnl > 0 ? 'positive' : trade.metrics.pnl < 0 ? 'negative' : ''}">${money(trade.metrics.pnl)} / ${trade.metrics.r.toFixed(2)}R</div>
       <div>Real/Unrealized</div><div class="mono">${money(trade.metrics.realizedPnl)} / ${money(trade.metrics.unrealizedPnl)}</div>
       <div>Residual Risk</div><div class="mono">${moneyAbs(trade.metrics.residualRisk)} (${trade.metrics.remainingPct.toFixed(1)}% remaining)</div>
-      <div>Emotion</div><div>${escapeHtml(trade.emotion || '—')}</div>
     </div>
 
     <div style="margin-top:24px; padding:20px; background:#f8fafc; border:1px solid var(--line); border-radius:16px;">
@@ -1195,7 +1183,7 @@ function clearQuickFilter() {
 }
 
 function clearFilters() {
-  ['q','f-from','f-to','f-setup','f-emotion','f-tag','f-mistake'].forEach(id => setVal(id, ''));
+  ['q','f-from','f-to','f-setup','f-tag','f-mistake'].forEach(id => setVal(id, ''));
   setVal('f-status', 'ALL');
   setVal('f-side', 'ALL');
   setVal('f-session', 'ALL');
