@@ -627,13 +627,8 @@ function renderRiskPanel(metrics) {
 function renderOverview() {
   const trades = getOverviewTrades();
   const stats = summarize(trades);
-  const recent = recentWindowStats(trades, 20);
-  const emotion = emotionStats(stats.closed);
-  const playbook = playbookBuckets(stats.closed);
   const setups = groupAverageR(stats.closed, trade => trade.setupEntry);
   const mistakes = tagStats(stats.closed, trade => trade.mistakes);
-  const sessionSetup = sessionSetupStats(stats.closed).slice(0, 5);
-  const grades = gradeStats(stats.closed);
 
   const metrics = [
     metricCard('Net PnL', money(stats.net), stats.net),
@@ -642,38 +637,21 @@ function renderOverview() {
     metricCard('Profit Factor', stats.profitFactor === Infinity ? '∞' : stats.profitFactor.toFixed(2)),
     metricCard('Max Drawdown', money(stats.maxDD), -stats.maxDD),
     metricCard('Fee Drag', money(stats.fees), -stats.fees),
-    metricCard('Leak Rate', `${stats.leakRate.toFixed(1)}%`),
-    metricCard('Avg Score', stats.avgScore.toFixed(1)),
-    metricCard('Open Unrealized', money(stats.unrealized), stats.unrealized),
   ];
   setHtml('metrics', metrics.join(''));
 
-  setHtml('recent-window', recent.count ? `
-    ${statLine('Trades', String(recent.count))}
-    ${statLine('Avg R', `${recent.avgR.toFixed(2)}R`, recent.avgR)}
-    ${statLine('Net PnL', money(recent.netPnl), recent.netPnl)}
-    ${statLine('Win Rate', `${recent.winRate.toFixed(1)}%`)}
-    ${statLine('Fees', money(recent.feeDrag), -recent.feeDrag)}
-    ${statLine('Avg Score', recent.avgScore.toFixed(1))}
-  ` : emptyState('최근 구간 데이터가 없습니다.'));
-
-  renderStackStats('emotion-board', emotion, row => `${row.avgR.toFixed(2)}R · ${row.count}건`);
-  renderStackStats('playbook-board', playbook, row => `${row.avgR.toFixed(2)}R · Win ${row.winRate.toFixed(0)}%`);
-  renderStackStats('mistake-list', mistakes.slice(0, 8), row => `${money(row.totalPnl)} · AvgR ${row.avgR.toFixed(2)}`);
+  renderStackStats('mistake-list', mistakes.slice(0, 6), row => `${row.count}건 · AvgR ${row.avgR.toFixed(2)}`);
 
   const notes = [];
   if (stats.closed.length) {
     notes.push(noteCard('실행 품질', `Closed ${stats.closed.length}건 기준 평균 R은 ${stats.avgR.toFixed(2)}R, Profit Factor는 ${stats.profitFactor === Infinity ? '∞' : stats.profitFactor.toFixed(2)}입니다.`));
-    notes.push(noteCard('리스크 누수', `실수 태그가 붙은 거래 비중은 ${stats.leakRate.toFixed(1)}%입니다. Fee Drag는 ${money(stats.fees)}입니다.`));
+    notes.push(noteCard('리스크 누수', `Win Rate ${stats.winRate.toFixed(1)}%, Max Drawdown ${money(stats.maxDD)}, Fee Drag ${money(stats.fees)}.`));
   }
-  if (recent.count) {
-    notes.push(noteCard('최근 20트레이드', `최근 구간 순손익 ${money(recent.netPnl)}, 승률 ${recent.winRate.toFixed(1)}%, 평균 Score ${recent.avgScore.toFixed(1)}.`));
+  if (setups.length) {
+    notes.push(noteCard('강한 셋업', setups.slice(0, 3).map(row => `${row.label} (${row.value.toFixed(2)}R)`).join(' / ')));
   }
-  if (sessionSetup.length) {
-    notes.push(noteCard('강한 조합', sessionSetup.map(row => `${row.label} (${row.avgR.toFixed(2)}R)`).join(' / ')));
-  }
-  if (grades.length) {
-    notes.push(noteCard('Grade 분해', grades.map(row => `${row.label}: ${row.count}건, ${row.avgR.toFixed(2)}R`).join(' / ')));
+  if (mistakes.length) {
+    notes.push(noteCard('손실 유발 실수', mistakes.slice(0, 3).map(row => `${row.label} ${money(row.totalPnl)}`).join(' / ')));
   }
   setHtml('research-notes', notes.length ? notes.join('') : emptyState('데이터가 축적되면 인사이트가 나타납니다.'));
 
@@ -682,6 +660,7 @@ function renderOverview() {
   renderSetupChart(setups.slice(0, 8));
   renderOverviewPortfolio();
 }
+
 
 function renderStackStats(id, rows, formatter) {
   setHtml(id, rows.length ? rows.map(row => `
@@ -1011,15 +990,14 @@ function renderTradeDetail(trade) {
     </div>
     <div class="kv">
       <div>티커</div><div>${escapeHtml(trade.ticker)} · ${escapeHtml(trade.side)} · ${escapeHtml(trade.status)}</div>
-      <div>세션 / Book</div><div>${escapeHtml(trade.session)} / ${escapeHtml(trade.book)}</div>
+      <div>세션</div><div>${escapeHtml(trade.session)}</div>
       <div>Setup</div><div>${escapeHtml(trade.setupEntry || '—')} → ${escapeHtml(trade.setupExit || '—')}</div>
-      <div>Regime</div><div>${escapeHtml(trade.marketRegime)} / ${escapeHtml(trade.biasTimeframe)}</div>
       <div>Grade / Score</div><div>${escapeHtml(trade.grade)} / ${trade.playbookScore}</div>
       <div>Avg In / Avg Out</div><div>${money(trade.metrics.avgEntry)} / ${trade.metrics.avgExit ? money(trade.metrics.avgExit) : '—'}</div>
       <div>PnL / R</div><div class="${trade.metrics.pnl > 0 ? 'positive' : trade.metrics.pnl < 0 ? 'negative' : ''}">${money(trade.metrics.pnl)} / ${trade.metrics.r.toFixed(2)}R</div>
       <div>Realized / Unrealized</div><div>${money(trade.metrics.realizedPnl)} / ${money(trade.metrics.unrealizedPnl)}</div>
       <div>Residual Risk</div><div>${money(trade.metrics.residualRisk)} (${trade.metrics.remainingPct.toFixed(1)}% remaining)</div>
-      <div>Emotion / Verdict</div><div>${escapeHtml(trade.emotion || '—')} / ${escapeHtml(trade.verdict || '—')}</div>
+      <div>Emotion</div><div>${escapeHtml(trade.emotion || '—')}</div>
     </div>
 
     <div class="timeline-container">
@@ -1034,9 +1012,6 @@ function renderTradeDetail(trade) {
       <h4>Pre-trade</h4>
       <p><strong>Context:</strong> ${escapeHtml(trade.context || '—')}</p>
       <p><strong>Thesis:</strong> ${escapeHtml(trade.thesis || '—')}</p>
-      <p><strong>Catalyst:</strong> ${escapeHtml(trade.catalyst || '—')}</p>
-      <p><strong>Invalidation:</strong> ${escapeHtml(trade.invalidationNote || '—')}</p>
-      <div class="chips">${(trade.checklist || []).map(item => `<span class="chip">${escapeHtml(item)}</span>`).join('') || '<span class="chip">체크리스트 없음</span>'}</div>
     </div>
 
     <div class="detail-section">
@@ -1044,7 +1019,7 @@ function renderTradeDetail(trade) {
       <p>${escapeHtml(trade.review || '—')}</p>
       <p><strong>Live Notes:</strong></p>
       <pre class="notes-pre">${escapeHtml(trade.liveNotes || '—')}</pre>
-      <div class="chips">${(trade.tags || []).map(tag => `<span class="chip">#${escapeHtml(tag)}</span>`).join(' ')}</div>
+      <div class="chips">${(trade.tags || []).map(tag => `<span class="chip">#${escapeHtml(tag)}</span>`).join(' ') || '<span class="chip">태그 없음</span>'}</div>
       <div class="chips">${(trade.mistakes || []).map(tag => `<span class="chip danger-chip">${escapeHtml(tag)}</span>`).join(' ') || '<span class="chip">실수 없음</span>'}</div>
     </div>
 
@@ -1053,13 +1028,13 @@ function renderTradeDetail(trade) {
       <div class="stack">
         ${trade.evidence?.entryChart ? `<a class="evidence-link" target="_blank" rel="noreferrer" href="${escapeAttr(trade.evidence.entryChart)}">Entry Chart</a>` : ''}
         ${trade.evidence?.exitChart ? `<a class="evidence-link" target="_blank" rel="noreferrer" href="${escapeAttr(trade.evidence.exitChart)}">Exit Chart</a>` : ''}
-        ${(trade.evidence?.extra || []).map(url => `<a class="evidence-link" target="_blank" rel="noreferrer" href="${escapeAttr(url)}">${escapeHtml(url)}</a>`).join('')}
       </div>
     </div>
   `);
 
   document.getElementById('load-selected-into-journal').onclick = () => openSelectedInJournal(trade.id);
 }
+
 
 function renderTimeline(type, rows) {
   if (!rows.length) return `
@@ -1125,7 +1100,7 @@ function renderPlaybook() {
         <div class="list-sub">${formatDateTime(trade.date)} · ${trade.session} · ${trade.side}</div>
         <div class="${trade.metrics.r > 0 ? 'positive' : 'negative'}">${trade.metrics.r.toFixed(2)}R · ${money(trade.metrics.pnl)}</div>
         <p>${escapeHtml(trade.thesis || trade.review || '설명이 없습니다.')}</p>
-        <div class="chips">${(trade.checklist || []).slice(0, 4).map(item => `<span class="chip">${escapeHtml(item)}</span>`).join('')}</div>
+        <div class="chips">${(trade.tags || []).slice(0, 4).map(item => `<span class="chip">#${escapeHtml(item)}</span>`).join('') || '<span class="chip">태그 없음</span>'}</div>
       </div>
     </article>
   `).join('') : emptyState('조건을 만족하는 Playbook 샘플이 없습니다.'));
@@ -1138,6 +1113,7 @@ function renderPlaybook() {
     };
   });
 }
+
 
 function selectTrade(id) {
   state.selectedTradeId = id;

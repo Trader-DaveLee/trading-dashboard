@@ -28,3 +28,11 @@ GitHub Pages 또는 로컬 서버에서 열면 됩니다.
 ## 참고
 기존 `btc_trading_research_dashboard_v2` localStorage 데이터와
 구형 v5 JSON 배열 import를 v3로 마이그레이션하도록 설계했습니다.
+
+
+## v3.2 UI refresh
+- 전체 라이트 테마 리디자인
+- Overview를 원래의 간결한 레이아웃으로 복원
+- Journal에서 Book / Market Regime / Bias Timeframe / Verdict 제거
+- Checklist / 추가 증거 링크 제거
+- 계좌 잔고 입력부를 은행 앱 스타일의 간결한 스냅샷 UI로 재구성
