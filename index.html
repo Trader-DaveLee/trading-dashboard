@@ -97,7 +97,7 @@
             </div>
 
             <div class="field-grid responsive-cols journal-core-grid">
-              <label><span>날짜/시간</span>
+              <label style="grid-column: span 2;"><span>날짜/시간</span>
                 <div class="input-group flex-group">
                   <input id="trade-date" type="datetime-local" required />
                   <button type="button" id="btn-now" class="gear-btn fixed-btn">지금</button>
@@ -112,12 +112,6 @@
               <label><span>상태</span><select id="status"><option value="OPEN">OPEN</option><option value="CLOSED">CLOSED</option></select></label>
               <label><span>방향</span><select id="side"><option value="LONG">LONG</option><option value="SHORT">SHORT</option></select></label>
               <label><span>세션</span><select id="session"><option>ASIA</option><option>LONDON</option><option>NEW YORK</option><option>OVERLAP</option></select></label>
-              <label><span>감정</span>
-                <div class="input-group flex-group">
-                  <select id="emotion"></select>
-                  <button type="button" id="btn-manage-emotion" class="gear-btn fixed-btn">⚙️</button>
-                </div>
-              </label>
               <label><span>Entry Setup</span>
                 <div class="input-group flex-group">
                   <select id="setup-entry"></select>
@@ -243,7 +237,7 @@
         </article>
 
         <aside class="journal-sidebar stack">
-          <article class="card premium-balance-card hover-lift">
+          <article class="card premium-balance-card hover-lift resizable-card">
             <div class="section-head no-bottom">
               <div><h3>💳 Account Status</h3><p>포트폴리오 자산 스냅샷</p></div>
               <span class="subtle-pill accent">Local</span>
@@ -267,7 +261,7 @@
             </div>
           </article>
 
-          <article class="card compact-card risk-summary-card hover-lift">
+          <article class="card compact-card risk-summary-card hover-lift resizable-card">
             <div class="section-head"><div><h3>Risk Planner</h3><p>사이즈, 리스크, 잔여 익스포저</p></div></div>
             <div class="detail-box risk-box">
               <div class="kv">
@@ -285,7 +279,7 @@
             </div>
           </article>
 
-          <article class="card compact-card hover-lift">
+          <article class="card compact-card hover-lift resizable-card">
             <div class="section-head"><div><h3>Desk Rules</h3><p>원칙 및 체크리스트 관리</p></div></div>
             <div class="stack">
               <label><span>📝 규칙 메모</span><textarea id="desk-rules" class="rules-box" placeholder="항상 되새길 일반 원칙들..." style="min-height:80px;"></textarea></label>
@@ -314,7 +308,6 @@
           <label><span>방향</span><select id="f-side"><option value="ALL">ALL</option><option>LONG</option><option>SHORT</option></select></label>
           <label><span>세션</span><select id="f-session"><option value="ALL">ALL</option><option>ASIA</option><option>LONDON</option><option>NEW YORK</option><option>OVERLAP</option></select></label>
           <label><span>셋업</span><input id="f-setup" placeholder="BREAKOUT" /></label>
-          <label><span>감정</span><input id="f-emotion" placeholder="CALM, FOMO" /></label>
           <label><span>태그</span><input id="f-tag" placeholder="trend, sweep" /></label>
           <label><span>실수</span><input id="f-mistake" placeholder="fomo, early exit" /></label>
           <label><span>Grade</span><select id="f-grade"><option value="ALL">ALL</option><option>S</option><option>A</option><option>B</option><option>C</option><option>D</option></select></label>
