@@ -33,7 +33,8 @@ const ID_LIST = [
   'add-entry','entries','add-exit','exits','calc-summary','quick-tags','quick-mistakes','live-notes','btn-insert-time',
   'bal-cash','bal-crypto','bal-usdt','bal-stock','bal-total','balance-memo','btn-update-balance','balance-history',
   'duplicate-trade','reset-form','delete-trade','grade','deep-review-r',
-  'desk-rules','risk-risk-dollar','risk-qty','risk-margin','risk-slider','risk-notional','risk-stop-distance','risk-fees','risk-realized','risk-unrealized','risk-residual',
+  'desk-rules','master-checklist-list','new-check-input','btn-add-check','trade-checklist-container',
+  'risk-risk-dollar','risk-qty','risk-margin','risk-slider','risk-notional','risk-stop-distance','risk-fees','risk-realized','risk-unrealized','risk-residual',
   'view-library','q','f-from','f-to','f-status','f-side','f-session','f-setup','f-emotion','f-tag','f-mistake','f-grade','sort','clear-filters','library-result-count','review-position','review-breadcrumb','prev-trade','next-trade','filter-same-setup','filter-same-ticker','clear-quick-filter','trade-table','detail','detail-insights',
   'view-playbook','playbook-gallery'
 ];
@@ -75,9 +76,11 @@ function initMeta() {
   state.db.meta.tagPresets = state.db.meta.tagPresets || ['trend', 'sweep'];
   state.db.meta.mistakePresets = state.db.meta.mistakePresets || ['fomo', 'early exit'];
   state.db.meta.balanceHistory = Array.isArray(state.db.meta.balanceHistory) ? state.db.meta.balanceHistory : [];
+  state.db.meta.checklists = Array.isArray(state.db.meta.checklists) ? state.db.meta.checklists : [];
   renderDropdowns();
   renderQuickChips();
   renderAccountBalance();
+  renderMasterChecklist();
 }
 
 function bindEvents() {
@@ -151,15 +154,34 @@ function bindEvents() {
   });
 
   ['bal-cash','bal-crypto','bal-usdt','bal-stock'].forEach(id => {
-    els[id].addEventListener('input', calcTotalBalance);
-    els[id].addEventListener('change', calcTotalBalance);
+    if(els[id]){
+      els[id].addEventListener('input', calcTotalBalance);
+      els[id].addEventListener('change', calcTotalBalance);
+    }
   });
 
-  els['btn-update-balance'].onclick = updateBalance;
-  els['desk-rules'].addEventListener('input', () => {
-    state.db.meta.rules = els['desk-rules'].value;
-    saveDB(state.db);
-  });
+  if(els['btn-update-balance']) els['btn-update-balance'].onclick = updateBalance;
+  
+  if(els['desk-rules']) {
+    els['desk-rules'].addEventListener('input', () => {
+      state.db.meta.rules = els['desk-rules'].value;
+      saveDB(state.db);
+    });
+  }
+
+  // ✨ 체크리스트 마스터 추가 로직
+  if(els['btn-add-check']) {
+    els['btn-add-check'].onclick = () => {
+      const val = getVal('new-check-input').trim();
+      if(val && !state.db.meta.checklists.includes(val)) {
+        state.db.meta.checklists.push(val);
+        setVal('new-check-input', '');
+        saveDB(state.db);
+        renderMasterChecklist();
+        renderTradeChecklist(); 
+      }
+    };
+  }
 
   bindKeyboardShortcuts();
 
@@ -235,8 +257,55 @@ function render() {
   renderLibrary();
   renderPlaybook();
   renderAccountBalance();
+  renderMasterChecklist();
   updatePreview();
 }
+
+// ✨ 마스터 체크리스트 렌더링 (사이드바)
+window.__desk_del_check = (idx) => {
+  state.db.meta.checklists.splice(idx, 1);
+  saveDB(state.db);
+  renderMasterChecklist();
+  renderTradeChecklist();
+};
+
+function renderMasterChecklist() {
+  if(!els['master-checklist-list']) return;
+  const list = state.db.meta.checklists || [];
+  els['master-checklist-list'].innerHTML = list.length ? list.map((item, idx) => `
+    <div style="display:flex; justify-content:space-between; align-items:center; background:#fff; border:1px solid var(--line); padding:8px 12px; border-radius:8px;">
+      <span style="font-size:12px; font-weight:700;">${escapeHtml(item)}</span>
+      <button type="button" class="tool-btn" style="padding:4px 8px; font-size:10px;" onclick="window.__desk_del_check(${idx})">✕</button>
+    </div>
+  `).join('') : '<span class="muted-caption" style="font-size:12px;">등록된 체크리스트가 없습니다.</span>';
+}
+
+// ✨ 개별 트레이드 체크리스트 렌더링 (폼 내부)
+function renderTradeChecklist(checkedValues = []) {
+  if(!els['trade-checklist-container']) return;
+  const list = state.db.meta.checklists || [];
+  if(!list.length) {
+    els['trade-checklist-container'].innerHTML = '<span style="color:var(--muted); font-size:12px; font-weight:600;">사이드바 Desk Rules에서 체크리스트를 먼저 추가해주세요.</span>';
+    return;
+  }
+  els['trade-checklist-container'].innerHTML = list.map(item => `
+    <label class="check-inline">
+      <input type="checkbox" value="${escapeAttr(item)}" class="trade-check-item" ${checkedValues.includes(item) ? 'checked' : ''}>
+      <span>${escapeHtml(item)}</span>
+    </label>
+  `).join('');
+
+  els['trade-checklist-container'].querySelectorAll('input').forEach(chk => {
+    chk.addEventListener('change', handleFormMutation);
+  });
+}
+
+function getCheckedRules() {
+  if(!els['trade-checklist-container']) return [];
+  const boxes = els['trade-checklist-container'].querySelectorAll('.trade-check-item:checked');
+  return Array.from(boxes).map(b => b.value);
+}
+
 
 function renderDropdowns() {
   populateSelect('ticker', state.db.meta.tickers);
@@ -294,6 +363,7 @@ function hydrateInitialForm() {
   state.draftExits = [];
   renderLegs('entry');
   renderLegs('exit');
+  renderTradeChecklist([]);
   calcTotalBalance();
 }
 
@@ -384,6 +454,7 @@ function resetForm() {
   state.draftExits = [];
   renderLegs('entry');
   renderLegs('exit');
+  renderTradeChecklist([]); // 폼 초기화 시 체크 해제
   updatePreview();
   refreshJournalStatus('새 폼 준비');
 }
@@ -433,6 +504,7 @@ function readForm() {
     emotion: getVal('emotion'),
     tags: splitCsv(getVal('tags')),
     mistakes: splitCsv(getVal('mistakes')),
+    checkedRules: getCheckedRules(), // ✨ 읽어올 때 체크된 항목 배열로 변환
     evidence: {
       entryChart: getVal('chart-entry'),
       exitChart: getVal('chart-exit'),
@@ -527,8 +599,10 @@ function applyTradeToForm(trade, options = {}) {
   setVal('chart-exit', trade.evidence?.exitChart || '');
   state.draftEntries = cloneRows(trade.entries || [{ price: 0, type: 'M', weight: 100 }]);
   state.draftExits = cloneRows(trade.exits || []);
+  
   renderLegs('entry');
   renderLegs('exit');
+  renderTradeChecklist(trade.checkedRules || []); // ✨ 폼 적용 시 체크 항목 복원
   updatePreview();
 }
 
@@ -602,7 +676,6 @@ function renderOverview() {
   const setups = groupAverageR(stats.closed, trade => trade.setupEntry);
   const mistakes = tagStats(stats.closed, trade => trade.mistakes);
   
-  // S, A 등급의 A+ 셋업 개수 카운팅
   const aPlusCount = stats.closed.filter(t => t.grade === 'S' || t.grade === 'A').length;
 
   const metrics = [
@@ -635,7 +708,6 @@ function renderOverview() {
   renderOverviewPortfolio();
 }
 
-
 function renderStackStats(id, rows, formatter) {
   setHtml(id, rows.length ? rows.map(row => `
     <div class="list-row">
@@ -650,7 +722,6 @@ function renderStackStats(id, rows, formatter) {
   `).join('') : emptyState('표시할 데이터가 없습니다.'));
 }
 
-// ✨ 타임존 오차 없는 로컬 캘린더 계산 적용
 function renderCalendar() {
   const trades = getOverviewTrades();
   const year = state.month.getFullYear();
@@ -661,7 +732,6 @@ function renderCalendar() {
   trades.forEach(trade => {
     const date = new Date(trade.date);
     if (date.getFullYear() !== year || date.getMonth() !== month) return;
-    // KST 등 로컬 타임존 기준으로 정확한 날짜 추출
     const pad = n => String(n).padStart(2, '0');
     const key = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
     map.set(key, (map.get(key) || 0) + trade.metrics.pnl);
@@ -769,7 +839,7 @@ function renderOverviewPortfolio() {
   setHtml('overview-portfolio', `
     <div class="portfolio-summary" style="display:flex; flex-direction:column; gap:16px;">
       <div style="background: linear-gradient(135deg, #f1f5f9 0%, #ffffff 100%); border:1px solid var(--line); border-radius:16px; padding:20px;">
-        <span style="color:var(--muted); font-weight:700; font-size:12px; display:block; margin-bottom:4px;">TOTAL PORTFOLIO</span>
+        <span style="color:var(--muted); font-weight:800; font-size:12px; display:block; margin-bottom:4px;">TOTAL PORTFOLIO</span>
         <strong style="font-size:36px; font-weight:900; letter-spacing:-1px; color:#0f172a;">${moneyAbsNatural(latest.val)}</strong>
       </div>
       <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
@@ -793,9 +863,20 @@ function renderAccountBalance() {
   setVal('bal-stock', latest.stock || 0);
   calcTotalBalance();
   setVal('desk-rules', state.db.meta.rules || '');
+
+  setHtml('balance-history', history.length ? history.map(row => `
+    <div style="padding:12px; border:1px solid var(--line); border-radius:12px; margin-bottom:8px; background:#fff;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+        <strong style="font-size:14px; color:#0f172a;">${moneyAbsNatural(row.val)}</strong>
+        <span style="color:var(--muted); font-size:11px;">${formatDateTime(row.date)}</span>
+      </div>
+      ${row.memo ? `<div style="font-size:11px; color:#475569; background:#f1f5f9; padding:4px 8px; border-radius:6px; display:inline-block;">${escapeHtml(row.memo)}</div>` : ''}
+    </div>
+  `).join('') : emptyState('잔고 히스토리가 없습니다.'));
 }
 
 function calcTotalBalance() {
+  if(!els['bal-cash']) return 0;
   const total = ['bal-cash','bal-crypto','bal-usdt','bal-stock']
     .reduce((sum, id) => sum + Number(els[id].value || 0), 0);
   setText('bal-total', moneyAbsNatural(total));
@@ -852,10 +933,10 @@ function renderLibrary() {
     <tr data-id="${trade.id}" class="${trade.id === state.selectedTradeId ? 'selected-row' : ''}">
       <td>${formatDateTime(trade.date)}</td>
       <td>${trade.status === 'OPEN' ? '<span class="badge-open">OPEN</span>' : '<span class="badge-closed">CLOSED</span>'}</td>
-      <td style="font-weight:700; color:#0f172a;">${escapeHtml(trade.ticker)}</td>
+      <td style="font-weight:800; color:#0f172a;">${escapeHtml(trade.ticker)}</td>
       <td>${escapeHtml(trade.side)}</td>
       <td>${escapeHtml(trade.session)}</td>
-      <td>${escapeHtml(trade.setupEntry || '—')}</td>
+      <td style="font-weight:700;">${escapeHtml(trade.setupEntry || '—')}</td>
       <td class="mono">${trade.metrics.avgEntry ? moneyAbs(trade.metrics.avgEntry) : '—'}</td>
       <td class="mono">${trade.metrics.avgExit ? moneyAbs(trade.metrics.avgExit) : '—'}</td>
       <td class="mono ${trade.metrics.pnl > 0 ? 'positive' : trade.metrics.pnl < 0 ? 'negative' : ''}">${money(trade.metrics.pnl)}</td>
@@ -938,7 +1019,7 @@ function renderTradeDetail(trade) {
       <div>티커</div><div><strong>${escapeHtml(trade.ticker)}</strong> · ${escapeHtml(trade.side)} · ${escapeHtml(trade.status)}</div>
       <div>세션</div><div>${escapeHtml(trade.session)}</div>
       <div>Setup</div><div>${escapeHtml(trade.setupEntry || '—')} → ${escapeHtml(trade.setupExit || '—')}</div>
-      <div>Grade</div><div>${escapeHtml(trade.grade)}</div>
+      <div>Grade</div><div><span class="badge ${trade.grade === 'S' || trade.grade === 'A' ? 'badge-good' : ''}">${escapeHtml(trade.grade)}</span></div>
       <div>Avg In / Avg Out</div><div class="mono">${moneyAbs(trade.metrics.avgEntry)} / ${trade.metrics.avgExit ? moneyAbs(trade.metrics.avgExit) : '—'}</div>
       <div>PnL / R</div><div class="mono ${trade.metrics.pnl > 0 ? 'positive' : trade.metrics.pnl < 0 ? 'negative' : ''}">${money(trade.metrics.pnl)} / ${trade.metrics.r.toFixed(2)}R</div>
       <div>Real/Unrealized</div><div class="mono">${money(trade.metrics.realizedPnl)} / ${money(trade.metrics.unrealizedPnl)}</div>
@@ -956,22 +1037,29 @@ function renderTradeDetail(trade) {
     </div>
 
     <div style="margin-top:24px;">
-      <h4 style="margin:0 0 8px; font-size:14px;">Pre-trade</h4>
-      <p style="margin:0 0 8px;"><strong>Context:</strong> ${escapeHtml(trade.context || '—')}</p>
-      <p style="margin:0;"><strong>Thesis:</strong> ${escapeHtml(trade.thesis || '—')}</p>
+      <h4 style="margin:0 0 8px; font-size:14px; font-weight:800;">원칙 점검</h4>
+      <div class="chips" style="margin-bottom:12px;">
+         ${(trade.checkedRules || []).length ? trade.checkedRules.map(r => `<span class="chip" style="background:var(--green-soft); color:var(--green); border-color:#a7f3d0;">✓ ${escapeHtml(r)}</span>`).join('') : '<span class="muted-caption" style="font-size:12px;">체크된 항목 없음</span>'}
+      </div>
     </div>
 
     <div style="margin-top:24px;">
-      <h4 style="margin:0 0 8px; font-size:14px;">Review</h4>
-      <p style="margin:0 0 12px;">${escapeHtml(trade.review || '—')}</p>
-      <strong style="font-size:13px;">Live Notes:</strong>
+      <h4 style="margin:0 0 8px; font-size:14px; font-weight:800;">Pre-trade</h4>
+      <p style="margin:0 0 8px; color:#334155;"><strong>Context:</strong> ${escapeHtml(trade.context || '—')}</p>
+      <p style="margin:0; color:#334155;"><strong>Thesis:</strong> ${escapeHtml(trade.thesis || '—')}</p>
+    </div>
+
+    <div style="margin-top:24px;">
+      <h4 style="margin:0 0 8px; font-size:14px; font-weight:800;">Review</h4>
+      <p style="margin:0 0 12px; color:#334155;">${escapeHtml(trade.review || '—')}</p>
+      <strong style="font-size:13px; color:#0f172a;">Live Notes:</strong>
       <div style="margin-top:8px; padding:16px; background:#f1f5f9; border-radius:12px; font-family:monospace; font-size:12px; white-space:pre-wrap; color:#334155;">${escapeHtml(trade.liveNotes || '—')}</div>
       <div class="chips" style="margin-top:12px;">${(trade.tags || []).map(tag => `<span class="chip">#${escapeHtml(tag)}</span>`).join(' ') || '<span class="chip">태그 없음</span>'}</div>
       <div class="chips">${(trade.mistakes || []).map(tag => `<span class="chip danger-chip">${escapeHtml(tag)}</span>`).join(' ') || '<span class="chip">실수 없음</span>'}</div>
     </div>
 
     <div style="margin-top:24px;">
-      <h4 style="margin:0 0 8px; font-size:14px;">Evidence</h4>
+      <h4 style="margin:0 0 8px; font-size:14px; font-weight:800;">Evidence</h4>
       <div style="display:flex; gap:8px;">
         ${trade.evidence?.entryChart ? `<a href="${escapeAttr(trade.evidence.entryChart)}" target="_blank" style="padding:8px 16px; background:#e0e7ff; color:var(--accent); border-radius:8px; text-decoration:none; font-weight:700; font-size:12px;">Entry Chart 📈</a>` : ''}
         ${trade.evidence?.exitChart ? `<a href="${escapeAttr(trade.evidence.exitChart)}" target="_blank" style="padding:8px 16px; background:#e0e7ff; color:var(--accent); border-radius:8px; text-decoration:none; font-weight:700; font-size:12px;">Exit Chart 📈</a>` : ''}
@@ -986,7 +1074,7 @@ function renderTimeline(type, rows) {
   if (!rows.length) return `
     <div style="position:relative; z-index:2; display:flex; flex-direction:column; align-items:center; gap:8px; flex:1;">
       <div style="width:16px; height:16px; border-radius:50%; background:#fff; border:3px solid var(--line);"></div>
-      <div style="font-size:11px; color:var(--muted); font-weight:700;">${type.toUpperCase()}</div>
+      <div style="font-size:11px; color:var(--muted); font-weight:800;">${type.toUpperCase()}</div>
       <div class="mono" style="font-size:12px;">—</div>
     </div>
   `;
@@ -994,8 +1082,8 @@ function renderTimeline(type, rows) {
   return rows.map((row, idx) => `
     <div style="position:relative; z-index:2; display:flex; flex-direction:column; align-items:center; gap:8px; flex:1;">
       <div style="width:16px; height:16px; border-radius:50%; background:${color}; border:3px solid #fff; box-shadow:0 0 0 2px ${color};"></div>
-      <div style="font-size:11px; color:var(--muted); font-weight:700; margin-top:4px;">${type.toUpperCase()} ${idx + 1}</div>
-      <div class="mono" style="font-size:12px; font-weight:700; color:#0f172a;">${safeNumber(row.price)} / ${safeNumber(row.weight)}%</div>
+      <div style="font-size:11px; color:var(--muted); font-weight:800; margin-top:4px;">${type.toUpperCase()} ${idx + 1}</div>
+      <div class="mono" style="font-size:12px; font-weight:800; color:#0f172a;">${safeNumber(row.price)} / ${safeNumber(row.weight)}%</div>
     </div>
   `).join('');
 }
@@ -1016,11 +1104,11 @@ function renderDetailInsights(trade, rows) {
     ${noteCard('같은 셋업 통계', `${trade.setupEntry || 'NA'} · ${sameSetup.length}건 · AvgR ${setupStats.avgR.toFixed(2)}R · Win ${setupStats.winRate.toFixed(1)}%`)}
     ${noteCard('같은 종목 통계', `${trade.ticker} · ${sameTicker.length}건 · AvgR ${tickerStats.avgR.toFixed(2)}R · Net ${money(tickerStats.net)}`)}
     <div class="similar-list" style="margin-top:16px;">
-      <h4 style="margin:0 0 12px; font-size:14px;">유사 샘플 (최근 5건)</h4>
+      <h4 style="margin:0 0 12px; font-size:14px; font-weight:800;">유사 샘플 (최근 5건)</h4>
       ${similar.length ? similar.map(row => `
         <div class="similar-item" data-id="${row.id}" style="padding:12px 16px; border:1px solid var(--line); border-radius:12px; margin-bottom:8px; cursor:pointer;">
-          <strong style="color:#0f172a;">${escapeHtml(row.ticker)} · ${escapeHtml(row.setupEntry || 'NA')}</strong>
-          <div style="font-size:12px; color:var(--muted); margin-top:4px;">${formatDate(row.date)} · <span class="${row.metrics.r > 0 ? 'positive' : 'negative'}">${row.metrics.r.toFixed(2)}R</span> · Grade ${row.grade}</div>
+          <strong style="color:#0f172a; font-weight:800;">${escapeHtml(row.ticker)} · ${escapeHtml(row.setupEntry || 'NA')}</strong>
+          <div style="font-size:12px; color:var(--muted); margin-top:4px; font-weight:600;">${formatDate(row.date)} · <span class="${row.metrics.r > 0 ? 'positive' : 'negative'}">${row.metrics.r.toFixed(2)}R</span> · Grade ${row.grade}</div>
         </div>
       `).join('') : emptyState('유사 샘플이 아직 없습니다.')}
     </div>
@@ -1038,20 +1126,20 @@ function renderPlaybook() {
 
   setHtml('playbook-gallery', rows.length ? rows.map(trade => `
     <article class="playbook-card" data-id="${trade.id}">
-      ${trade.evidence?.entryChart ? `<img class="playbook-img" src="${escapeAttr(trade.evidence.entryChart)}" alt="entry chart" onerror="this.style.display='none'">` : `<div class="playbook-img" style="display:grid; place-items:center; color:var(--muted); font-weight:600; font-size:12px;">NO IMAGE</div>`}
-      <div class="playbook-info">
-        <div class="playbook-header">
-          <strong style="font-size:16px; color:#0f172a;">${escapeHtml(trade.ticker)}</strong>
+      ${trade.evidence?.entryChart ? `<img class="playbook-img" src="${escapeAttr(trade.evidence.entryChart)}" alt="entry chart" onerror="this.style.display='none'">` : `<div class="playbook-img" style="display:grid; place-items:center; color:var(--muted); font-weight:800; font-size:12px;">NO IMAGE</div>`}
+      <div class="playbook-info" style="padding: 16px; display:flex; flex-direction:column; flex:1;">
+        <div class="playbook-header" style="display:flex; justify-content:space-between; align-items:center;">
+          <strong style="font-size:16px; color:#0f172a; font-weight:900;">${escapeHtml(trade.ticker)}</strong>
           <span class="badge badge-good" style="font-size:12px;">Grade ${trade.grade}</span>
         </div>
-        <div style="font-size:12px; color:var(--accent); font-weight:700;">${escapeHtml(trade.setupEntry || 'NA')}</div>
-        <div style="font-size:11px; color:var(--muted);">${formatDateTime(trade.date)} · ${trade.session}</div>
-        <div class="mono ${trade.metrics.r > 0 ? 'positive' : 'negative'}" style="font-size:14px; font-weight:800; margin-top:4px;">${trade.metrics.r.toFixed(2)}R (${money(trade.metrics.pnl)})</div>
-        <p style="font-size:12px; color:#475569; margin:8px 0; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">${escapeHtml(trade.thesis || trade.review || '설명 없음')}</p>
+        <div style="font-size:12px; color:var(--accent); font-weight:800; margin-top:4px;">${escapeHtml(trade.setupEntry || 'NA')}</div>
+        <div style="font-size:11px; color:var(--muted); font-weight:600; margin-top:2px;">${formatDateTime(trade.date)} · ${trade.session}</div>
+        <div class="mono ${trade.metrics.r > 0 ? 'positive' : 'negative'}" style="font-size:14px; font-weight:800; margin-top:8px;">${trade.metrics.r.toFixed(2)}R (${money(trade.metrics.pnl)})</div>
+        <p style="font-size:12px; color:#334155; font-weight:500; margin:8px 0; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">${escapeHtml(trade.thesis || trade.review || '설명 없음')}</p>
         <div class="chips" style="margin-top:auto;">${(trade.tags || []).slice(0, 3).map(item => `<span class="chip">#${escapeHtml(item)}</span>`).join('') || '<span class="chip">태그 없음</span>'}</div>
       </div>
     </article>
-  `).join('') : emptyState('조건을 만족하는 A급 이상 Playbook 샘플이 없습니다.'));
+  `).join('') : emptyState('조건을 만족하는 S/A급 Playbook 샘플이 없습니다.'));
 
   els['playbook-gallery'].querySelectorAll('.playbook-card').forEach(card => {
     card.onclick = () => {
@@ -1166,8 +1254,8 @@ function refreshJournalStatus(message) {
 function noteCard(title, body) {
   return `
     <div class="note-card">
-      <strong style="color:#0f172a; font-size:14px; display:block; margin-bottom:6px;">${escapeHtml(title)}</strong>
-      <p style="margin:0; color:#475569;">${escapeHtml(body)}</p>
+      <strong style="color:#0f172a; font-size:14px; font-weight:800; display:block; margin-bottom:6px;">${escapeHtml(title)}</strong>
+      <p style="margin:0; color:#334155; font-weight:500;">${escapeHtml(body)}</p>
     </div>
   `;
 }
@@ -1175,8 +1263,8 @@ function noteCard(title, body) {
 function portfolioItem(label, value) {
   return `
     <div style="background:#f8fafc; border:1px solid var(--line); border-radius:12px; padding:12px;">
-      <div style="font-size:12px; color:var(--muted); font-weight:700; margin-bottom:4px;">${escapeHtml(label)}</div>
-      <div style="font-size:16px; font-weight:800; color:#0f172a;">${moneyAbsNatural(value)}</div>
+      <div style="font-size:12px; color:var(--muted); font-weight:800; margin-bottom:4px;">${escapeHtml(label)}</div>
+      <div style="font-size:16px; font-weight:900; color:#0f172a;">${moneyAbsNatural(value)}</div>
     </div>
   `;
 }
