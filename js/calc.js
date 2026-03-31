@@ -1,5 +1,4 @@
 export function sumWeights(rows) {
-  // 방어적 코드: 비중(weight)이 음수로 입력되는 비정상적인 상황 방지
   return rows.reduce((sum, row) => sum + Math.max(0, Number(row.weight || 0)), 0);
 }
 
@@ -8,65 +7,88 @@ export function recalcTrade(trade) {
   const maker = Number(trade.makerFee || 0) / 100;
   const taker = Number(trade.takerFee || 0) / 100;
   const stop = Number(trade.stopPrice || 0);
-  const accountSize = Math.max(0, Number(trade.accountSize || 0)); // 계좌 크기 음수 방지
-  const riskPct = Number(trade.riskPct || 0);
+  const accountSize = Math.max(0, Number(trade.accountSize || 0));
+  const riskPct = Math.max(0, Number(trade.riskPct || 0));
   const riskDollar = accountSize * riskPct / 100;
-  
+
   const entries = (trade.entries || []).filter(e => Number(e.price) > 0 && Number(e.weight) > 0);
   const exits = (trade.exits || []).filter(e => Number(e.price) > 0 && Number(e.weight) > 0);
 
-  const invalid = !stop || !entries.length || Math.round(sumWeights(entries)) !== 100;
+  const entryTotal = sumWeights(entries);
+  const exitTotalRaw = sumWeights(exits);
+  const exitPct = Math.min(100, exitTotalRaw);
+  const remainingPct = Math.max(0, 100 - exitPct);
+
+  const invalid = !stop || !entries.length || Math.round(entryTotal) !== 100;
   if (invalid) return baseMetrics(riskDollar);
 
   let avgEntry = 0;
   let riskPerUnit = 0;
   let directionError = false;
-  
+
   for (const leg of entries) {
     const price = Number(leg.price);
     const weight = Number(leg.weight) / 100;
     const fee = leg.type === 'M' ? maker : taker;
-    
+
     avgEntry += price * weight;
-    
-    // 방향성 에러 체크 (롱인데 손절가가 진입가보다 높거나, 숏인데 손절가가 낮은 경우)
     if ((side === 1 && stop >= price) || (side === -1 && stop <= price)) directionError = true;
-    
-    // 각 레그별 유닛당 리스크 계산
     riskPerUnit += weight * (Math.abs(price - stop) + price * fee);
   }
-  
-  // 손절 시 발생하는 수수료 추가
+
   riskPerUnit += stop * ((trade.stopType || 'M') === 'M' ? maker : taker);
-  
   if (!riskPerUnit || directionError) return baseMetrics(riskDollar, avgEntry, true);
 
-  const qty = riskDollar / riskPerUnit;
+  const qty = riskDollar ? riskDollar / riskPerUnit : 0;
   const margin = qty * avgEntry / Math.max(1, Number(trade.leverage || 1));
-  const sliderPct = accountSize ? (margin / accountSize) * 100 : 0; 
-  
-  let totalFees = 0;
+  const sliderPct = accountSize ? (margin / accountSize) * 100 : 0;
+  const notional = qty * avgEntry;
+  const stopDistancePct = avgEntry ? (Math.abs(avgEntry - stop) / avgEntry) * 100 : 0;
+
+  let entryFees = 0;
   for (const leg of entries) {
-    totalFees += Number(leg.price) * qty * (Number(leg.weight) / 100) * (leg.type === 'M' ? maker : taker);
+    entryFees += Number(leg.price) * qty * (Number(leg.weight) / 100) * (leg.type === 'M' ? maker : taker);
   }
 
+  let exitFees = 0;
+  let grossRealized = 0;
   let avgExit = 0;
-  let grossPnl = 0;
-  const exitTotal = sumWeights(exits);
-  
-  if (exits.length && exitTotal > 0) {
+
+  if (exits.length && exitTotalRaw > 0) {
     for (const leg of exits) {
       const price = Number(leg.price);
-      const weight = Number(leg.weight) / 100;
-      avgExit += price * (Number(leg.weight) / exitTotal);
-      grossPnl += (price - avgEntry) * side * (qty * weight);
-      totalFees += price * (qty * weight) * (leg.type === 'M' ? maker : taker);
+      const weightPct = Number(leg.weight) / 100;
+      const normalizedExitWeight = Number(leg.weight) / exitTotalRaw;
+      avgExit += price * normalizedExitWeight;
+      grossRealized += (price - avgEntry) * side * (qty * weightPct);
+      exitFees += price * (qty * weightPct) * (leg.type === 'M' ? maker : taker);
     }
   }
 
+  const entryFeesRealized = entryFees * (exitPct / 100);
+  const entryFeesRemaining = entryFees - entryFeesRealized;
+  const realizedPnl = grossRealized - entryFeesRealized - exitFees;
+
+  const remainingQty = qty * (remainingPct / 100);
+  const remainingExposure = remainingQty * avgEntry;
+  const residualRisk = remainingQty * (Math.abs(avgEntry - stop) + stop * ((trade.stopType || 'M') === 'M' ? maker : taker));
+
+  let grossUnrealized = 0;
+  let unrealizedPnl = 0;
+  const markPrice = Number(trade.markPrice || 0);
+
+  if (remainingQty > 0 && markPrice > 0) {
+    grossUnrealized = (markPrice - avgEntry) * side * remainingQty;
+    unrealizedPnl = grossUnrealized - entryFeesRemaining;
+  }
+
+  const totalFees = entryFees + exitFees;
   const adjustment = Number(trade.adjustment || 0);
-  const pnl = exits.length ? grossPnl - totalFees + adjustment : 0;
-  
+  const netPnl = realizedPnl + unrealizedPnl + adjustment;
+  const feePctOfGross = grossRealized || grossUnrealized
+    ? (totalFees / Math.max(1e-9, Math.abs(grossRealized + grossUnrealized))) * 100
+    : 0;
+
   return {
     valid: true,
     directionError: false,
@@ -75,25 +97,59 @@ export function recalcTrade(trade) {
     avgExit,
     qty,
     margin,
-    sliderPct, 
-    pnl,
-    r: riskDollar ? pnl / riskDollar : 0,
+    sliderPct,
+    notional,
+    stopDistancePct,
+    exitPct,
+    remainingPct,
+    remainingQty,
+    remainingExposure,
+    residualRisk,
+    grossRealized,
+    realizedPnl,
+    grossUnrealized,
+    unrealizedPnl,
+    pnl: netPnl,
+    netPnl,
+    r: riskDollar ? netPnl / riskDollar : 0,
     totalFees,
+    entryFees,
+    exitFees,
+    feePctOfGross,
+    scaleInCount: entries.length,
+    scaleOutCount: exits.length,
   };
 }
 
 function baseMetrics(riskDollar = 0, avgEntry = 0, directionError = false) {
-  return { 
-    valid: false, 
-    directionError, 
-    riskDollar, 
-    avgEntry, 
-    avgExit: 0, 
-    qty: 0, 
-    margin: 0, 
-    sliderPct: 0, 
-    pnl: 0, 
-    r: 0, 
-    totalFees: 0 
+  return {
+    valid: false,
+    directionError,
+    riskDollar,
+    avgEntry,
+    avgExit: 0,
+    qty: 0,
+    margin: 0,
+    sliderPct: 0,
+    notional: 0,
+    stopDistancePct: 0,
+    exitPct: 0,
+    remainingPct: 0,
+    remainingQty: 0,
+    remainingExposure: 0,
+    residualRisk: 0,
+    grossRealized: 0,
+    realizedPnl: 0,
+    grossUnrealized: 0,
+    unrealizedPnl: 0,
+    pnl: 0,
+    netPnl: 0,
+    r: 0,
+    totalFees: 0,
+    entryFees: 0,
+    exitFees: 0,
+    feePctOfGross: 0,
+    scaleInCount: 0,
+    scaleOutCount: 0,
   };
 }
