@@ -47,13 +47,16 @@ button { cursor: pointer; }
 .date-filter-box input { background: transparent; border: none; padding: 4px 8px; color: #fff; width: 110px; font-size:13px; outline:none; font-family:inherit;}
 .date-filter-box input::-webkit-calendar-picker-indicator { filter: invert(1); cursor:pointer;}
 
-.metrics-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 16px; margin-bottom: 24px; }
+/* ✨ 변경됨: Overview 레이아웃 조정 */
+.overview-top-row { display: grid; grid-template-columns: 2.2fr 1fr; gap: 24px; margin-bottom: 24px; }
+.metrics-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; align-items: stretch; }
 .metric { 
   position: relative; overflow: hidden;
   background: linear-gradient(145deg, #181f30 0%, #111520 100%); 
   border: 1px solid rgba(255,255,255,0.05); 
   border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); 
   transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  padding: 20px;
 }
 .metric::before { 
   content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 3px;
@@ -65,14 +68,8 @@ button { cursor: pointer; }
 .metric.metric-loss:hover::before { background: linear-gradient(90deg, transparent, var(--red), transparent); }
 .metric.metric-warn:hover::before { background: linear-gradient(90deg, transparent, var(--yellow), transparent); }
 
-.metric.large { grid-column: span 3; padding: 26px; }
-.metric.medium { grid-column: span 2; padding: 22px; }
-.metric.small { grid-column: span 2; padding: 18px; }
 .metric .label { color: #94a3b8; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; font-weight:700;}
-.metric .value { margin-top: 12px; font-weight: 800; color:#fff; text-shadow: 0 2px 10px rgba(0,0,0,0.3);}
-.metric.large .value { font-size: 42px; letter-spacing:-1px;}
-.metric.medium .value { font-size: 32px; }
-.metric.small .value { font-size: 24px; margin-top: 8px;}
+.metric .value { margin-top: 12px; font-weight: 800; color:#fff; text-shadow: 0 2px 10px rgba(0,0,0,0.3); font-size: 28px; letter-spacing:-0.5px;}
 .metric .sub { margin-top: 8px; font-size: 12px; color: #64748b; font-weight:600;}
 
 .grid { display: grid; gap: 18px; margin-bottom: 18px; }
@@ -136,12 +133,12 @@ input[type="date"]::-webkit-calendar-picker-indicator, input[type="datetime-loca
 .tool-btn { padding: 8px 12px; background: #1b2131; color: #d4d4d8; border: 1px solid #2d384d; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 12px; transition: 0.2s; }
 .tool-btn:hover { background: #2d384d; color: #fff; border-color:#4a5568; }
 
+.btn-live-action { background: rgba(255,255,255,0.05); color: var(--text); border: 1px dashed var(--line); }
+.btn-live-action:hover { background: rgba(255,255,255,0.1); border-color: var(--accent); color:#fff; }
+
 .leg-row { display: grid; grid-template-columns: 2fr 1fr 1.5fr auto; gap: 8px; margin-bottom: 8px; }
 .summary-box, .note-box, .detail-box { background: linear-gradient(180deg, rgba(79,140,255,.08), rgba(79,140,255,.02)); border: 1px solid rgba(79,140,255,.15); border-radius: 12px; padding: 16px; line-height: 1.65; font-size:13px;}
 .stack { display: grid; gap: 12px; }
-
-.toggle-btn { width: 100%; padding: 14px; background: rgba(255,255,255,0.02); color: var(--muted); border: 1px dashed var(--line); border-radius: 10px; font-size: 13px; font-weight: 700; cursor: pointer; transition: 0.2s; }
-.toggle-btn:hover { background: rgba(255,255,255,0.05); color: #fff; border-color:#4a5568;}
 
 .calendar { display: grid; grid-template-columns: repeat(7, minmax(0,1fr)); gap: 10px; }
 .calendar .dow { text-align: center; font-size: 13px; color: var(--muted); text-transform: uppercase; font-weight:700; padding-bottom:8px;}
@@ -207,7 +204,7 @@ svg { width: 100%; height: 100%; }
 .rules-box{min-height:220px; background:transparent; color:var(--text); border:none; padding:0; width:100%; resize:vertical; line-height:1.6;}
 .rules-box:focus { box-shadow:none; }
 
-.premium-balance-card { background: linear-gradient(180deg, rgba(30, 41, 59, 0.4), rgba(15, 23, 42, 0.4)); border: 1px solid rgba(59, 130, 246, 0.3); box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4); }
+.premium-balance-card { background: linear-gradient(180deg, rgba(30, 41, 59, 0.4), rgba(15, 23, 42, 0.4)); border: 1px solid rgba(59, 130, 246, 0.3); box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4); height: 100%; }
 .balance-input-wrapper { border-radius: 10px; overflow: hidden; border: 1px solid var(--accent); box-shadow: 0 0 0 1px rgba(59,130,246,0.2); margin-bottom: 16px; }
 .balance-memo-row { display: flex; background: #0e1420; }
 .balance-memo-row input { flex: 1; border: none; background: transparent; border-top: 1px solid #2c3850; border-radius: 0; font-size: 12px; padding: 10px 12px; color: var(--muted); }
@@ -229,16 +226,11 @@ svg { width: 100%; height: 100%; }
 .portfolio-grid input { width: 100%; border: none; background: rgba(255,255,255,0.02); color: #fff; font-size: 16px; font-weight: bold; padding: 8px; border-radius: 6px; transition:0.2s;}
 .portfolio-grid input:focus { background: rgba(79,140,255,0.1); box-shadow: none; outline: 1px solid var(--accent); }
 
-/* 새로 추가된 Total Balance UI를 위한 클래스 */
 .portfolio-total { padding: 12px 16px; background: rgba(0,0,0,0.3); text-align: right; border-top: 1px solid #2c3850; font-size: 13px; font-weight: bold; color: var(--muted); }
 .portfolio-total span { color: var(--green); font-size: 16px; margin-left: 8px; }
 
-/* Overview 포트폴리오 아이템 호버 이펙트 추가 */
 .portfolio-item { display:flex; align-items:flex-start; gap:8px; padding:12px; background:rgba(0,0,0,0.2); border-radius:8px; border:1px solid rgba(255,255,255,0.05); transition: transform 0.2s ease, border-color 0.2s ease; cursor: default; }
 .portfolio-item:hover { transform: translateY(-2px); border-color: rgba(255,255,255,0.15); }
-.portfolio-item .dot { width:10px; height:10px; border-radius:50%; margin-top:4px; flex-shrink:0;}
-.portfolio-item .lbl { display:block; font-size:11px; color:var(--muted); margin-bottom:2px; font-weight:700; text-transform:uppercase;}
-.portfolio-item .val { display:block; font-size:15px; font-weight:900; color:#fff; letter-spacing:-0.5px;}
 
 .playbook-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
 .playbook-card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; transition: 0.3s; cursor: pointer; display: flex; flex-direction: column; }
@@ -258,9 +250,8 @@ svg { width: 100%; height: 100%; }
 .timeline-val { font-size: 13px; font-weight: bold; color: #fff; font-family: monospace; }
 
 @media (max-width: 1280px) {
+  .overview-top-row { grid-template-columns: 1fr; }
   .metrics-grid { grid-template-columns: repeat(2, 1fr); }
-  .metric.large { grid-column: span 2; }
-  .metric.medium, .metric.small { grid-column: span 1; }
   .grid-2, .grid-3, .grid-journal { grid-template-columns: 1fr; }
   .journal-sidebar{position:static;}
 }
