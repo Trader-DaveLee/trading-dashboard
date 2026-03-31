@@ -98,41 +98,46 @@
 
             <div class="field-grid responsive-cols journal-core-grid">
               <label><span>날짜/시간</span>
-                <div class="input-group">
+                <div class="input-group flex-group">
                   <input id="trade-date" type="datetime-local" required />
-                  <button type="button" id="btn-now" class="gear-btn">지금</button>
+                  <button type="button" id="btn-now" class="gear-btn fixed-btn">지금</button>
                 </div>
               </label>
               <label><span>티커</span>
-                <div class="input-group">
+                <div class="input-group flex-group">
                   <select id="ticker" required></select>
-                  <button type="button" id="btn-manage-ticker" class="gear-btn">⚙️</button>
+                  <button type="button" id="btn-manage-ticker" class="gear-btn fixed-btn">⚙️</button>
                 </div>
               </label>
               <label><span>상태</span><select id="status"><option value="OPEN">OPEN</option><option value="CLOSED">CLOSED</option></select></label>
               <label><span>방향</span><select id="side"><option value="LONG">LONG</option><option value="SHORT">SHORT</option></select></label>
               <label><span>세션</span><select id="session"><option>ASIA</option><option>LONDON</option><option>NEW YORK</option><option>OVERLAP</option></select></label>
               <label><span>감정</span>
-                <div class="input-group">
+                <div class="input-group flex-group">
                   <select id="emotion"></select>
-                  <button type="button" id="btn-manage-emotion" class="gear-btn">⚙️</button>
+                  <button type="button" id="btn-manage-emotion" class="gear-btn fixed-btn">⚙️</button>
                 </div>
               </label>
               <label><span>Entry Setup</span>
-                <div class="input-group">
+                <div class="input-group flex-group">
                   <select id="setup-entry"></select>
-                  <button type="button" id="btn-manage-setup-entry" class="gear-btn">⚙️</button>
+                  <button type="button" id="btn-manage-setup-entry" class="gear-btn fixed-btn">⚙️</button>
                 </div>
               </label>
               <label><span>Exit Setup</span>
-                <div class="input-group">
+                <div class="input-group flex-group">
                   <select id="setup-exit"></select>
-                  <button type="button" id="btn-manage-setup-exit" class="gear-btn">⚙️</button>
+                  <button type="button" id="btn-manage-setup-exit" class="gear-btn fixed-btn">⚙️</button>
                 </div>
               </label>
             </div>
 
-            <div class="field-grid cols-2 journal-context-grid">
+            <div class="field-grid cols-1" style="margin-top: 10px;">
+              <label><span>✅ 원칙 점검 (Checklist)</span></label>
+              <div id="trade-checklist-container" class="trade-checklist-grid"></div>
+            </div>
+
+            <div class="field-grid cols-2 journal-context-grid" style="margin-top: 10px;">
               <label><span>시장 컨텍스트</span><textarea id="context" placeholder="진입 전 시장 흐름, 유동성, 구조"></textarea></label>
               <label><span>진입 논리 및 무효화 기준</span><textarea id="thesis" placeholder="왜 여기서 진입하는지, 어디서 틀렸다고 볼지"></textarea></label>
               <label><span>진입 차트</span><input id="chart-entry" placeholder="https://www.tradingview.com/x/..." /></label>
@@ -176,10 +181,10 @@
                   <span class="muted-caption">포지션 보유 중 발생하는 시그널과 대응을 시간순으로 기록하세요.</span>
                 </div>
                 <div class="quick-actions">
-                  <button type="button" id="btn-insert-time" class="tool-btn">🕒 시간 삽입</button>
-                  <button type="button" class="tool-btn btn-live-action" data-text="[본절 로스 이동] ">📈 본절 이동</button>
-                  <button type="button" class="tool-btn btn-live-action" data-text="[부분청산] ">✂️ 부분청산</button>
-                  <button type="button" class="tool-btn btn-live-action" data-text="[추가 진입] ">➕ 추가진입</button>
+                  <button type="button" id="btn-insert-time" class="tool-btn fixed-btn">🕒 시간 삽입</button>
+                  <button type="button" class="tool-btn btn-live-action fixed-btn" data-text="[본절 로스 이동] ">📈 본절 이동</button>
+                  <button type="button" class="tool-btn btn-live-action fixed-btn" data-text="[부분청산] ">✂️ 부분청산</button>
+                  <button type="button" class="tool-btn btn-live-action fixed-btn" data-text="[추가 진입] ">➕ 추가진입</button>
                 </div>
               </div>
               <textarea id="live-notes" class="live-notes" placeholder="[2026-04-01 09:35:10] NY open reclaim 확인"></textarea>
@@ -248,16 +253,17 @@
                 <span>총 자산</span>
                 <strong id="bal-total">$0</strong>
               </div>
-              <div class="bank-grid">
+              <div class="bank-grid cols-2">
                 <label class="bank-asset-card"><span>💵 현금</span><input type="number" id="bal-cash" value="0"></label>
                 <label class="bank-asset-card"><span>🪙 코인</span><input type="number" id="bal-crypto" value="0"></label>
                 <label class="bank-asset-card"><span>₮ USDT</span><input type="number" id="bal-usdt" value="0"></label>
                 <label class="bank-asset-card"><span>📈 주식</span><input type="number" id="bal-stock" value="0"></label>
               </div>
-              <div class="balance-memo-row bank-action-row">
-                <input type="text" id="balance-memo" placeholder="변동 사유 (예: 입금, 출금)" />
+              <div class="bank-action-row">
+                <input type="text" id="balance-memo" placeholder="변동 사유 메모 (선택)" />
                 <button type="button" id="btn-update-balance" class="btn-save-balance">기록</button>
               </div>
+              <div id="balance-history" class="balance-history-container"></div>
             </div>
           </article>
 
@@ -280,8 +286,18 @@
           </article>
 
           <article class="card compact-card hover-lift">
-            <div class="section-head"><div><h3>Desk Rules</h3><p>항상 반복할 규칙</p></div></div>
-            <textarea id="desk-rules" class="rules-box" placeholder="1. 손절 없는 진입 금지&#10;2. S/A급 셋업 외 사이즈 축소..."></textarea>
+            <div class="section-head"><div><h3>Desk Rules</h3><p>원칙 및 체크리스트 관리</p></div></div>
+            <div class="stack">
+              <label><span>📝 규칙 메모</span><textarea id="desk-rules" class="rules-box" placeholder="항상 되새길 일반 원칙들..." style="min-height:80px;"></textarea></label>
+              <div class="checklist-manager">
+                <label><span>✅ 체크리스트 (각 폼에 반영됨)</span></label>
+                <div id="master-checklist-list" class="stack" style="margin-bottom:8px;"></div>
+                <div class="input-group flex-group">
+                  <input type="text" id="new-check-input" placeholder="새 항목...">
+                  <button type="button" id="btn-add-check" class="tool-btn fixed-btn">추가</button>
+                </div>
+              </div>
+            </div>
           </article>
         </aside>
       </div>
