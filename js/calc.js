@@ -1,5 +1,6 @@
 export function sumWeights(rows) {
-  return rows.reduce((sum, row) => sum + Number(row.weight || 0), 0);
+  // 방어적 코드: 비중(weight)이 음수로 입력되는 비정상적인 상황 방지
+  return rows.reduce((sum, row) => sum + Math.max(0, Number(row.weight || 0)), 0);
 }
 
 export function recalcTrade(trade) {
@@ -7,9 +8,10 @@ export function recalcTrade(trade) {
   const maker = Number(trade.makerFee || 0) / 100;
   const taker = Number(trade.takerFee || 0) / 100;
   const stop = Number(trade.stopPrice || 0);
-  const accountSize = Number(trade.accountSize || 0);
+  const accountSize = Math.max(0, Number(trade.accountSize || 0)); // 계좌 크기 음수 방지
   const riskPct = Number(trade.riskPct || 0);
   const riskDollar = accountSize * riskPct / 100;
+  
   const entries = (trade.entries || []).filter(e => Number(e.price) > 0 && Number(e.weight) > 0);
   const exits = (trade.exits || []).filter(e => Number(e.price) > 0 && Number(e.weight) > 0);
 
@@ -19,15 +21,24 @@ export function recalcTrade(trade) {
   let avgEntry = 0;
   let riskPerUnit = 0;
   let directionError = false;
+  
   for (const leg of entries) {
     const price = Number(leg.price);
     const weight = Number(leg.weight) / 100;
     const fee = leg.type === 'M' ? maker : taker;
+    
     avgEntry += price * weight;
+    
+    // 방향성 에러 체크 (롱인데 손절가가 진입가보다 높거나, 숏인데 손절가가 낮은 경우)
     if ((side === 1 && stop >= price) || (side === -1 && stop <= price)) directionError = true;
+    
+    // 각 레그별 유닛당 리스크 계산
     riskPerUnit += weight * (Math.abs(price - stop) + price * fee);
   }
+  
+  // 손절 시 발생하는 수수료 추가
   riskPerUnit += stop * ((trade.stopType || 'M') === 'M' ? maker : taker);
+  
   if (!riskPerUnit || directionError) return baseMetrics(riskDollar, avgEntry, true);
 
   const qty = riskDollar / riskPerUnit;
@@ -35,11 +46,14 @@ export function recalcTrade(trade) {
   const sliderPct = accountSize ? (margin / accountSize) * 100 : 0; 
   
   let totalFees = 0;
-  for (const leg of entries) totalFees += Number(leg.price) * qty * (Number(leg.weight) / 100) * (leg.type === 'M' ? maker : taker);
+  for (const leg of entries) {
+    totalFees += Number(leg.price) * qty * (Number(leg.weight) / 100) * (leg.type === 'M' ? maker : taker);
+  }
 
   let avgExit = 0;
   let grossPnl = 0;
   const exitTotal = sumWeights(exits);
+  
   if (exits.length && exitTotal > 0) {
     for (const leg of exits) {
       const price = Number(leg.price);
@@ -52,6 +66,7 @@ export function recalcTrade(trade) {
 
   const adjustment = Number(trade.adjustment || 0);
   const pnl = exits.length ? grossPnl - totalFees + adjustment : 0;
+  
   return {
     valid: true,
     directionError: false,
@@ -68,5 +83,17 @@ export function recalcTrade(trade) {
 }
 
 function baseMetrics(riskDollar = 0, avgEntry = 0, directionError = false) {
-  return { valid: false, directionError, riskDollar, avgEntry, avgExit: 0, qty: 0, margin: 0, sliderPct: 0, pnl: 0, r: 0, totalFees: 0 };
+  return { 
+    valid: false, 
+    directionError, 
+    riskDollar, 
+    avgEntry, 
+    avgExit: 0, 
+    qty: 0, 
+    margin: 0, 
+    sliderPct: 0, 
+    pnl: 0, 
+    r: 0, 
+    totalFees: 0 
+  };
 }
