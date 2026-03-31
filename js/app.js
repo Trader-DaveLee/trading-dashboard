@@ -1,7 +1,7 @@
 import { recalcTrade } from './calc.js';
 import {
   summarize, groupAverageR, tagStats,
-  recentWindowStats, sessionSetupStats, gradeStats, filterTradesByDate
+  gradeStats, filterTradesByDate
 } from './analytics.js';
 import {
   loadDB, saveDB, exportDB, parseImport, normalizeTrade,
@@ -31,7 +31,7 @@ const ID_LIST = [
   'account-size','risk-pct','leverage','maker-fee','taker-fee','stop-price','mark-price','stop-type','adjustment',
   'context','thesis','review','chart-entry','chart-exit','tags','mistakes',
   'add-entry','entries','add-exit','exits','calc-summary','quick-tags','quick-mistakes','live-notes','btn-insert-time',
-  'bal-cash','bal-crypto','bal-usdt','bal-stock','bal-total','balance-memo','btn-update-balance','balance-history',
+  'bal-cash','bal-crypto','bal-usdt','bal-stock','bal-total','balance-type','balance-memo','btn-update-balance','balance-history',
   'duplicate-trade','reset-form','delete-trade','grade','deep-review-r',
   'desk-rules','master-checklist-list','new-check-input','btn-add-check','trade-checklist-container',
   'risk-risk-dollar','risk-qty','risk-margin','risk-slider','risk-notional','risk-stop-distance','risk-fees','risk-realized','risk-unrealized','risk-residual',
@@ -510,8 +510,22 @@ function readForm() {
 function handleSubmit(event) {
   if (event) event.preventDefault();
   const trade = readForm();
+  
+  // ✨ Phase 1: 로직 검증 및 저장을 원천 차단
+  if (trade.metrics.exitExceeds100) {
+    alert(`청산 비중 합계가 100%를 초과할 수 없습니다. (현재: ${trade.metrics.exitPct}%)`);
+    return;
+  }
   if (!trade.metrics.valid) {
-    alert('손절가와 진입 비중(합계 100%)을 먼저 확인해 주세요.');
+    alert('손절가와 진입 가격, 진입 비중(합계 100%)을 먼저 확인해 주세요.');
+    return;
+  }
+  if (trade.status === 'CLOSED' && trade.metrics.remainingPct > 0) {
+    alert('잔량이 남아있는 상태에서 CLOSED로 저장할 수 없습니다.\\n청산 물량을 추가하거나 상태를 OPEN으로 변경하세요.');
+    return;
+  }
+  if (trade.status === 'OPEN' && trade.metrics.remainingPct === 0) {
+    alert('모든 물량이 청산되었습니다. 상태를 CLOSED로 변경해주세요.');
     return;
   }
 
@@ -605,28 +619,39 @@ function updatePreview() {
 }
 
 function renderCalcSummary(metrics, trade) {
-  if (!metrics.valid) {
+  let warnHtml = '';
+  if (metrics.directionError) warnHtml += '<div class="warn-text">⚠️ 방향과 손절 위치가 충돌합니다.</div>';
+  if (metrics.exitExceeds100) warnHtml += `<div class="warn-text" style="color:var(--red);">⚠️ 청산 비중 합계가 100%를 초과합니다. (${metrics.exitPct}%)</div>`;
+  // ✨ Phase 1: Mark Price 누락 경고
+  if (trade.status === 'OPEN' && metrics.missingMarkPrice) warnHtml += '<div class="warn-text">⚠️ 현재가(Mark Price)가 입력되지 않아 미실현 손익이 0으로 계산됩니다.</div>';
+
+  if (!metrics.valid && !metrics.exitExceeds100) {
     setHtml('calc-summary', `
       <div class="summary-invalid" style="color:var(--muted); font-weight:600;">
         손절가, 진입 가격, 진입 비중(합계 100%)을 확인해 주세요.
-        ${metrics.directionError ? '<div class="warn-text" style="color:var(--red); margin-top:8px;">방향과 손절 위치가 충돌합니다.</div>' : ''}
+        ${warnHtml}
       </div>
     `);
     return;
   }
 
+  // ✨ Phase 1: Realized R 및 Unrealized R 분리 반영
   const summaryRows = [
     ['Avg Entry', money(metrics.avgEntry)],
     ['Avg Exit', metrics.avgExit ? money(metrics.avgExit) : '—'],
     ['Qty', qty(metrics.qty)],
+    ['Realized', money(metrics.realizedPnl), metrics.realizedPnl],
+    ['Unrealized', money(metrics.unrealizedPnl), metrics.unrealizedPnl],
     ['Net PnL', money(metrics.pnl), metrics.pnl],
-    ['R Multiple', `${metrics.r.toFixed(2)}R`, metrics.r],
+    ['Realized R', `${metrics.realizedR.toFixed(2)}R`, metrics.realizedR],
+    ['Unrealized R', `${metrics.unrealizedR.toFixed(2)}R`, metrics.unrealizedR],
     ['Exit %', `${metrics.exitPct.toFixed(1)}%`],
     ['Residual Risk', money(metrics.residualRisk)],
     ['Fee Drag', `${metrics.feePctOfGross.toFixed(1)}%`],
   ];
 
   setHtml('calc-summary', `
+    ${warnHtml ? `<div style="margin-bottom:12px; font-weight:700;">${warnHtml}</div>` : ''}
     <div class="summary-grid">
       ${summaryRows.map(([label, value, signed]) => `
         <div class="summary-item">
@@ -668,7 +693,6 @@ function renderOverview() {
   
   const aPlusCount = stats.closed.filter(t => t.grade === 'S' || t.grade === 'A').length;
 
-  // ✨ Net PnL 최우선, Max Drawdown 맨 뒤로 순서 조정
   const metrics = [
     metricCard('Net PnL', money(stats.net), 'metric-green'),
     metricCard('Win Rate', `${stats.winRate.toFixed(1)}%`, 'metric-blue'),
@@ -855,13 +879,20 @@ function renderAccountBalance() {
   calcTotalBalance();
   setVal('desk-rules', state.db.meta.rules || '');
 
+  // ✨ Phase 2: 자금 흐름 타입별 색상 표시 적용
+  const typeColors = { PNL: 'var(--accent)', DEPOSIT: 'var(--green)', WITHDRAWAL: 'var(--red)', MANUAL: 'var(--muted)' };
+  const typeLabels = { PNL: '매매', DEPOSIT: '입금', WITHDRAWAL: '출금', MANUAL: '조정' };
+
   setHtml('balance-history', history.length ? history.map(row => `
     <div style="padding:12px; border:1px solid var(--line); border-radius:12px; margin-bottom:8px; background:#fff;">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-        <strong style="font-size:14px; color:#0f172a;">${moneyAbsNatural(row.val)}</strong>
+        <div style="display:flex; align-items:center;">
+          <span style="font-size:10px; font-weight:800; color:${typeColors[row.type] || 'var(--muted)'}; border:1px solid ${typeColors[row.type] || 'var(--muted)'}; padding:2px 6px; border-radius:4px; margin-right:8px;">${typeLabels[row.type] || row.type}</span>
+          <strong style="font-size:14px; color:#0f172a;">${moneyAbsNatural(row.val)}</strong>
+        </div>
         <span style="color:var(--muted); font-size:11px;">${formatDateTime(row.date)}</span>
       </div>
-      ${row.memo ? `<div style="font-size:11px; color:#475569; background:#f1f5f9; padding:4px 8px; border-radius:6px; display:inline-block;">${escapeHtml(row.memo)}</div>` : ''}
+      ${row.memo ? `<div style="font-size:11px; color:#475569; background:#f1f5f9; padding:4px 8px; border-radius:6px; display:inline-block; margin-top:2px;">${escapeHtml(row.memo)}</div>` : ''}
     </div>
   `).join('') : emptyState('잔고 히스토리가 없습니다.'));
 }
@@ -879,6 +910,7 @@ function updateBalance() {
   const crypto = round(Number(getVal('bal-crypto') || 0));
   const usdt = round(Number(getVal('bal-usdt') || 0));
   const stock = round(Number(getVal('bal-stock') || 0));
+  const type = getVal('balance-type') || 'PNL';
   const memo = getVal('balance-memo').trim();
   const total = cash + crypto + usdt + stock;
 
@@ -896,6 +928,7 @@ function updateBalance() {
     crypto,
     usdt,
     stock,
+    type,
     memo,
   });
   setVal('balance-memo', '');
@@ -1112,9 +1145,31 @@ function renderPlaybook() {
     .filter(trade => (trade.grade === 'S' || trade.grade === 'A') && !(trade.mistakes || []).length)
     .sort((a, b) => b.metrics.r - a.metrics.r);
 
-  setHtml('playbook-gallery', rows.length ? rows.map(trade => `
+  // ✨ Phase 3.1: 트레이딩뷰 일반 웹 링크일 경우의 대체 UI (View Chart 버튼) 처리
+  let html = '';
+  rows.forEach(trade => {
+    const chartUrl = trade.evidence?.entryChart;
+    let imgHtml = '';
+    if (chartUrl) {
+      if (chartUrl.match(/\.(jpeg|jpg|gif|png|webp)$/i)) {
+        imgHtml = `<img class="playbook-img" src="${escapeAttr(chartUrl)}" alt="entry chart" onerror="this.style.display='none'">`;
+      } else if (chartUrl.includes('tradingview.com/x/')) {
+        const tvId = chartUrl.split('/x/')[1]?.replace('/', '');
+        if (tvId) {
+          imgHtml = `<img class="playbook-img" src="https://s3.tradingview.com/x/${tvId}.png" alt="entry chart" onerror="this.style.display='none'">`;
+        } else {
+          imgHtml = `<div class="playbook-img-fallback"><a href="${escapeAttr(chartUrl)}" target="_blank" class="btn-view-chart">📈 View Chart</a></div>`;
+        }
+      } else {
+        imgHtml = `<div class="playbook-img-fallback"><a href="${escapeAttr(chartUrl)}" target="_blank" class="btn-view-chart">🔗 View Evidence</a></div>`;
+      }
+    } else {
+      imgHtml = `<div class="playbook-img placeholder">No Evidence</div>`;
+    }
+
+    html += `
     <article class="playbook-card" data-id="${trade.id}">
-      ${trade.evidence?.entryChart ? `<img class="playbook-img" src="${escapeAttr(trade.evidence.entryChart)}" alt="entry chart" onerror="this.style.display='none'">` : `<div class="playbook-img" style="display:grid; place-items:center; color:var(--muted); font-weight:800; font-size:12px;">NO IMAGE</div>`}
+      ${imgHtml}
       <div class="playbook-info" style="padding: 16px; display:flex; flex-direction:column; flex:1;">
         <div class="playbook-header" style="display:flex; justify-content:space-between; align-items:center;">
           <strong style="font-size:16px; color:#0f172a; font-weight:900;">${escapeHtml(trade.ticker)}</strong>
@@ -1126,11 +1181,15 @@ function renderPlaybook() {
         <p style="font-size:12px; color:#334155; font-weight:500; margin:8px 0; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">${escapeHtml(trade.thesis || trade.review || '설명 없음')}</p>
         <div class="chips" style="margin-top:auto;">${(trade.tags || []).slice(0, 3).map(item => `<span class="chip">#${escapeHtml(item)}</span>`).join('') || '<span class="chip">태그 없음</span>'}</div>
       </div>
-    </article>
-  `).join('') : emptyState('조건을 만족하는 S/A급 Playbook 샘플이 없습니다.'));
+    </article>`;
+  });
+
+  setHtml('playbook-gallery', rows.length ? html : emptyState('조건을 만족하는 S/A급 Playbook 샘플이 없습니다.'));
 
   els['playbook-gallery'].querySelectorAll('.playbook-card').forEach(card => {
-    card.onclick = () => {
+    // 버튼을 클릭했을 때 Library로 넘어가지 않도록 예외 처리
+    card.onclick = (e) => {
+      if (e.target.tagName === 'A') return;
       selectTrade(card.dataset.id);
       state.view = 'library';
       renderViews();
