@@ -7,7 +7,6 @@ const state = {
   draftEntries: [{ price: 0, type: 'M', weight: 100 }], draftExits: [], dirty: false, prefs: loadPrefs(), draftMeta: null,
 };
 
-// 💡 뷰(View) 목록에 'playbook' 추가
 const views = ['overview', 'journal', 'library', 'playbook'];
 const els = {};
 
@@ -17,10 +16,10 @@ const ID_LIST = [
   'view-journal','trade-form','trade-id','trade-date','btn-now','ticker','btn-manage-ticker','status','session','side','setup-entry','btn-manage-setup-entry','setup-exit','btn-manage-setup-exit','account-size','risk-pct','leverage','maker-fee','taker-fee','stop-price','stop-type','adjustment','tags','mistakes','emotion','btn-manage-emotion','context','thesis','review','artifacts',
   'add-entry','entries','add-exit','exits','calc-summary','toggle-deep-journal','deep-journal-section','quick-tags','quick-mistakes','live-notes','btn-insert-time',
   'actual-balance','balance-memo','btn-update-balance','balance-history',
-  'duplicate-trade','reset-form','delete-trade','grade',
+  'duplicate-trade','reset-form','delete-trade','grade','deep-review-r','playbook-indicator',
   'desk-rules','risk-risk-dollar','risk-qty','risk-margin','risk-slider','risk-notional','risk-stop-distance','risk-fees',
   'view-library','q','f-from','f-to','f-status','sort','clear-filters','library-result-count','review-position','review-breadcrumb','prev-trade','next-trade','filter-same-setup','filter-same-ticker','clear-quick-filter','trade-table','detail','detail-insights',
-  'view-playbook', 'playbook-gallery' // 💡 Playbook ID 매핑
+  'view-playbook', 'playbook-gallery'
 ];
 
 window.__desk = {
@@ -142,6 +141,7 @@ function bindEvents() {
 
   bindKeyboardShortcuts();
 
+  // 💡 grade 필드도 입력 이벤트에 포함시킴
   const inputs = ['trade-date','ticker','status','session','side','setup-entry','setup-exit','account-size','risk-pct','leverage','maker-fee','taker-fee','stop-price','stop-type','adjustment','tags','mistakes','emotion','context','thesis','review','artifacts','desk-rules','live-notes','grade'];
   inputs.forEach(id => {
     if(els[id]) { els[id].addEventListener('input', () => { markDirty(); updatePreview(); persistDraft(); }); els[id].addEventListener('change', () => { markDirty(); updatePreview(); persistDraft(); }); }
@@ -350,27 +350,14 @@ function artifactLinks(arr = []) {
   return html;
 }
 
-// 💡 타임라인 시각화 HTML 생성 함수
 function buildTimelineHtml(trade) {
   if (!trade.entries || !trade.exits || trade.entries.length === 0) return '';
-  
   let html = `<div class="timeline-container"><h4 style="margin:0 0 10px; font-size:12px; color:var(--muted);">타점 & 분할 청산 타임라인</h4><div class="timeline">`;
-  
-  html += `<div class="timeline-step entry">
-    <div class="timeline-label">Avg Entry<br><span style="color:var(--accent)">100%</span></div>
-    <div class="timeline-dot"></div>
-    <div class="timeline-val">${num(trade.metrics.avgEntry)}</div>
-  </div>`;
-
+  html += `<div class="timeline-step entry"><div class="timeline-label">Avg Entry<br><span style="color:var(--accent)">100%</span></div><div class="timeline-dot"></div><div class="timeline-val">${num(trade.metrics.avgEntry)}</div></div>`;
   const validExits = trade.exits.filter(x => Number(x.price) > 0 && Number(x.weight) > 0);
   validExits.forEach((ex, i) => {
-    html += `<div class="timeline-step exit">
-      <div class="timeline-label">Exit ${i+1}<br><span style="color:var(--yellow)">${Number(ex.weight).toFixed(0)}%</span></div>
-      <div class="timeline-dot"></div>
-      <div class="timeline-val">${num(ex.price)}</div>
-    </div>`;
+    html += `<div class="timeline-step exit"><div class="timeline-label">Exit ${i+1}<br><span style="color:var(--yellow)">${Number(ex.weight).toFixed(0)}%</span></div><div class="timeline-dot"></div><div class="timeline-val">${num(ex.price)}</div></div>`;
   });
-  
   html += `</div></div>`;
   return html;
 }
@@ -414,7 +401,6 @@ window.__desk.loadSelectedIntoJournal = () => {
   if (trade) { switchView('journal'); loadTradeIntoForm(trade); }
 };
 
-// 💡 셋업 갤러리(Playbook) 렌더링 함수
 function renderPlaybook() {
   if (!els['playbook-gallery']) return;
   const bestTrades = state.db.trades.filter(t => t.status === 'CLOSED' && (t.grade === 'A' || t.metrics.r >= 2) && t.artifacts && t.artifacts.length > 0);
@@ -526,7 +512,10 @@ function loadTradeIntoForm(trade) {
   setVal('grade', trade.grade || 'B');
   setVal('account-size', Math.round(trade.accountSize ?? (state.db.meta.accountBalance || 10000))); setVal('risk-pct', trade.riskPct ?? 0.5); setVal('leverage', trade.leverage ?? 10);
   setVal('maker-fee', trade.makerFee ?? 0.02); setVal('taker-fee', trade.takerFee ?? 0.05); setVal('stop-price', trade.stopPrice ?? ''); setVal('stop-type', trade.stopType || 'M');
-  setVal('adjustment', trade.adjustment ?? 0); setVal('tags', (trade.tags || []).join(', ')); setVal('mistakes', (trade.mistakes || []).join(', ')); setVal('context', trade.context || ''); setVal('thesis', trade.thesis || ''); setVal('review', trade.review || ''); setVal('artifacts', (trade.artifacts || []).join('\n')); setVal('live-notes', trade.liveNotes || '');
+  setVal('adjustment', trade.adjustment ?? 0);
+  setVal('tags', (trade.tags || []).join(', ')); setVal('mistakes', (trade.mistakes || []).join(', '));
+  setVal('context', trade.context || ''); setVal('thesis', trade.thesis || ''); setVal('review', trade.review || ''); setVal('artifacts', (trade.artifacts || []).join('\n'));
+  setVal('live-notes', trade.liveNotes || '');
   
   state.draftEntries = structuredClone(trade.entries || []); state.draftExits = structuredClone(trade.exits || []);
   renderLegs('entry'); renderLegs('exit'); state.dirty = false; updatePreview(); refreshJournalStatus();
@@ -562,7 +551,11 @@ function renderLegs(kind) {
 function updatePreview() {
   const metrics = recalcTrade(readForm());
   if (metrics.directionError || !metrics.valid) {
-    resetRiskPlanner(); setHtml('calc-summary', '<span style="color:#ef4444;">유효한 진입가, 손절가(방향 확인), 비중 100%가 필요합니다.</span>'); return;
+    resetRiskPlanner(); 
+    setHtml('calc-summary', '<span style="color:#ef4444;">유효한 진입가, 손절가(방향 확인), 비중 100%가 필요합니다.</span>'); 
+    if(els['deep-review-r']) { els['deep-review-r'].textContent = '0.00R'; els['deep-review-r'].style.color = 'var(--muted)'; }
+    if(els['playbook-indicator']) els['playbook-indicator'].style.display = 'none';
+    return;
   }
   
   setText('risk-risk-dollar', money(metrics.riskDollar));
@@ -579,6 +572,21 @@ function updatePreview() {
   setText('risk-fees', money(metrics.totalFees));
   
   setHtml('calc-summary', `Avg Entry: <strong>${num(metrics.avgEntry)}</strong> | Qty: <strong>${metrics.qty.toFixed(5)}</strong><br>Net PnL: <strong class="${metrics.pnl >= 0 ? 'positive' : 'negative'}">${money(metrics.pnl)} (${metrics.r.toFixed(2)}R)</strong>`);
+
+  // 💡 딥 리뷰 탭 전광판 업데이트
+  if(els['deep-review-r']) {
+    els['deep-review-r'].textContent = `${metrics.r >= 0 ? '+' : ''}${metrics.r.toFixed(2)}R (${money(metrics.pnl)})`;
+    els['deep-review-r'].style.color = metrics.r >= 0 ? 'var(--green)' : 'var(--red)';
+  }
+  
+  if(els['playbook-indicator']) {
+    const grade = getVal('grade');
+    if(grade === 'A' || metrics.r >= 2) {
+      els['playbook-indicator'].style.display = 'block';
+    } else {
+      els['playbook-indicator'].style.display = 'none';
+    }
+  }
 }
 
 function resetRiskPlanner() {
