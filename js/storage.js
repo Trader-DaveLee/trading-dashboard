@@ -14,13 +14,12 @@ export const DEFAULT_DB = {
     tickers: ['BTCUSDT', 'ETHUSDT', 'SOLUSDT'],
     entrySetups: ['BREAKOUT', 'RECLAIM', 'RANGE SWEEP', 'TREND CONTINUATION'],
     exitSetups: ['TRAIL STOP', 'FIXED TARGET', 'TIME STOP'],
-    emotions: ['CALM', 'FOCUSED', 'FOMO', 'TIRED', 'REVENGE'],
     tagPresets: ['trend', 'sweep', 'reclaim', 'breakout', 'ny-open'],
     mistakePresets: ['fomo', 'oversize', 'early exit', 'late stop', 'countertrend'],
     accountBalance: 10000,
     balanceHistory: [],
     rules: '',
-    checklists: ['손절 설정 확인', 'A급 셋업 여부', '리스크 1% 이하'], // ✨ 체크리스트 마스터 추가
+    checklists: ['손절 설정 확인', 'A급 셋업 여부', '리스크 1% 이하'],
   },
   trades: [],
 };
@@ -77,14 +76,6 @@ export function migrateDB(input) {
     };
   }
 
-  if (Array.isArray(input.trades)) {
-    return {
-      schemaVersion: 3,
-      meta: normalizeMeta(input.meta),
-      trades: input.trades.map(fromV2Trade).map(normalizeTrade),
-    };
-  }
-
   return structuredClone(DEFAULT_DB);
 }
 
@@ -96,13 +87,12 @@ function normalizeMeta(meta = {}) {
     tickers: normalizeUpperList(meta.tickers || base.tickers),
     entrySetups: normalizeUpperList(meta.entrySetups || base.entrySetups),
     exitSetups: normalizeUpperList(meta.exitSetups || base.exitSetups),
-    emotions: normalizeUpperList(meta.emotions || base.emotions),
     tagPresets: normalizeLowerList(meta.tagPresets || base.tagPresets),
     mistakePresets: normalizeLowerList(meta.mistakePresets || base.mistakePresets),
     balanceHistory: Array.isArray(meta.balanceHistory) ? meta.balanceHistory.map(normalizeBalancePoint) : [],
     accountBalance: Number(meta.accountBalance || base.accountBalance),
     rules: String(meta.rules || ''),
-    checklists: normalizeList(meta.checklists || base.checklists), // ✨ 마스터 체크리스트 병합
+    checklists: normalizeList(meta.checklists || base.checklists),
   };
 }
 
@@ -115,21 +105,8 @@ function normalizeBalancePoint(row) {
     crypto: Number(row.crypto || 0),
     usdt: Number(row.usdt || 0),
     stock: Number(row.stock || 0),
+    type: String(row.type || 'PNL').toUpperCase(), // ✨ Phase 2: 자금 흐름 타입 (PNL, DEPOSIT, WITHDRAWAL, MANUAL)
     memo: String(row.memo || '').trim(),
-  };
-}
-
-function fromV2Trade(t) {
-  const artifacts = Array.isArray(t.artifacts) ? t.artifacts : [];
-  return {
-    ...t,
-    grade: t.grade || 'B',
-    markPrice: Number(t.markPrice || 0),
-    liveNotes: t.liveNotes || '',
-    evidence: t.evidence || {
-      entryChart: artifacts[0] || '',
-      exitChart: artifacts[1] || '',
-    },
   };
 }
 
@@ -159,7 +136,7 @@ function fromV5Trade(t) {
     liveNotes: '',
     tags: [],
     mistakes: [],
-    emotion: '',
+    checkedRules: [],
     evidence: { entryChart: t.img1 || '', exitChart: t.img2 || '' },
     entries: (t.entries || []).map(x => ({ price: Number(x.price || 0), type: x.type || 'M', weight: Number(x.weight || 0) })),
     exits: (t.exits || []).map(x => ({ price: Number(x.price || 0), type: x.type || 'M', weight: Number(x.weight || 0) })),
@@ -193,10 +170,9 @@ export function normalizeTrade(t = {}) {
     review: String(t.review || '').trim(),
     liveNotes: String(t.liveNotes || '').trim(),
 
-    emotion: String(t.emotion || '').trim().toUpperCase(),
     tags: normalizeLowerList(t.tags),
     mistakes: normalizeLowerList(t.mistakes),
-    checkedRules: normalizeList(t.checkedRules), // ✨ 개별 트레이드 체크리스트 저장
+    checkedRules: normalizeList(t.checkedRules),
 
     evidence: normalizeEvidence(t.evidence, t.artifacts),
     entries: normalizeLegs(t.entries, true),
