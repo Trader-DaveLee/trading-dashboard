@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Trading Desk Dashboard v13.0 (Ultimate)</title>
+  <title>Trading Desk Dashboard v13.5 (Ultimate)</title>
   <link rel="stylesheet" href="./css/styles.css" />
 </head>
 <body>
@@ -142,13 +142,27 @@
                 <textarea id="live-notes" style="min-height:120px; font-family:monospace; font-size:13px; line-height:1.6;" placeholder="예) [14:30] 5분봉 20선 이탈 확인, 지지선까지 홀딩."></textarea>
             </div>
 
-            <button type="button" id="toggle-deep-journal" class="toggle-btn" style="margin-top:24px;">📝 DEEP REVIEW (사후 복기 및 차트) ▼</button>
+            <button type="button" id="toggle-deep-journal" class="toggle-btn" style="margin-top:24px;">📝 DEEP REVIEW (사후 복기 및 플레이북 등록) ▼</button>
             
             <div id="deep-journal-section" class="hidden form-stack" style="margin-top:15px; padding-top:15px; border-top:1px dashed var(--line);">
-              <div class="field-grid cols-2">
-                <label><span>Grade (선택)</span><select id="grade"><option value="B">B (기본)</option><option value="A">A (완벽한 셋업)</option><option value="C">C (원칙 위반)</option></select></label>
-                <div></div> </div>
-              <div class="field-grid cols-2">
+              
+              <div class="field-grid cols-2" style="background:rgba(0,0,0,0.2); padding:20px; border-radius:12px; border:1px solid #2c3850; align-items:center;">
+                <label style="margin:0;">
+                  <span style="color:var(--accent);">매매 등급 (Grade)</span>
+                  <select id="grade" style="font-size:14px; font-weight:bold; padding:12px; margin-top:8px;">
+                    <option value="A" style="color:var(--green);">A (완벽한 원칙 매매 / A+ 셋업)</option>
+                    <option value="B" selected>B (보통 / 일반적인 셋업)</option>
+                    <option value="C" style="color:var(--red);">C (원칙 위반 / 뇌동 매매)</option>
+                  </select>
+                </label>
+                <div style="text-align:right; border-left:1px dashed var(--line); padding-left:20px;">
+                  <div style="font-size:11px; color:var(--muted); font-weight:bold; text-transform:uppercase; margin-bottom:8px;">최종 실현 손익 (Realized Result)</div>
+                  <div id="deep-review-r" style="font-size:26px; font-weight:900; color:var(--muted);">0.00R</div>
+                  <div id="playbook-indicator" style="font-size:12px; color:var(--yellow); font-weight:bold; margin-top:8px; display:none; animation: pulse 2s infinite;">🏆 Playbook 갤러리 등록 대상</div>
+                </div>
+              </div>
+
+              <div class="field-grid cols-2" style="margin-top:10px;">
                 <label><span>태그 (쉼표)</span><input id="tags" placeholder="breakout, ny-open" /></label>
                 <label><span>실수 태그 (쉼표)</span><input id="mistakes" placeholder="late entry, moved stop" /></label>
               </div>
