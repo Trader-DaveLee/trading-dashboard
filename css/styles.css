@@ -79,6 +79,7 @@ button { cursor: pointer; }
 
 .grid { display: grid; gap: 18px; margin-bottom: 18px; }
 .grid-2 { grid-template-columns: 1fr 1fr; }
+.grid-3 { grid-template-columns: repeat(3, minmax(0,1fr)); }
 .grid-journal { grid-template-columns: 1.45fr 0.55fr; align-items:start;}
 
 .section-head { display: flex; justify-content: space-between; align-items: center; gap: 14px; margin-bottom: 16px; border-bottom:1px solid rgba(255,255,255,0.06); padding-bottom:12px;}
@@ -95,6 +96,7 @@ button { cursor: pointer; }
 .cols-4 { grid-template-columns: repeat(4, minmax(0,1fr)); }
 .cols-2 { grid-template-columns: repeat(2, minmax(0,1fr)); }
 
+/* 💡 중첩 방지 (Overlap Fix): 컬럼 최소 너비 확대 */
 .responsive-cols { grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); }
 
 label { display: grid; gap: 6px; }
@@ -104,6 +106,7 @@ input, select, textarea { width: 100%; background: #0b0e14; color: var(--text); 
 textarea { min-height: 80px; resize: vertical; font-family:inherit; line-height:1.5;}
 input:focus, select:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(79,140,255,.16); }
 
+/* 💡 중첩 방지: 달력 아이콘 공간 최적화 */
 input[type="date"], input[type="datetime-local"] { letter-spacing: -0.5px; padding-right: 4px; }
 input[type="date"]::-webkit-calendar-picker-indicator, input[type="datetime-local"]::-webkit-calendar-picker-indicator { filter: invert(1); cursor:pointer; margin-left: 0; }
 
@@ -113,8 +116,9 @@ input[type="date"]::-webkit-calendar-picker-indicator, input[type="datetime-loca
 .input-with-unit:focus-within { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(79,140,255,.16); }
 .input-with-unit .unit { padding: 0 12px; color: var(--muted); font-size: 13px; background: rgba(255,255,255,0.03); display:flex; align-items:center; border-right:1px solid #2c3850;}
 
+/* 💡 중첩 방지 (Overlap Fix): Flex Child 삐져나옴 방지 */
 .input-group { display: flex; gap: 4px; width: 100%; }
-.input-group input, .input-group select { flex: 1; min-width: 0; } 
+.input-group input, .input-group select { flex: 1; min-width: 0; }
 
 .gear-btn { padding: 0 8px; background: #171e2c; border: 1px solid #2c3850; border-radius: 6px; color: var(--muted); cursor: pointer; transition:0.2s;}
 .gear-btn:hover { background: #2c3850; color: #fff; }
@@ -122,6 +126,7 @@ input[type="date"]::-webkit-calendar-picker-indicator, input[type="datetime-loca
 .mini-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
 .mini-head h4 { margin: 0; font-size: 12px; }
 
+/* Premium Save Trade Button */
 .btn-save-trade {
   background: linear-gradient(135deg, #2563eb, #6366f1);
   color: #fff; border: none; padding: 16px; border-radius: 12px;
@@ -225,7 +230,7 @@ svg { width: 100%; height: 100%; }
 .balance-hist-main { display: flex; justify-content: space-between; align-items: center; }
 .balance-hist-memo { font-size: 11px; color: #64748b; background: rgba(0,0,0,0.2); padding: 4px 8px; border-radius: 4px; display: inline-block; width: fit-content; }
 
-/* 💡 Playbook Gallery Styles */
+/* Playbook Gallery Styles */
 .playbook-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
 .playbook-card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; transition: 0.3s; cursor: pointer; display: flex; flex-direction: column; }
 .playbook-card:hover { transform: translateY(-5px); box-shadow: 0 10px 30px rgba(0,0,0,0.5); border-color: var(--accent); }
@@ -233,7 +238,7 @@ svg { width: 100%; height: 100%; }
 .playbook-info { padding: 16px; display:flex; flex-direction:column; gap:8px; flex:1; }
 .playbook-header { display: flex; justify-content: space-between; align-items: center; }
 
-/* 💡 Scaling-out Timeline Styles */
+/* Scaling-out Timeline Styles */
 .timeline-container { padding: 16px; background: rgba(0,0,0,0.2); border-radius: 10px; margin-top: 10px; }
 .timeline { display: flex; align-items: center; justify-content: space-between; position: relative; padding: 20px 0 10px; margin-top:10px;}
 .timeline::before { content: ''; position: absolute; top: 30px; left: 10%; right: 10%; height: 2px; background: var(--line); z-index: 1; }
