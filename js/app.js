@@ -15,7 +15,7 @@ const ID_LIST = [
   'view-overview','metrics','overview-from','overview-to','overview-clear','prev-month','calendar-title','next-month','calendar','equity-chart','setup-chart','mistake-list','research-notes',
   'view-journal','trade-form','trade-id','trade-date','btn-now','ticker','btn-manage-ticker','status','session','side','setup-entry','btn-manage-setup-entry','setup-exit','btn-manage-setup-exit','account-size','risk-pct','leverage','maker-fee','taker-fee','stop-price','stop-type','adjustment','tags','mistakes','emotion','btn-manage-emotion','context','thesis','review','chart-entry','chart-exit',
   'add-entry','entries','add-exit','exits','calc-summary','quick-tags','quick-mistakes','live-notes','btn-insert-time',
-  'actual-balance','balance-memo','btn-update-balance','balance-history',
+  'bal-cash', 'bal-crypto', 'bal-usdt', 'bal-stock', 'bal-total', 'overview-portfolio', 'balance-memo','btn-update-balance','balance-history',
   'duplicate-trade','reset-form','delete-trade','grade','deep-review-r','playbook-indicator',
   'desk-rules','risk-risk-dollar','risk-qty','risk-margin','risk-slider','risk-notional','risk-stop-distance','risk-fees',
   'view-library','q','f-from','f-to','f-status','sort','clear-filters','library-result-count','review-position','review-breadcrumb','prev-trade','next-trade','filter-same-setup','filter-same-ticker','clear-quick-filter','trade-table','detail','detail-insights',
@@ -100,12 +100,31 @@ function bindEvents() {
     els['live-notes'].focus(); markDirty(); persistDraft();
   };
 
+  const balInputs = ['bal-cash', 'bal-crypto', 'bal-usdt', 'bal-stock'];
+  const calcTotalBalance = () => {
+    const total = balInputs.reduce((sum, id) => sum + Math.round(Number(els[id]?.value || 0)), 0);
+    if (els['bal-total']) els['bal-total'].textContent = '$' + total.toLocaleString();
+    return total;
+  };
+  
+  balInputs.forEach(id => {
+    if (els[id]) {
+      els[id].addEventListener('input', calcTotalBalance);
+      els[id].addEventListener('change', calcTotalBalance);
+    }
+  });
+
   if(els['btn-update-balance']) els['btn-update-balance'].onclick = () => {
-    const val = Math.round(Number(els['actual-balance'].value));
+    const cash = Math.round(Number(els['bal-cash'].value || 0));
+    const crypto = Math.round(Number(els['bal-crypto'].value || 0));
+    const usdt = Math.round(Number(els['bal-usdt'].value || 0));
+    const stock = Math.round(Number(els['bal-stock'].value || 0));
+    const val = cash + crypto + usdt + stock;
     const memo = getVal('balance-memo').trim();
-    if(isNaN(val) || val <= 0) return;
-    const hist = state.db.meta.balanceHistory;
     
+    if(val <= 0) { alert("총 자산이 0보다 커야 합니다."); return; }
+    
+    const hist = state.db.meta.balanceHistory;
     if(hist.length > 0) {
         if (Math.round(hist[0].val) === val && hist[0].memo === memo) { alert("최근 잔고 및 메모와 동일합니다."); return; }
         const changePct = Math.abs(val - hist[0].val) / hist[0].val * 100;
@@ -115,8 +134,8 @@ function bindEvents() {
     }
     
     state.db.meta.accountBalance = val;
-    state.db.meta.balanceHistory.unshift({ id: Date.now(), date: new Date().toISOString(), val: val, memo: memo });
-    saveDB(state.db); setVal('account-size', val); setVal('balance-memo', ''); renderAccountBalance(); updatePreview(); persistDraft();
+    state.db.meta.balanceHistory.unshift({ id: Date.now(), date: new Date().toISOString(), val: val, cash: cash, crypto: crypto, usdt: usdt, stock: stock, memo: memo });
+    saveDB(state.db); setVal('account-size', val); setVal('balance-memo', ''); renderAccountBalance(); renderOverviewPortfolio(); updatePreview(); persistDraft();
   };
 
   if(els['prev-trade']) els['prev-trade'].onclick = () => stepSelectedTrade(-1);
@@ -143,7 +162,7 @@ function bindEvents() {
 
 function render() { 
   if(els['desk-rules'] && state.prefs) { els['desk-rules'].value = state.prefs.deskRules || ''; }
-  renderNav(); renderOverview(); renderQuickFill(); renderLibrary(); renderPlaybook(); renderAccountBalance(); updatePreview(); refreshJournalStatus(); 
+  renderNav(); renderOverview(); renderQuickFill(); renderLibrary(); renderPlaybook(); renderAccountBalance(); renderOverviewPortfolio(); updatePreview(); refreshJournalStatus(); 
 }
 
 function renderNav() {
@@ -161,10 +180,21 @@ function switchView(view) {
 }
 
 function renderAccountBalance() {
-  if(!els['actual-balance']) return;
-  els['actual-balance'].value = Math.round(state.db.meta.accountBalance || 10000);
-  let histHtml = '';
   const hist = state.db.meta.balanceHistory || [];
+  
+  if (hist.length > 0) {
+      const latest = hist[0];
+      if (els['bal-cash']) els['bal-cash'].value = latest.cash || 0;
+      if (els['bal-crypto']) els['bal-crypto'].value = latest.crypto || 0;
+      if (els['bal-usdt']) els['bal-usdt'].value = latest.usdt || 0;
+      if (els['bal-stock']) els['bal-stock'].value = latest.stock || 0;
+  }
+  
+  const balInputs = ['bal-cash', 'bal-crypto', 'bal-usdt', 'bal-stock'];
+  const total = balInputs.reduce((sum, id) => sum + Math.round(Number(els[id]?.value || 0)), 0);
+  if (els['bal-total']) els['bal-total'].textContent = '$' + total.toLocaleString();
+
+  let histHtml = '';
   hist.slice(0, 5).forEach((h, i) => {
     const curr = Math.round(h.val);
     let diffHtml = '';
@@ -190,6 +220,45 @@ function renderAccountBalance() {
   setHtml('balance-history', histHtml || '<div class="empty-state">내역 없음</div>');
 }
 
+function renderOverviewPortfolio() {
+  if (!els['overview-portfolio']) return;
+  const hist = state.db.meta.balanceHistory || [];
+  
+  if (hist.length === 0) {
+    setHtml('overview-portfolio', '<div class="empty-state" style="text-align:center; padding: 20px;">포트폴리오 자산 데이터가 없습니다.<br>Journal에서 자산을 입력해주세요.</div>');
+    return;
+  }
+  
+  const latest = hist[0];
+  const total = latest.val || 0;
+
+  const makeItem = (label, val, color) => {
+    const pct = total > 0 ? ((val / total) * 100).toFixed(1) : 0;
+    return `<div class="portfolio-item" style="display:flex; align-items:flex-start; gap:8px; padding:12px; background:rgba(0,0,0,0.2); border-radius:8px; border:1px solid rgba(255,255,255,0.05);">
+              <div class="dot" style="width:10px; height:10px; border-radius:50%; margin-top:4px; flex-shrink:0; background:${color};"></div>
+              <div style="flex:1;">
+                <span class="lbl" style="display:block; font-size:11px; color:var(--muted); margin-bottom:2px; font-weight:700; text-transform:uppercase;">${label}</span>
+                <span class="val" style="display:block; font-size:15px; font-weight:900; color:#fff; letter-spacing:-0.5px;">$${Number(val).toLocaleString()}</span>
+              </div>
+              <div style="font-size:13px; font-weight:bold; color:${color};">${pct}%</div>
+            </div>`;
+  };
+
+  const html = `
+    <div style="text-align:center; margin-bottom:16px;">
+      <div style="font-size:12px; color:var(--muted); margin-bottom:4px;">Total Portfolio Balance</div>
+      <div style="font-size:32px; font-weight:900; color:#fff; letter-spacing:-1px;">$${total.toLocaleString()}</div>
+    </div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+      ${makeItem('Cash', latest.cash || 0, '#34d399')}
+      ${makeItem('Crypto', latest.crypto || 0, '#f59e0b')}
+      ${makeItem('USDT', latest.usdt || 0, '#10b981')}
+      ${makeItem('Stock', latest.stock || 0, '#3b82f6')}
+    </div>
+  `;
+  setHtml('overview-portfolio', html);
+}
+
 function deleteBalanceHist(id) {
   if(!confirm("이 잔고 기록을 삭제하시겠습니까?\n(가장 최신 기록이 삭제되면 이전 잔고로 롤백됩니다.)")) return;
   state.db.meta.balanceHistory = state.db.meta.balanceHistory.filter(h => h.id !== id);
@@ -198,7 +267,7 @@ function deleteBalanceHist(id) {
   } else {
       state.db.meta.accountBalance = 10000;
   }
-  saveDB(state.db); setVal('account-size', state.db.meta.accountBalance); renderAccountBalance(); updatePreview();
+  saveDB(state.db); setVal('account-size', state.db.meta.accountBalance); renderAccountBalance(); renderOverviewPortfolio(); updatePreview();
 }
 
 function renderOverview() {
