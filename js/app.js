@@ -13,8 +13,8 @@ const els = {};
 const ID_LIST = [
   'nav','force-save-draft','export-json','import-json-btn','import-json','journal-status','draft-saved-at',
   'view-overview','metrics','overview-from','overview-to','overview-clear','prev-month','calendar-title','next-month','calendar','equity-chart','setup-chart','mistake-list','research-notes',
-  'view-journal','trade-form','trade-id','trade-date','btn-now','ticker','btn-manage-ticker','status','session','side','setup-entry','btn-manage-setup-entry','setup-exit','btn-manage-setup-exit','account-size','risk-pct','leverage','maker-fee','taker-fee','stop-price','stop-type','adjustment','tags','mistakes','emotion','btn-manage-emotion','context','thesis','review','artifacts',
-  'add-entry','entries','add-exit','exits','calc-summary','toggle-deep-journal','deep-journal-section','quick-tags','quick-mistakes','live-notes','btn-insert-time',
+  'view-journal','trade-form','trade-id','trade-date','btn-now','ticker','btn-manage-ticker','status','session','side','setup-entry','btn-manage-setup-entry','setup-exit','btn-manage-setup-exit','account-size','risk-pct','leverage','maker-fee','taker-fee','stop-price','stop-type','adjustment','tags','mistakes','emotion','btn-manage-emotion','context','thesis','review','chart-entry','chart-exit',
+  'add-entry','entries','add-exit','exits','calc-summary','quick-tags','quick-mistakes','live-notes','btn-insert-time',
   'actual-balance','balance-memo','btn-update-balance','balance-history',
   'duplicate-trade','reset-form','delete-trade','grade','deep-review-r','playbook-indicator',
   'desk-rules','risk-risk-dollar','risk-qty','risk-margin','risk-slider','risk-notional','risk-stop-distance','risk-fees',
@@ -92,11 +92,6 @@ function bindEvents() {
   if(els['import-json-btn']) els['import-json-btn'].onclick = () => els['import-json'].click();
   if(els['import-json']) els['import-json'].onchange = handleImport;
   if(els['clear-filters']) els['clear-filters'].onclick = clearFilters;
-  
-  if(els['toggle-deep-journal']) els['toggle-deep-journal'].onclick = (e) => {
-    els['deep-journal-section'].classList.toggle('hidden');
-    e.target.textContent = els['deep-journal-section'].classList.contains('hidden') ? '📝 DEEP REVIEW (사후 복기 및 차트) ▼' : '📝 DEEP REVIEW (접기) ▲';
-  };
 
   if(els['btn-insert-time']) els['btn-insert-time'].onclick = () => {
     if(!els['live-notes']) return;
@@ -121,12 +116,7 @@ function bindEvents() {
     
     state.db.meta.accountBalance = val;
     state.db.meta.balanceHistory.unshift({ id: Date.now(), date: new Date().toISOString(), val: val, memo: memo });
-    saveDB(state.db); 
-    setVal('account-size', val); 
-    setVal('balance-memo', ''); 
-    renderAccountBalance(); 
-    updatePreview(); 
-    persistDraft();
+    saveDB(state.db); setVal('account-size', val); setVal('balance-memo', ''); renderAccountBalance(); updatePreview(); persistDraft();
   };
 
   if(els['prev-trade']) els['prev-trade'].onclick = () => stepSelectedTrade(-1);
@@ -141,8 +131,7 @@ function bindEvents() {
 
   bindKeyboardShortcuts();
 
-  // 💡 grade 필드도 입력 이벤트에 포함시킴
-  const inputs = ['trade-date','ticker','status','session','side','setup-entry','setup-exit','account-size','risk-pct','leverage','maker-fee','taker-fee','stop-price','stop-type','adjustment','tags','mistakes','emotion','context','thesis','review','artifacts','desk-rules','live-notes','grade'];
+  const inputs = ['trade-date','ticker','status','session','side','setup-entry','setup-exit','account-size','risk-pct','leverage','maker-fee','taker-fee','stop-price','stop-type','adjustment','tags','mistakes','emotion','context','thesis','review','chart-entry','chart-exit','desk-rules','live-notes','grade'];
   inputs.forEach(id => {
     if(els[id]) { els[id].addEventListener('input', () => { markDirty(); updatePreview(); persistDraft(); }); els[id].addEventListener('change', () => { markDirty(); updatePreview(); persistDraft(); }); }
   });
@@ -209,10 +198,7 @@ function deleteBalanceHist(id) {
   } else {
       state.db.meta.accountBalance = 10000;
   }
-  saveDB(state.db);
-  setVal('account-size', state.db.meta.accountBalance);
-  renderAccountBalance();
-  updatePreview();
+  saveDB(state.db); setVal('account-size', state.db.meta.accountBalance); renderAccountBalance(); updatePreview();
 }
 
 function renderOverview() {
@@ -237,11 +223,7 @@ function renderOverview() {
   ];
   setHtml('metrics', metrics.map(item => `<div class="metric ${item.size} ${item.tone}"><div class="label">${item.label}</div><div class="value">${item.value}</div><div class="sub">${item.sub}</div></div>`).join(''));
   
-  renderCalendar();
-  renderEquity(s.closed);
-  renderSetupChart(s.closed);
-  renderMistakes(s.closed);
-  renderResearchNotes(s.closed);
+  renderCalendar(); renderEquity(s.closed); renderSetupChart(s.closed); renderMistakes(s.closed); renderResearchNotes(s.closed);
 }
 
 function renderCalendar() {
@@ -486,7 +468,7 @@ function readForm() {
     thesis: getVal('thesis').trim(),
     review: getVal('review').trim(),
     liveNotes: getVal('live-notes').trim(),
-    artifacts: splitLines(getVal('artifacts')),
+    artifacts: [getVal('chart-entry').trim(), getVal('chart-exit').trim()].filter(Boolean),
     entries: state.draftEntries.map(x => ({ price: Number(x.price || 0), type: x.type || 'M', weight: Number(x.weight || 0) })),
     exits: state.draftExits.map(x => ({ price: Number(x.price || 0), type: x.type || 'M', weight: Number(x.weight || 0) })),
   };
@@ -495,7 +477,7 @@ function readForm() {
 function resetForm(options = {}) {
   setVal('trade-id', ''); setVal('trade-date', inputDate(new Date().toISOString()));
   setVal('stop-price', ''); setVal('adjustment', 0); setVal('tags', ''); setVal('mistakes', '');
-  setVal('context', ''); setVal('thesis', ''); setVal('review', ''); setVal('artifacts', ''); setVal('live-notes', '');
+  setVal('context', ''); setVal('thesis', ''); setVal('review', ''); setVal('chart-entry', ''); setVal('chart-exit', ''); setVal('live-notes', '');
   setVal('grade', 'B');
   setVal('account-size', state.db.meta.accountBalance || 10000);
   
@@ -514,7 +496,8 @@ function loadTradeIntoForm(trade) {
   setVal('maker-fee', trade.makerFee ?? 0.02); setVal('taker-fee', trade.takerFee ?? 0.05); setVal('stop-price', trade.stopPrice ?? ''); setVal('stop-type', trade.stopType || 'M');
   setVal('adjustment', trade.adjustment ?? 0);
   setVal('tags', (trade.tags || []).join(', ')); setVal('mistakes', (trade.mistakes || []).join(', '));
-  setVal('context', trade.context || ''); setVal('thesis', trade.thesis || ''); setVal('review', trade.review || ''); setVal('artifacts', (trade.artifacts || []).join('\n'));
+  setVal('context', trade.context || ''); setVal('thesis', trade.thesis || ''); setVal('review', trade.review || ''); 
+  setVal('chart-entry', trade.artifacts?.[0] || ''); setVal('chart-exit', trade.artifacts?.[1] || '');
   setVal('live-notes', trade.liveNotes || '');
   
   state.draftEntries = structuredClone(trade.entries || []); state.draftExits = structuredClone(trade.exits || []);
@@ -573,7 +556,6 @@ function updatePreview() {
   
   setHtml('calc-summary', `Avg Entry: <strong>${num(metrics.avgEntry)}</strong> | Qty: <strong>${metrics.qty.toFixed(5)}</strong><br>Net PnL: <strong class="${metrics.pnl >= 0 ? 'positive' : 'negative'}">${money(metrics.pnl)} (${metrics.r.toFixed(2)}R)</strong>`);
 
-  // 💡 딥 리뷰 탭 전광판 업데이트
   if(els['deep-review-r']) {
     els['deep-review-r'].textContent = `${metrics.r >= 0 ? '+' : ''}${metrics.r.toFixed(2)}R (${money(metrics.pnl)})`;
     els['deep-review-r'].style.color = metrics.r >= 0 ? 'var(--green)' : 'var(--red)';
@@ -643,12 +625,14 @@ function applyDraftToForm(draft) {
   setVal('grade', draft.grade || 'B');
   setVal('account-size', Math.round(draft.accountSize ?? (state.db.meta.accountBalance || 10000))); setVal('risk-pct', draft.riskPct ?? 0.5); setVal('leverage', draft.leverage ?? 10);
   setVal('maker-fee', draft.makerFee ?? 0.02); setVal('taker-fee', draft.takerFee ?? 0.05); setVal('stop-price', draft.stopPrice ?? ''); setVal('stop-type', draft.stopType || 'M');
-  setVal('adjustment', draft.adjustment ?? 0); setVal('tags', draft.tags || ''); setVal('mistakes', draft.mistakes || ''); setVal('context', draft.context || ''); setVal('thesis', draft.thesis || ''); setVal('review', draft.review || ''); setVal('artifacts', draft.artifacts || ''); setVal('live-notes', draft.liveNotes || '');
+  setVal('adjustment', draft.adjustment ?? 0); setVal('tags', draft.tags || ''); setVal('mistakes', draft.mistakes || ''); setVal('context', draft.context || ''); setVal('thesis', draft.thesis || ''); setVal('review', draft.review || ''); 
+  setVal('chart-entry', draft.artifacts?.[0] || ''); setVal('chart-exit', draft.artifacts?.[1] || '');
+  setVal('live-notes', draft.liveNotes || '');
   state.draftEntries = Array.isArray(draft.entries) && draft.entries.length ? draft.entries : [{ price: 0, type: 'M', weight: 100 }]; state.draftExits = Array.isArray(draft.exits) ? draft.exits : [];
   renderLegs('entry'); renderLegs('exit'); updatePreview();
 }
 function persistDraft() { const draft = snapshotDraft(); saveDraft(draft); if(els['desk-rules']) { state.prefs.deskRules = els['desk-rules'].value; savePrefs(state.prefs); } state.draftMeta = new Date().toISOString(); refreshJournalStatus(); }
-function snapshotDraft() { return { id: getVal('trade-id') || '', tradeDate: getVal('trade-date'), ticker: getVal('ticker'), status: getVal('status'), session: getVal('session'), side: getVal('side'), setupEntry: getVal('setup-entry'), setupExit: getVal('setup-exit'), emotion: getVal('emotion'), grade: getVal('grade'), accountSize: getVal('account-size'), riskPct: getVal('risk-pct'), leverage: getVal('leverage'), makerFee: getVal('maker-fee'), takerFee: getVal('taker-fee'), stopPrice: getVal('stop-price'), stopType: getVal('stop-type'), adjustment: getVal('adjustment'), tags: getVal('tags'), mistakes: getVal('mistakes'), context: getVal('context'), thesis: getVal('thesis'), review: getVal('review'), liveNotes: getVal('live-notes'), artifacts: getVal('artifacts'), entries: structuredClone(state.draftEntries), exits: structuredClone(state.draftExits) }; }
+function snapshotDraft() { return { id: getVal('trade-id') || '', tradeDate: getVal('trade-date'), ticker: getVal('ticker'), status: getVal('status'), session: getVal('session'), side: getVal('side'), setupEntry: getVal('setup-entry'), setupExit: getVal('setup-exit'), emotion: getVal('emotion'), grade: getVal('grade'), accountSize: getVal('account-size'), riskPct: getVal('risk-pct'), leverage: getVal('leverage'), makerFee: getVal('maker-fee'), takerFee: getVal('taker-fee'), stopPrice: getVal('stop-price'), stopType: getVal('stop-type'), adjustment: getVal('adjustment'), tags: getVal('tags'), mistakes: getVal('mistakes'), context: getVal('context'), thesis: getVal('thesis'), review: getVal('review'), liveNotes: getVal('live-notes'), artifacts: [getVal('chart-entry'), getVal('chart-exit')].filter(Boolean), entries: structuredClone(state.draftEntries), exits: structuredClone(state.draftExits) }; }
 function markDirty() { state.dirty = true; refreshJournalStatus(); }
 function refreshJournalStatus(message = '') { if(!els['journal-status']) return; els['journal-status'].textContent = message || (state.dirty ? '저장 안 됨' : '정상'); els['draft-saved-at'].textContent = state.draftMeta ? `임시저장 ${fmtSavedAt(state.draftMeta)}` : ''; }
 function fmtSavedAt(iso) { return new Date(iso).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }); }
