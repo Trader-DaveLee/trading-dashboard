@@ -93,12 +93,20 @@ function bindEvents() {
   if(els['import-json']) els['import-json'].onchange = handleImport;
   if(els['clear-filters']) els['clear-filters'].onclick = clearFilters;
 
-  if(els['btn-insert-time']) els['btn-insert-time'].onclick = () => {
+  // ✨ 시간 삽입 및 퀵 액션 버튼 로직 연월일시분초 포맷으로 업데이트
+  const insertLiveNoteText = (prefix = '') => {
     if(!els['live-notes']) return;
-    const now = new Date(); const tStr = `[${pad(now.getHours())}:${pad(now.getMinutes())}] `;
-    els['live-notes'].value += (els['live-notes'].value && !els['live-notes'].value.endsWith('\n') ? '\n' : '') + tStr;
+    const now = new Date(); 
+    const tStr = `[${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}] `;
+    els['live-notes'].value += (els['live-notes'].value && !els['live-notes'].value.endsWith('\n') ? '\n' : '') + tStr + prefix;
     els['live-notes'].focus(); markDirty(); persistDraft();
   };
+
+  if(els['btn-insert-time']) els['btn-insert-time'].onclick = () => insertLiveNoteText('');
+  
+  document.querySelectorAll('.btn-live-action').forEach(btn => {
+    btn.onclick = () => insertLiveNoteText(btn.dataset.text);
+  });
 
   const balInputs = ['bal-cash', 'bal-crypto', 'bal-usdt', 'bal-stock'];
   const calcTotalBalance = () => {
@@ -232,10 +240,11 @@ function renderOverviewPortfolio() {
   const latest = hist[0];
   const total = latest.val || 0;
 
+  // ✨ 세련된 색상 코드로 업데이트
   const makeItem = (label, val, color) => {
     const pct = total > 0 ? ((val / total) * 100).toFixed(1) : 0;
     return `<div class="portfolio-item" style="display:flex; align-items:flex-start; gap:8px; padding:12px; background:rgba(0,0,0,0.2); border-radius:8px; border:1px solid rgba(255,255,255,0.05);">
-              <div class="dot" style="width:10px; height:10px; border-radius:50%; margin-top:4px; flex-shrink:0; background:${color};"></div>
+              <div class="dot" style="width:10px; height:10px; border-radius:50%; margin-top:4px; flex-shrink:0; background:${color}; box-shadow: 0 0 8px ${color}80;"></div>
               <div style="flex:1;">
                 <span class="lbl" style="display:block; font-size:11px; color:var(--muted); margin-bottom:2px; font-weight:700; text-transform:uppercase;">${label}</span>
                 <span class="val" style="display:block; font-size:15px; font-weight:900; color:#fff; letter-spacing:-0.5px;">$${Number(val).toLocaleString()}</span>
@@ -250,10 +259,10 @@ function renderOverviewPortfolio() {
       <div style="font-size:32px; font-weight:900; color:#fff; letter-spacing:-1px;">$${total.toLocaleString()}</div>
     </div>
     <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-      ${makeItem('Cash', latest.cash || 0, '#34d399')}
-      ${makeItem('Crypto', latest.crypto || 0, '#f59e0b')}
-      ${makeItem('USDT', latest.usdt || 0, '#10b981')}
-      ${makeItem('Stock', latest.stock || 0, '#3b82f6')}
+      ${makeItem('Cash', latest.cash || 0, '#10b981')} 
+      ${makeItem('Crypto', latest.crypto || 0, '#f59e0b')} 
+      ${makeItem('USDT', latest.usdt || 0, '#0ea5e9')} 
+      ${makeItem('Stock', latest.stock || 0, '#8b5cf6')} 
     </div>
   `;
   setHtml('overview-portfolio', html);
@@ -283,12 +292,13 @@ function renderOverview() {
     });
   }
   const s = summarize(filtered);
+  // 지표가 3열로 꽉 차게 보이도록 large 클래스 제거 후 통일
   const metrics = [
-    { label: 'Net PnL', value: s.net>=0?`+$${s.net.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}`:`-$${Math.abs(s.net).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}`, sub: `${s.closed.length} closed trades`, tone: 'metric-profit', size: 'large' },
-    { label: 'Win Rate', value: `${s.winRate.toFixed(1)}%`, sub: `${s.wins.length}W / ${s.losses.length}L`, tone: 'metric-accent', size: 'large' },
-    { label: 'Average R', value: `${s.avgR.toFixed(2)}R`, sub: 'Per Trade', tone: 'metric-accent', size: 'medium' },
-    { label: 'Profit Factor', value: s.profitFactor === Infinity ? 'MAX' : s.profitFactor.toFixed(2), sub: 'Gross P / Gross L', tone: 'metric-neutral', size: 'medium' },
-    { label: 'Max Drawdown', value: s.maxDD===0?`$0.00`:`-$${s.maxDD.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}`, sub: 'Peak to trough', tone: 'metric-loss', size: 'small' }
+    { label: 'Net PnL', value: s.net>=0?`+$${s.net.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}`:`-$${Math.abs(s.net).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}`, sub: `${s.closed.length} closed trades`, tone: 'metric-profit', size: '' },
+    { label: 'Win Rate', value: `${s.winRate.toFixed(1)}%`, sub: `${s.wins.length}W / ${s.losses.length}L`, tone: 'metric-accent', size: '' },
+    { label: 'Average R', value: `${s.avgR.toFixed(2)}R`, sub: 'Per Trade', tone: 'metric-accent', size: '' },
+    { label: 'Profit Factor', value: s.profitFactor === Infinity ? 'MAX' : s.profitFactor.toFixed(2), sub: 'Gross P / Gross L', tone: 'metric-neutral', size: '' },
+    { label: 'Max Drawdown', value: s.maxDD===0?`$0.00`:`-$${s.maxDD.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}`, sub: 'Peak to trough', tone: 'metric-loss', size: '' }
   ];
   setHtml('metrics', metrics.map(item => `<div class="metric ${item.size} ${item.tone}"><div class="label">${item.label}</div><div class="value">${item.value}</div><div class="sub">${item.sub}</div></div>`).join(''));
   
