@@ -88,15 +88,14 @@ button { cursor: pointer; }
 
 /* Premium Section Header */
 .premium-sec-head { border-bottom: none; border-left: 4px solid var(--accent); padding-left: 12px; padding-bottom: 0; background: linear-gradient(90deg, rgba(255,255,255,0.03), transparent); padding: 10px 12px; border-radius: 4px; margin-bottom: 20px;}
-.premium-sec-head h3 { font-size: 15px; letter-spacing: 0.5px; }
+.premium-sec-head h3 { font-size: 15px; letter-spacing: 0.5px; margin-bottom: 2px; }
 
 .inline-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .form-stack { display: grid; gap: 16px; }
 .field-grid { display: grid; gap: 12px; margin-bottom:12px; }
 .cols-4 { grid-template-columns: repeat(4, minmax(0,1fr)); }
 .cols-2 { grid-template-columns: repeat(2, minmax(0,1fr)); }
-
-/* 💡 중첩 방지 (Overlap Fix): 컬럼 최소 너비 확대 */
+.cols-1 { grid-template-columns: 1fr; }
 .responsive-cols { grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); }
 
 label { display: grid; gap: 6px; }
@@ -106,7 +105,6 @@ input, select, textarea { width: 100%; background: #0b0e14; color: var(--text); 
 textarea { min-height: 80px; resize: vertical; font-family:inherit; line-height:1.5;}
 input:focus, select:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(79,140,255,.16); }
 
-/* 💡 중첩 방지: 달력 아이콘 공간 최적화 */
 input[type="date"], input[type="datetime-local"] { letter-spacing: -0.5px; padding-right: 4px; }
 input[type="date"]::-webkit-calendar-picker-indicator, input[type="datetime-local"]::-webkit-calendar-picker-indicator { filter: invert(1); cursor:pointer; margin-left: 0; }
 
@@ -116,9 +114,8 @@ input[type="date"]::-webkit-calendar-picker-indicator, input[type="datetime-loca
 .input-with-unit:focus-within { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(79,140,255,.16); }
 .input-with-unit .unit { padding: 0 12px; color: var(--muted); font-size: 13px; background: rgba(255,255,255,0.03); display:flex; align-items:center; border-right:1px solid #2c3850;}
 
-/* 💡 중첩 방지 (Overlap Fix): Flex Child 삐져나옴 방지 */
 .input-group { display: flex; gap: 4px; width: 100%; }
-.input-group input, .input-group select { flex: 1; min-width: 0; }
+.input-group input, .input-group select { flex: 1; min-width: 0; } 
 
 .gear-btn { padding: 0 8px; background: #171e2c; border: 1px solid #2c3850; border-radius: 6px; color: var(--muted); cursor: pointer; transition:0.2s;}
 .gear-btn:hover { background: #2c3850; color: #fff; }
@@ -126,7 +123,6 @@ input[type="date"]::-webkit-calendar-picker-indicator, input[type="datetime-loca
 .mini-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
 .mini-head h4 { margin: 0; font-size: 12px; }
 
-/* Premium Save Trade Button */
 .btn-save-trade {
   background: linear-gradient(135deg, #2563eb, #6366f1);
   color: #fff; border: none; padding: 16px; border-radius: 12px;
@@ -146,9 +142,6 @@ input[type="date"]::-webkit-calendar-picker-indicator, input[type="datetime-loca
 .leg-row { display: grid; grid-template-columns: 2fr 1fr 1.5fr auto; gap: 8px; margin-bottom: 8px; }
 .summary-box, .note-box, .detail-box { background: linear-gradient(180deg, rgba(79,140,255,.08), rgba(79,140,255,.02)); border: 1px solid rgba(79,140,255,.15); border-radius: 12px; padding: 16px; line-height: 1.65; font-size:13px;}
 .stack { display: grid; gap: 12px; }
-
-.toggle-btn { width: 100%; padding: 14px; background: rgba(255,255,255,0.02); color: var(--muted); border: 1px dashed var(--line); border-radius: 10px; font-size: 13px; font-weight: 700; cursor: pointer; transition: 0.2s; }
-.toggle-btn:hover { background: rgba(255,255,255,0.05); color: #fff; border-color:#4a5568;}
 
 /* Calendar Large */
 .calendar { display: grid; grid-template-columns: repeat(7, minmax(0,1fr)); gap: 10px; }
