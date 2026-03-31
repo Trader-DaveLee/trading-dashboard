@@ -1,6 +1,6 @@
 import { recalcTrade } from './calc.js';
 import {
-  summarize, groupAverageR, tagStats, emotionStats, playbookBuckets,
+  summarize, groupAverageR, tagStats, emotionStats,
   recentWindowStats, sessionSetupStats, gradeStats, filterTradesByDate
 } from './analytics.js';
 import {
@@ -26,16 +26,16 @@ let draftTimer = null;
 
 const ID_LIST = [
   'nav','force-save-draft','export-json','import-json-btn','import-json','journal-status','draft-saved-at',
-  'view-overview','metrics','overview-from','overview-to','overview-clear','prev-month','calendar-title','next-month','calendar','equity-chart','setup-chart','mistake-list','research-notes','recent-window','emotion-board','playbook-board','overview-portfolio',
-  'view-journal','trade-form','trade-id','trade-date','btn-now','ticker','btn-manage-ticker','status','session','side','book','market-regime','bias-timeframe','setup-entry','btn-manage-setup-entry','setup-exit','btn-manage-setup-exit',
-  'account-size','risk-pct','leverage','maker-fee','taker-fee','stop-price','mark-price','stop-type','adjustment','stop-moved','breakeven-moved',
-  'context','thesis','catalyst','invalidation-note','checklist','review','chart-entry','chart-exit','extra-evidence','tags','mistakes','emotion','btn-manage-emotion','verdict',
+  'view-overview','metrics','overview-from','overview-to','overview-clear','prev-month','calendar-title','next-month','calendar','equity-chart','setup-chart','mistake-list','research-notes','overview-portfolio',
+  'view-journal','trade-form','trade-id','trade-date','btn-now','ticker','btn-manage-ticker','status','session','side','setup-entry','btn-manage-setup-entry','setup-exit','btn-manage-setup-exit',
+  'account-size','risk-pct','leverage','maker-fee','taker-fee','stop-price','mark-price','stop-type','adjustment',
+  'context','thesis','review','chart-entry','chart-exit','tags','mistakes','emotion','btn-manage-emotion',
   'add-entry','entries','add-exit','exits','calc-summary','quick-tags','quick-mistakes','live-notes','btn-insert-time',
   'bal-cash','bal-crypto','bal-usdt','bal-stock','bal-total','balance-memo','btn-update-balance','balance-history',
-  'duplicate-trade','reset-form','delete-trade','grade','playbook-score','deep-review-r','playbook-indicator',
+  'duplicate-trade','reset-form','delete-trade','grade','deep-review-r',
   'desk-rules','risk-risk-dollar','risk-qty','risk-margin','risk-slider','risk-notional','risk-stop-distance','risk-fees','risk-realized','risk-unrealized','risk-residual',
-  'view-library','q','f-from','f-to','f-status','f-side','f-session','f-setup','f-emotion','f-tag','f-mistake','f-grade','f-playbook-min','sort','clear-filters','library-result-count','review-position','review-breadcrumb','prev-trade','next-trade','filter-same-setup','filter-same-ticker','clear-quick-filter','trade-table','detail','detail-insights',
-  'view-playbook','playbook-gallery','improvements'
+  'view-library','q','f-from','f-to','f-status','f-side','f-session','f-setup','f-emotion','f-tag','f-mistake','f-grade','sort','clear-filters','library-result-count','review-position','review-breadcrumb','prev-trade','next-trade','filter-same-setup','filter-same-ticker','clear-quick-filter','trade-table','detail','detail-insights',
+  'view-playbook','playbook-gallery'
 ];
 
 window.__desk = {
@@ -44,13 +44,11 @@ window.__desk = {
   applySameTickerFilter: () => filterBySelectedTicker(),
 };
 
-// ✨ 캘린더에서 일자 클릭 시 해당 일자의 Library로 점프하는 글로벌 함수
 window.__desk_jump_date = (dateString) => {
   setVal('f-from', dateString);
   setVal('f-to', dateString);
   state.view = 'library';
   renderViews();
-  // 부드러운 스크롤 탑
   window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
@@ -136,7 +134,7 @@ function bindEvents() {
     renderOverview();
   };
 
-  const filterIds = ['q','f-from','f-to','f-status','f-side','f-session','f-setup','f-emotion','f-tag','f-mistake','f-grade','f-playbook-min','sort'];
+  const filterIds = ['q','f-from','f-to','f-status','f-side','f-session','f-setup','f-emotion','f-tag','f-mistake','f-grade','sort'];
   filterIds.forEach(id => els[id].addEventListener('input', renderLibrary));
   filterIds.forEach(id => els[id].addEventListener('change', renderLibrary));
   els['clear-filters'].onclick = clearFilters;
@@ -166,17 +164,13 @@ function bindEvents() {
   bindKeyboardShortcuts();
 
   [
-    'trade-date','ticker','status','session','side','book','market-regime','bias-timeframe','setup-entry','setup-exit',
+    'trade-date','ticker','status','session','side','setup-entry','setup-exit',
     'account-size','risk-pct','leverage','maker-fee','taker-fee','stop-price','mark-price','stop-type','adjustment',
-    'context','thesis','catalyst','invalidation-note','checklist','review','chart-entry','chart-exit','extra-evidence',
-    'tags','mistakes','emotion','verdict','grade','playbook-score','live-notes','improvements'
+    'context','thesis','review','chart-entry','chart-exit',
+    'tags','mistakes','emotion','grade','live-notes'
   ].forEach(id => {
     if (!els[id]) return;
     els[id].addEventListener('input', handleFormMutation);
-    els[id].addEventListener('change', handleFormMutation);
-  });
-
-  ['stop-moved','breakeven-moved'].forEach(id => {
     els[id].addEventListener('change', handleFormMutation);
   });
 }
@@ -195,22 +189,12 @@ function bindKeyboardShortcuts() {
 
     if ((event.metaKey || event.ctrlKey) && key === 's') {
       event.preventDefault();
-      if (typing) {
-        persistDraft(true);
-      } else {
-        handleSubmit(event);
-      }
+      if (typing) persistDraft(true); else handleSubmit(event);
     }
 
     if (state.view === 'library' && !typing) {
-      if (key === 'j') {
-        event.preventDefault();
-        stepSelectedTrade(1);
-      }
-      if (key === 'k') {
-        event.preventDefault();
-        stepSelectedTrade(-1);
-      }
+      if (key === 'j') { event.preventDefault(); stepSelectedTrade(1); }
+      if (key === 'k') { event.preventDefault(); stepSelectedTrade(-1); }
     }
 
     if ((event.metaKey || event.ctrlKey) && key === 'd') {
@@ -327,13 +311,19 @@ function renderLegs(kind) {
   const target = els[kind === 'entry' ? 'entries' : 'exits'];
   target.innerHTML = state[key].map((leg, index) => `
     <div class="leg-row" data-kind="${kind}" data-index="${index}">
-      <input type="number" step="0.01" class="leg-price" value="${safeNumber(leg.price)}" placeholder="Price" />
-      <select class="leg-type">
+      <div class="input-with-unit">
+        <span class="unit left">$</span>
+        <input type="number" step="0.01" class="leg-price" value="${safeNumber(leg.price)}" placeholder="Price" />
+      </div>
+      <select class="leg-type" style="width: 100%;">
         <option value="M" ${leg.type === 'M' ? 'selected' : ''}>Maker</option>
         <option value="T" ${leg.type === 'T' ? 'selected' : ''}>Taker</option>
       </select>
-      <input type="number" step="0.01" class="leg-weight" value="${safeNumber(leg.weight)}" placeholder="Weight %" />
-      <button type="button" class="tool-btn leg-delete">삭제</button>
+      <div class="input-with-unit">
+        <input type="number" step="0.01" class="leg-weight" value="${safeNumber(leg.weight)}" placeholder="Weight" />
+        <span class="unit right">%</span>
+      </div>
+      <button type="button" class="tool-btn leg-delete" style="color:var(--muted); border-color:var(--line);">✕</button>
     </div>
   `).join('');
 
@@ -371,19 +361,14 @@ function resetForm() {
   state.dirty = false;
 
   [
-    'trade-id','context','thesis','catalyst','invalidation-note','checklist','review','chart-entry','chart-exit','extra-evidence','tags','mistakes','live-notes',
-    'mark-price','adjustment','stop-price','improvements'
+    'trade-id','context','thesis','review','chart-entry','chart-exit','tags','mistakes','live-notes',
+    'mark-price','adjustment','stop-price'
   ].forEach(id => setVal(id, ''));
 
   setVal('trade-date', inputDate(new Date().toISOString()));
   setVal('status', 'OPEN');
   setVal('side', 'LONG');
-  setVal('book', 'SCALP');
-  setVal('market-regime', 'TREND');
-  setVal('bias-timeframe', 'HTF_BULL');
   setVal('grade', 'B');
-  setVal('playbook-score', 5);
-  setVal('verdict', 'FOLLOWED_PLAN');
   setVal('account-size', Math.round(Number(state.db.meta.accountBalance || 10000)));
   setVal('risk-pct', 0.5);
   setVal('leverage', 5);
@@ -394,8 +379,6 @@ function resetForm() {
   setVal('emotion', state.db.meta.emotions[0] || 'CALM');
   setVal('setup-entry', state.db.meta.entrySetups[0] || '');
   setVal('setup-exit', state.db.meta.exitSetups[0] || '');
-  els['stop-moved'].checked = false;
-  els['breakeven-moved'].checked = false;
 
   state.draftEntries = [{ price: 0, type: 'M', weight: 100 }];
   state.draftExits = [];
@@ -431,13 +414,9 @@ function readForm() {
     status: getVal('status'),
     side: getVal('side'),
     session: getVal('session'),
-    book: getVal('book'),
-    marketRegime: getVal('market-regime'),
-    biasTimeframe: getVal('bias-timeframe'),
     setupEntry: getVal('setup-entry'),
     setupExit: getVal('setup-exit'),
     grade: getVal('grade'),
-    playbookScore: Number(getVal('playbook-score') || 5),
     accountSize: Number(getVal('account-size') || 0),
     riskPct: Number(getVal('risk-pct') || 0),
     leverage: Number(getVal('leverage') || 0),
@@ -447,24 +426,16 @@ function readForm() {
     markPrice: Number(getVal('mark-price') || 0),
     stopType: getVal('stop-type'),
     adjustment: Number(getVal('adjustment') || 0),
-    stopMoved: els['stop-moved'].checked,
-    breakevenMoved: els['breakeven-moved'].checked,
     context: getVal('context'),
     thesis: getVal('thesis'),
-    catalyst: getVal('catalyst'),
-    invalidationNote: getVal('invalidation-note'),
-    checklist: splitCsv(getVal('checklist')),
     review: getVal('review'),
     liveNotes: getVal('live-notes'),
     emotion: getVal('emotion'),
-    verdict: getVal('verdict'),
     tags: splitCsv(getVal('tags')),
     mistakes: splitCsv(getVal('mistakes')),
-    improvements: splitCsv(getVal('improvements')),
     evidence: {
       entryChart: getVal('chart-entry'),
       exitChart: getVal('chart-exit'),
-      extra: splitLines(getVal('extra-evidence')),
     },
     entries: cloneRows(state.draftEntries),
     exits: cloneRows(state.draftExits),
@@ -533,13 +504,9 @@ function applyTradeToForm(trade, options = {}) {
   setVal('status', trade.status);
   setVal('side', trade.side);
   setVal('session', trade.session);
-  setVal('book', trade.book || 'INTRADAY');
-  setVal('market-regime', trade.marketRegime || 'TREND');
-  setVal('bias-timeframe', trade.biasTimeframe || 'NEUTRAL');
   setVal('setup-entry', trade.setupEntry);
   setVal('setup-exit', trade.setupExit);
   setVal('grade', trade.grade);
-  setVal('playbook-score', trade.playbookScore);
   setVal('account-size', trade.accountSize);
   setVal('risk-pct', trade.riskPct);
   setVal('leverage', trade.leverage);
@@ -549,23 +516,15 @@ function applyTradeToForm(trade, options = {}) {
   setVal('mark-price', trade.markPrice || '');
   setVal('stop-type', trade.stopType);
   setVal('adjustment', trade.adjustment || 0);
-  els['stop-moved'].checked = Boolean(trade.stopMoved);
-  els['breakeven-moved'].checked = Boolean(trade.breakevenMoved);
   setVal('context', trade.context || '');
   setVal('thesis', trade.thesis || '');
-  setVal('catalyst', trade.catalyst || '');
-  setVal('invalidation-note', trade.invalidationNote || '');
-  setVal('checklist', (trade.checklist || []).join(', '));
   setVal('review', trade.review || '');
   setVal('live-notes', trade.liveNotes || '');
   setVal('emotion', trade.emotion || '');
-  setVal('verdict', trade.verdict || 'NEUTRAL');
   setVal('tags', (trade.tags || []).join(', '));
   setVal('mistakes', (trade.mistakes || []).join(', '));
-  setVal('improvements', (trade.improvements || []).join(', '));
   setVal('chart-entry', trade.evidence?.entryChart || '');
   setVal('chart-exit', trade.evidence?.exitChart || '');
-  setVal('extra-evidence', (trade.evidence?.extra || []).join('\n'));
   state.draftEntries = cloneRows(trade.entries || [{ price: 0, type: 'M', weight: 100 }]);
   state.draftExits = cloneRows(trade.exits || []);
   renderLegs('entry');
@@ -579,8 +538,6 @@ function updatePreview() {
   renderCalcSummary(metrics, trade);
   renderRiskPanel(metrics);
   setText('deep-review-r', `${metrics.r.toFixed(2)}R`);
-  const playbookCandidate = trade.grade === 'A' && trade.playbookScore >= 8 && trade.mistakes.length === 0;
-  els['playbook-indicator'].classList.toggle('hidden', !playbookCandidate);
 }
 
 function renderCalcSummary(metrics, trade) {
@@ -598,15 +555,11 @@ function renderCalcSummary(metrics, trade) {
     ['Avg Entry', money(metrics.avgEntry)],
     ['Avg Exit', metrics.avgExit ? money(metrics.avgExit) : '—'],
     ['Qty', qty(metrics.qty)],
-    ['Realized', money(metrics.realizedPnl), metrics.realizedPnl],
-    ['Unrealized', money(metrics.unrealizedPnl), metrics.unrealizedPnl],
     ['Net PnL', money(metrics.pnl), metrics.pnl],
     ['R Multiple', `${metrics.r.toFixed(2)}R`, metrics.r],
     ['Exit %', `${metrics.exitPct.toFixed(1)}%`],
-    ['Remaining %', `${metrics.remainingPct.toFixed(1)}%`],
     ['Residual Risk', money(metrics.residualRisk)],
     ['Fee Drag', `${metrics.feePctOfGross.toFixed(1)}%`],
-    ['Setup', `${trade.session} · ${trade.setupEntry || 'NA'}`],
   ];
 
   setHtml('calc-summary', `
@@ -622,16 +575,25 @@ function renderCalcSummary(metrics, trade) {
 }
 
 function renderRiskPanel(metrics) {
-  setText('risk-risk-dollar', money(metrics.riskDollar));
+  setText('risk-risk-dollar', moneyAbs(metrics.riskDollar));
   setText('risk-qty', qty(metrics.qty));
-  setText('risk-margin', money(metrics.margin));
+  setText('risk-margin', moneyAbs(metrics.margin));
   setText('risk-slider', `${metrics.sliderPct.toFixed(1)}%`);
-  setText('risk-notional', money(metrics.notional));
+  setText('risk-notional', moneyAbs(metrics.notional));
   setText('risk-stop-distance', `${metrics.stopDistancePct.toFixed(2)}%`);
-  setText('risk-fees', money(metrics.totalFees));
+  setText('risk-fees', moneyAbs(metrics.totalFees));
   setText('risk-realized', money(metrics.realizedPnl));
   setText('risk-unrealized', money(metrics.unrealizedPnl));
-  setText('risk-residual', money(metrics.residualRisk));
+  setText('risk-residual', moneyAbs(metrics.residualRisk));
+}
+
+function metricCard(label, value, colorClass) {
+  return `
+    <div class="metric ${colorClass}">
+      <span>${escapeHtml(label)}</span>
+      <strong>${escapeHtml(value)}</strong>
+    </div>
+  `;
 }
 
 function renderOverview() {
@@ -639,14 +601,17 @@ function renderOverview() {
   const stats = summarize(trades);
   const setups = groupAverageR(stats.closed, trade => trade.setupEntry);
   const mistakes = tagStats(stats.closed, trade => trade.mistakes);
+  
+  // S, A 등급의 A+ 셋업 개수 카운팅
+  const aPlusCount = stats.closed.filter(t => t.grade === 'S' || t.grade === 'A').length;
 
   const metrics = [
-    metricCard('Net PnL', money(stats.net), stats.net),
-    metricCard('Win Rate', `${stats.winRate.toFixed(1)}%`),
-    metricCard('Avg R', `${stats.avgR.toFixed(2)}R`, stats.avgR),
-    metricCard('Profit Factor', stats.profitFactor === Infinity ? '∞' : stats.profitFactor.toFixed(2)),
-    metricCard('Max Drawdown', money(stats.maxDD), -stats.maxDD),
-    metricCard('Fee Drag', money(stats.fees), -stats.fees),
+    metricCard('Win Rate', `${stats.winRate.toFixed(1)}%`, 'metric-blue'),
+    metricCard('Net PnL', money(stats.net), 'metric-green'),
+    metricCard('Avg R', `${stats.avgR.toFixed(2)}R`, 'metric-purple'),
+    metricCard('Profit Factor', stats.profitFactor === Infinity ? '∞' : stats.profitFactor.toFixed(2), 'metric-orange'),
+    metricCard('Max Drawdown', money(stats.maxDD), 'metric-red'),
+    metricCard('A+ Setups', `${aPlusCount}건`, 'metric-teal'),
   ];
   setHtml('metrics', metrics.join(''));
 
@@ -655,7 +620,6 @@ function renderOverview() {
   const notes = [];
   if (stats.closed.length) {
     notes.push(noteCard('실행 품질', `Closed ${stats.closed.length}건 기준 평균 R은 ${stats.avgR.toFixed(2)}R, Profit Factor는 ${stats.profitFactor === Infinity ? '∞' : stats.profitFactor.toFixed(2)}입니다.`));
-    notes.push(noteCard('리스크 누수', `Win Rate ${stats.winRate.toFixed(1)}%, Max Drawdown ${money(stats.maxDD)}, Fee Drag ${money(stats.fees)}.`));
   }
   if (setups.length) {
     notes.push(noteCard('강한 셋업', setups.slice(0, 3).map(row => `${row.label} (${row.value.toFixed(2)}R)`).join(' / ')));
@@ -686,7 +650,7 @@ function renderStackStats(id, rows, formatter) {
   `).join('') : emptyState('표시할 데이터가 없습니다.'));
 }
 
-// ✨ 캘린더 온클릭 시 Library 점프 기능 연동 반영
+// ✨ 타임존 오차 없는 로컬 캘린더 계산 적용
 function renderCalendar() {
   const trades = getOverviewTrades();
   const year = state.month.getFullYear();
@@ -697,7 +661,9 @@ function renderCalendar() {
   trades.forEach(trade => {
     const date = new Date(trade.date);
     if (date.getFullYear() !== year || date.getMonth() !== month) return;
-    const key = date.toISOString().slice(0, 10);
+    // KST 등 로컬 타임존 기준으로 정확한 날짜 추출
+    const pad = n => String(n).padStart(2, '0');
+    const key = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
     map.set(key, (map.get(key) || 0) + trade.metrics.pnl);
   });
 
@@ -705,13 +671,14 @@ function renderCalendar() {
   const firstWeekday = firstDay.getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const cells = [];
+  const pad = n => String(n).padStart(2, '0');
 
   for (let i = 0; i < firstWeekday; i += 1) {
     cells.push('<div class="day muted"></div>');
   }
 
   for (let day = 1; day <= daysInMonth; day += 1) {
-    const key = new Date(year, month, day).toISOString().slice(0, 10);
+    const key = `${year}-${pad(month + 1)}-${pad(day)}`;
     const pnl = map.get(key) || 0;
     cells.push(`
       <div class="day ${pnl > 0 ? 'profit' : pnl < 0 ? 'loss' : ''}" onclick="window.__desk_jump_date('${key}')" title="${key} 매매기록 보기">
@@ -798,17 +765,12 @@ function renderOverviewPortfolio() {
     return;
   }
   const latest = history[0];
-  const prev = history[1];
-  const diff = prev ? latest.val - prev.val : 0;
 
   setHtml('overview-portfolio', `
     <div class="portfolio-summary" style="display:flex; flex-direction:column; gap:16px;">
       <div style="background: linear-gradient(135deg, #f1f5f9 0%, #ffffff 100%); border:1px solid var(--line); border-radius:16px; padding:20px;">
         <span style="color:var(--muted); font-weight:700; font-size:12px; display:block; margin-bottom:4px;">TOTAL PORTFOLIO</span>
-        <strong style="font-size:32px; font-weight:900; letter-spacing:-1px; color:#0f172a;">${money(latest.val)}</strong>
-        <small class="${diff > 0 ? 'positive' : diff < 0 ? 'negative' : ''}" style="display:block; margin-top:4px; font-weight:600;">
-          ${prev ? `${diff >= 0 ? '+' : ''}${money(diff)} vs prev` : '첫 스냅샷'}
-        </small>
+        <strong style="font-size:36px; font-weight:900; letter-spacing:-1px; color:#0f172a;">${moneyAbsNatural(latest.val)}</strong>
       </div>
       <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
         ${portfolioItem('💵 Cash', latest.cash)}
@@ -823,11 +785,7 @@ function renderOverviewPortfolio() {
 function renderAccountBalance() {
   const history = state.db.meta.balanceHistory || [];
   const latest = history[0] || {
-    cash: 0,
-    crypto: 0,
-    usdt: 0,
-    stock: 0,
-    val: Number(state.db.meta.accountBalance || 0),
+    cash: 0, crypto: 0, usdt: 0, stock: 0, val: Number(state.db.meta.accountBalance || 0),
   };
   setVal('bal-cash', latest.cash || 0);
   setVal('bal-crypto', latest.crypto || 0);
@@ -835,22 +793,12 @@ function renderAccountBalance() {
   setVal('bal-stock', latest.stock || 0);
   calcTotalBalance();
   setVal('desk-rules', state.db.meta.rules || '');
-
-  setHtml('balance-history', history.length ? history.slice(0, 10).map(row => `
-    <div style="padding:12px; border:1px solid var(--line); border-radius:12px; margin-bottom:8px; background:#fff;">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-        <strong style="font-size:14px; color:#0f172a;">${money(row.val)}</strong>
-        <span style="color:var(--muted); font-size:11px;">${formatDateTime(row.date)}</span>
-      </div>
-      ${row.memo ? `<div style="font-size:11px; color:#475569; background:#f1f5f9; padding:4px 8px; border-radius:6px; display:inline-block;">${escapeHtml(row.memo)}</div>` : ''}
-    </div>
-  `).join('') : emptyState('잔고 히스토리가 없습니다.'));
 }
 
 function calcTotalBalance() {
   const total = ['bal-cash','bal-crypto','bal-usdt','bal-stock']
     .reduce((sum, id) => sum + Number(els[id].value || 0), 0);
-  setText('bal-total', money(total));
+  setText('bal-total', moneyAbsNatural(total));
   return total;
 }
 
@@ -908,11 +856,11 @@ function renderLibrary() {
       <td>${escapeHtml(trade.side)}</td>
       <td>${escapeHtml(trade.session)}</td>
       <td>${escapeHtml(trade.setupEntry || '—')}</td>
-      <td class="mono">${trade.metrics.avgEntry ? money(trade.metrics.avgEntry) : '—'}</td>
-      <td class="mono">${trade.metrics.avgExit ? money(trade.metrics.avgExit) : '—'}</td>
+      <td class="mono">${trade.metrics.avgEntry ? moneyAbs(trade.metrics.avgEntry) : '—'}</td>
+      <td class="mono">${trade.metrics.avgExit ? moneyAbs(trade.metrics.avgExit) : '—'}</td>
       <td class="mono ${trade.metrics.pnl > 0 ? 'positive' : trade.metrics.pnl < 0 ? 'negative' : ''}">${money(trade.metrics.pnl)}</td>
       <td class="mono ${trade.metrics.r > 0 ? 'positive' : trade.metrics.r < 0 ? 'negative' : ''}">${trade.metrics.r.toFixed(2)}R</td>
-      <td><span class="badge ${trade.playbookScore >= 8 ? 'badge-good' : ''}">${trade.playbookScore}</span></td>
+      <td><span class="badge ${trade.grade === 'S' || trade.grade === 'A' ? 'badge-good' : ''}">${trade.grade}</span></td>
       <td>${(trade.tags || []).slice(0, 3).map(tag => `<span class="chip">${escapeHtml(tag)}</span>`).join(' ')}</td>
     </tr>
   `).join('') : `<tr><td colspan="12">${emptyState('검색 결과가 없습니다.')}</td></tr>`);
@@ -942,7 +890,6 @@ function filterLibraryTrades() {
   const tag = getVal('f-tag').trim().toLowerCase();
   const mistake = getVal('f-mistake').trim().toLowerCase();
   const grade = getVal('f-grade');
-  const minScore = Number(getVal('f-playbook-min') || 0);
   const sort = getVal('sort');
 
   let rows = [...state.db.trades];
@@ -952,7 +899,6 @@ function filterLibraryTrades() {
     if (side !== 'ALL' && trade.side !== side) return false;
     if (session !== 'ALL' && trade.session !== session) return false;
     if (grade !== 'ALL' && trade.grade !== grade) return false;
-    if (trade.playbookScore < minScore) return false;
     if (setup && !(trade.setupEntry || '').toLowerCase().includes(setup)) return false;
     if (emotion && !(trade.emotion || '').toLowerCase().includes(emotion)) return false;
     if (tag && !(trade.tags || []).some(value => value.includes(tag))) return false;
@@ -960,8 +906,8 @@ function filterLibraryTrades() {
     if (q) {
       const haystack = [
         trade.ticker, trade.setupEntry, trade.setupExit, trade.context, trade.thesis, trade.review,
-        trade.liveNotes, trade.session, trade.book, trade.marketRegime, trade.biasTimeframe,
-        ...(trade.tags || []), ...(trade.mistakes || []), ...(trade.checklist || []), ...(trade.improvements || [])
+        trade.liveNotes, trade.session,
+        ...(trade.tags || []), ...(trade.mistakes || [])
       ].join(' ').toLowerCase();
       if (!haystack.includes(q)) return false;
     }
@@ -972,7 +918,6 @@ function filterLibraryTrades() {
     if (sort === 'oldest') return new Date(a.date) - new Date(b.date);
     if (sort === 'bestR') return b.metrics.r - a.metrics.r;
     if (sort === 'worstR') return a.metrics.r - b.metrics.r;
-    if (sort === 'bestScore') return b.playbookScore - a.playbookScore || b.metrics.r - a.metrics.r;
     return new Date(b.date) - new Date(a.date);
   });
 
@@ -993,11 +938,11 @@ function renderTradeDetail(trade) {
       <div>티커</div><div><strong>${escapeHtml(trade.ticker)}</strong> · ${escapeHtml(trade.side)} · ${escapeHtml(trade.status)}</div>
       <div>세션</div><div>${escapeHtml(trade.session)}</div>
       <div>Setup</div><div>${escapeHtml(trade.setupEntry || '—')} → ${escapeHtml(trade.setupExit || '—')}</div>
-      <div>Grade / Score</div><div>${escapeHtml(trade.grade)} / ${trade.playbookScore}</div>
-      <div>Avg In / Avg Out</div><div class="mono">${money(trade.metrics.avgEntry)} / ${trade.metrics.avgExit ? money(trade.metrics.avgExit) : '—'}</div>
+      <div>Grade</div><div>${escapeHtml(trade.grade)}</div>
+      <div>Avg In / Avg Out</div><div class="mono">${moneyAbs(trade.metrics.avgEntry)} / ${trade.metrics.avgExit ? moneyAbs(trade.metrics.avgExit) : '—'}</div>
       <div>PnL / R</div><div class="mono ${trade.metrics.pnl > 0 ? 'positive' : trade.metrics.pnl < 0 ? 'negative' : ''}">${money(trade.metrics.pnl)} / ${trade.metrics.r.toFixed(2)}R</div>
       <div>Real/Unrealized</div><div class="mono">${money(trade.metrics.realizedPnl)} / ${money(trade.metrics.unrealizedPnl)}</div>
-      <div>Residual Risk</div><div class="mono">${money(trade.metrics.residualRisk)} (${trade.metrics.remainingPct.toFixed(1)}% remaining)</div>
+      <div>Residual Risk</div><div class="mono">${moneyAbs(trade.metrics.residualRisk)} (${trade.metrics.remainingPct.toFixed(1)}% remaining)</div>
       <div>Emotion</div><div>${escapeHtml(trade.emotion || '—')}</div>
     </div>
 
@@ -1075,7 +1020,7 @@ function renderDetailInsights(trade, rows) {
       ${similar.length ? similar.map(row => `
         <div class="similar-item" data-id="${row.id}" style="padding:12px 16px; border:1px solid var(--line); border-radius:12px; margin-bottom:8px; cursor:pointer;">
           <strong style="color:#0f172a;">${escapeHtml(row.ticker)} · ${escapeHtml(row.setupEntry || 'NA')}</strong>
-          <div style="font-size:12px; color:var(--muted); margin-top:4px;">${formatDate(row.date)} · <span class="${row.metrics.r > 0 ? 'positive' : 'negative'}">${row.metrics.r.toFixed(2)}R</span> · Score ${row.playbookScore}</div>
+          <div style="font-size:12px; color:var(--muted); margin-top:4px;">${formatDate(row.date)} · <span class="${row.metrics.r > 0 ? 'positive' : 'negative'}">${row.metrics.r.toFixed(2)}R</span> · Grade ${row.grade}</div>
         </div>
       `).join('') : emptyState('유사 샘플이 아직 없습니다.')}
     </div>
@@ -1088,8 +1033,8 @@ function renderDetailInsights(trade, rows) {
 
 function renderPlaybook() {
   const rows = [...state.db.trades]
-    .filter(trade => trade.grade === 'A' && trade.playbookScore >= 8 && !(trade.mistakes || []).length)
-    .sort((a, b) => b.playbookScore - a.playbookScore || b.metrics.r - a.metrics.r);
+    .filter(trade => (trade.grade === 'S' || trade.grade === 'A') && !(trade.mistakes || []).length)
+    .sort((a, b) => b.metrics.r - a.metrics.r);
 
   setHtml('playbook-gallery', rows.length ? rows.map(trade => `
     <article class="playbook-card" data-id="${trade.id}">
@@ -1097,7 +1042,7 @@ function renderPlaybook() {
       <div class="playbook-info">
         <div class="playbook-header">
           <strong style="font-size:16px; color:#0f172a;">${escapeHtml(trade.ticker)}</strong>
-          <span class="badge badge-good" style="font-size:12px;">★ ${trade.playbookScore}/10</span>
+          <span class="badge badge-good" style="font-size:12px;">Grade ${trade.grade}</span>
         </div>
         <div style="font-size:12px; color:var(--accent); font-weight:700;">${escapeHtml(trade.setupEntry || 'NA')}</div>
         <div style="font-size:11px; color:var(--muted);">${formatDateTime(trade.date)} · ${trade.session}</div>
@@ -1106,7 +1051,7 @@ function renderPlaybook() {
         <div class="chips" style="margin-top:auto;">${(trade.tags || []).slice(0, 3).map(item => `<span class="chip">#${escapeHtml(item)}</span>`).join('') || '<span class="chip">태그 없음</span>'}</div>
       </div>
     </article>
-  `).join('') : emptyState('조건을 만족하는 A급 Playbook 샘플이 없습니다.'));
+  `).join('') : emptyState('조건을 만족하는 A급 이상 Playbook 샘플이 없습니다.'));
 
   els['playbook-gallery'].querySelectorAll('.playbook-card').forEach(card => {
     card.onclick = () => {
@@ -1167,7 +1112,6 @@ function clearFilters() {
   setVal('f-side', 'ALL');
   setVal('f-session', 'ALL');
   setVal('f-grade', 'ALL');
-  setVal('f-playbook-min', 0);
   setVal('sort', 'newest');
   renderLibrary();
 }
@@ -1219,15 +1163,6 @@ function refreshJournalStatus(message) {
   setText('journal-status', message);
 }
 
-function statLine(label, value, signed) {
-  return `
-    <div class="list-row">
-      <div class="list-title">${escapeHtml(label)}</div>
-      <div class="list-right ${signed > 0 ? 'positive' : signed < 0 ? 'negative' : ''}">${escapeHtml(value)}</div>
-    </div>
-  `;
-}
-
 function noteCard(title, body) {
   return `
     <div class="note-card">
@@ -1237,20 +1172,11 @@ function noteCard(title, body) {
   `;
 }
 
-function metricCard(label, value, signed) {
-  return `
-    <div class="metric">
-      <span>${escapeHtml(label)}</span>
-      <strong class="${signed > 0 ? 'positive' : signed < 0 ? 'negative' : ''}">${escapeHtml(value)}</strong>
-    </div>
-  `;
-}
-
 function portfolioItem(label, value) {
   return `
     <div style="background:#f8fafc; border:1px solid var(--line); border-radius:12px; padding:12px;">
       <div style="font-size:12px; color:var(--muted); font-weight:700; margin-bottom:4px;">${escapeHtml(label)}</div>
-      <div style="font-size:16px; font-weight:800; color:#0f172a;">${money(value)}</div>
+      <div style="font-size:16px; font-weight:800; color:#0f172a;">${moneyAbsNatural(value)}</div>
     </div>
   `;
 }
@@ -1283,6 +1209,14 @@ function money(value) {
   const num = Number(value || 0);
   const sign = num > 0 ? '+' : '';
   return `${sign}$${num.toLocaleString(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 2 })}`;
+}
+
+function moneyAbs(value) {
+  return `$${Math.abs(Number(value || 0)).toLocaleString(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 2 })}`;
+}
+
+function moneyAbsNatural(value) {
+  return `$${Math.abs(Math.round(Number(value || 0))).toLocaleString()}`;
 }
 
 function moneyCompact(value) {
