@@ -77,10 +77,6 @@ export function tagStats(trades, selector) {
   })).sort((a, b) => a.totalPnl - b.totalPnl);
 }
 
-export function emotionStats(trades) {
-  return bucketStats(trades, trade => (trade.emotion || 'UNLABELED').trim().toUpperCase());
-}
-
 export function recentWindowStats(trades, size = 20) {
   const rows = [...trades].sort((a, b) => new Date(a.date) - new Date(b.date)).slice(-size);
   return {
