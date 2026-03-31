@@ -44,6 +44,16 @@ window.__desk = {
   applySameTickerFilter: () => filterBySelectedTicker(),
 };
 
+// ✨ 캘린더에서 일자 클릭 시 해당 일자의 Library로 점프하는 글로벌 함수
+window.__desk_jump_date = (dateString) => {
+  setVal('f-from', dateString);
+  setVal('f-to', dateString);
+  state.view = 'library';
+  renderViews();
+  // 부드러운 스크롤 탑
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+
 bootstrap();
 
 function bootstrap() {
@@ -576,9 +586,9 @@ function updatePreview() {
 function renderCalcSummary(metrics, trade) {
   if (!metrics.valid) {
     setHtml('calc-summary', `
-      <div class="summary-invalid">
+      <div class="summary-invalid" style="color:var(--muted); font-weight:600;">
         손절가, 진입 가격, 진입 비중(합계 100%)을 확인해 주세요.
-        ${metrics.directionError ? '<div class="warn-text">방향과 손절 위치가 충돌합니다.</div>' : ''}
+        ${metrics.directionError ? '<div class="warn-text" style="color:var(--red); margin-top:8px;">방향과 손절 위치가 충돌합니다.</div>' : ''}
       </div>
     `);
     return;
@@ -676,6 +686,7 @@ function renderStackStats(id, rows, formatter) {
   `).join('') : emptyState('표시할 데이터가 없습니다.'));
 }
 
+// ✨ 캘린더 온클릭 시 Library 점프 기능 연동 반영
 function renderCalendar() {
   const trades = getOverviewTrades();
   const year = state.month.getFullYear();
@@ -703,7 +714,7 @@ function renderCalendar() {
     const key = new Date(year, month, day).toISOString().slice(0, 10);
     const pnl = map.get(key) || 0;
     cells.push(`
-      <div class="day ${pnl > 0 ? 'profit' : pnl < 0 ? 'loss' : ''}">
+      <div class="day ${pnl > 0 ? 'profit' : pnl < 0 ? 'loss' : ''}" onclick="window.__desk_jump_date('${key}')" title="${key} 매매기록 보기">
         <div class="num">${day}</div>
         <div class="pnl ${pnl > 0 ? 'positive' : pnl < 0 ? 'negative' : ''}">${pnl ? moneyCompact(pnl) : ''}</div>
       </div>
@@ -791,28 +802,19 @@ function renderOverviewPortfolio() {
   const diff = prev ? latest.val - prev.val : 0;
 
   setHtml('overview-portfolio', `
-    <div class="portfolio-summary">
-      <div class="portfolio-card-big">
-        <span>총 자산</span>
-        <strong>${money(latest.val)}</strong>
-        <small class="${diff > 0 ? 'positive' : diff < 0 ? 'negative' : ''}">
+    <div class="portfolio-summary" style="display:flex; flex-direction:column; gap:16px;">
+      <div style="background: linear-gradient(135deg, #f1f5f9 0%, #ffffff 100%); border:1px solid var(--line); border-radius:16px; padding:20px;">
+        <span style="color:var(--muted); font-weight:700; font-size:12px; display:block; margin-bottom:4px;">TOTAL PORTFOLIO</span>
+        <strong style="font-size:32px; font-weight:900; letter-spacing:-1px; color:#0f172a;">${money(latest.val)}</strong>
+        <small class="${diff > 0 ? 'positive' : diff < 0 ? 'negative' : ''}" style="display:block; margin-top:4px; font-weight:600;">
           ${prev ? `${diff >= 0 ? '+' : ''}${money(diff)} vs prev` : '첫 스냅샷'}
         </small>
       </div>
-      <div class="portfolio-split">
-        ${portfolioItem('Cash', latest.cash)}
-        ${portfolioItem('Crypto', latest.crypto)}
-        ${portfolioItem('USDT', latest.usdt)}
-        ${portfolioItem('Stock', latest.stock)}
-      </div>
-      <div class="history-mini">
-        ${history.slice(0, 5).map(row => `
-          <div class="history-mini-row">
-            <span>${formatDate(row.date)}</span>
-            <strong>${money(row.val)}</strong>
-            <small>${escapeHtml(row.memo || '')}</small>
-          </div>
-        `).join('')}
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+        ${portfolioItem('💵 Cash', latest.cash)}
+        ${portfolioItem('🪙 Crypto', latest.crypto)}
+        ${portfolioItem('₮ USDT', latest.usdt)}
+        ${portfolioItem('📈 Stock', latest.stock)}
       </div>
     </div>
   `);
@@ -835,13 +837,12 @@ function renderAccountBalance() {
   setVal('desk-rules', state.db.meta.rules || '');
 
   setHtml('balance-history', history.length ? history.slice(0, 10).map(row => `
-    <div class="balance-hist-item">
-      <div class="balance-hist-main">
-        <strong>${money(row.val)}</strong>
-        <span>${formatDateTime(row.date)}</span>
+    <div style="padding:12px; border:1px solid var(--line); border-radius:12px; margin-bottom:8px; background:#fff;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+        <strong style="font-size:14px; color:#0f172a;">${money(row.val)}</strong>
+        <span style="color:var(--muted); font-size:11px;">${formatDateTime(row.date)}</span>
       </div>
-      <div class="balance-hist-sub">Cash ${money(row.cash)} · Crypto ${money(row.crypto)} · USDT ${money(row.usdt)} · Stock ${money(row.stock)}</div>
-      ${row.memo ? `<div class="balance-hist-memo">${escapeHtml(row.memo)}</div>` : ''}
+      ${row.memo ? `<div style="font-size:11px; color:#475569; background:#f1f5f9; padding:4px 8px; border-radius:6px; display:inline-block;">${escapeHtml(row.memo)}</div>` : ''}
     </div>
   `).join('') : emptyState('잔고 히스토리가 없습니다.'));
 }
@@ -903,15 +904,15 @@ function renderLibrary() {
     <tr data-id="${trade.id}" class="${trade.id === state.selectedTradeId ? 'selected-row' : ''}">
       <td>${formatDateTime(trade.date)}</td>
       <td>${trade.status === 'OPEN' ? '<span class="badge-open">OPEN</span>' : '<span class="badge-closed">CLOSED</span>'}</td>
-      <td>${escapeHtml(trade.ticker)}</td>
+      <td style="font-weight:700; color:#0f172a;">${escapeHtml(trade.ticker)}</td>
       <td>${escapeHtml(trade.side)}</td>
       <td>${escapeHtml(trade.session)}</td>
       <td>${escapeHtml(trade.setupEntry || '—')}</td>
-      <td>${trade.metrics.avgEntry ? money(trade.metrics.avgEntry) : '—'}</td>
-      <td>${trade.metrics.avgExit ? money(trade.metrics.avgExit) : '—'}</td>
-      <td class="${trade.metrics.pnl > 0 ? 'positive' : trade.metrics.pnl < 0 ? 'negative' : ''}">${money(trade.metrics.pnl)}</td>
-      <td class="${trade.metrics.r > 0 ? 'positive' : trade.metrics.r < 0 ? 'negative' : ''}">${trade.metrics.r.toFixed(2)}R</td>
-      <td>${trade.playbookScore}</td>
+      <td class="mono">${trade.metrics.avgEntry ? money(trade.metrics.avgEntry) : '—'}</td>
+      <td class="mono">${trade.metrics.avgExit ? money(trade.metrics.avgExit) : '—'}</td>
+      <td class="mono ${trade.metrics.pnl > 0 ? 'positive' : trade.metrics.pnl < 0 ? 'negative' : ''}">${money(trade.metrics.pnl)}</td>
+      <td class="mono ${trade.metrics.r > 0 ? 'positive' : trade.metrics.r < 0 ? 'negative' : ''}">${trade.metrics.r.toFixed(2)}R</td>
+      <td><span class="badge ${trade.playbookScore >= 8 ? 'badge-good' : ''}">${trade.playbookScore}</span></td>
       <td>${(trade.tags || []).slice(0, 3).map(tag => `<span class="chip">${escapeHtml(tag)}</span>`).join(' ')}</td>
     </tr>
   `).join('') : `<tr><td colspan="12">${emptyState('검색 결과가 없습니다.')}</td></tr>`);
@@ -923,7 +924,7 @@ function renderLibrary() {
   const selected = rows.find(row => row.id === state.selectedTradeId);
   const index = selected ? rows.findIndex(row => row.id === selected.id) : -1;
   setText('review-position', rows.length ? `${index + 1} / ${rows.length}` : '0 / 0');
-  setText('review-breadcrumb', selected ? `${selected.ticker} · ${selected.setupEntry || 'NA'} · ${selected.grade}` : '선택 없음');
+  setText('review-breadcrumb', selected ? `${selected.ticker} · ${selected.setupEntry || 'NA'} · Grade ${selected.grade}` : '선택 없음');
 
   renderTradeDetail(selected || null);
   renderDetailInsights(selected || null, rows);
@@ -989,45 +990,46 @@ function renderTradeDetail(trade) {
       <button type="button" class="tool-btn" id="load-selected-into-journal">Journal로 불러오기</button>
     </div>
     <div class="kv">
-      <div>티커</div><div>${escapeHtml(trade.ticker)} · ${escapeHtml(trade.side)} · ${escapeHtml(trade.status)}</div>
+      <div>티커</div><div><strong>${escapeHtml(trade.ticker)}</strong> · ${escapeHtml(trade.side)} · ${escapeHtml(trade.status)}</div>
       <div>세션</div><div>${escapeHtml(trade.session)}</div>
       <div>Setup</div><div>${escapeHtml(trade.setupEntry || '—')} → ${escapeHtml(trade.setupExit || '—')}</div>
       <div>Grade / Score</div><div>${escapeHtml(trade.grade)} / ${trade.playbookScore}</div>
-      <div>Avg In / Avg Out</div><div>${money(trade.metrics.avgEntry)} / ${trade.metrics.avgExit ? money(trade.metrics.avgExit) : '—'}</div>
-      <div>PnL / R</div><div class="${trade.metrics.pnl > 0 ? 'positive' : trade.metrics.pnl < 0 ? 'negative' : ''}">${money(trade.metrics.pnl)} / ${trade.metrics.r.toFixed(2)}R</div>
-      <div>Realized / Unrealized</div><div>${money(trade.metrics.realizedPnl)} / ${money(trade.metrics.unrealizedPnl)}</div>
-      <div>Residual Risk</div><div>${money(trade.metrics.residualRisk)} (${trade.metrics.remainingPct.toFixed(1)}% remaining)</div>
+      <div>Avg In / Avg Out</div><div class="mono">${money(trade.metrics.avgEntry)} / ${trade.metrics.avgExit ? money(trade.metrics.avgExit) : '—'}</div>
+      <div>PnL / R</div><div class="mono ${trade.metrics.pnl > 0 ? 'positive' : trade.metrics.pnl < 0 ? 'negative' : ''}">${money(trade.metrics.pnl)} / ${trade.metrics.r.toFixed(2)}R</div>
+      <div>Real/Unrealized</div><div class="mono">${money(trade.metrics.realizedPnl)} / ${money(trade.metrics.unrealizedPnl)}</div>
+      <div>Residual Risk</div><div class="mono">${money(trade.metrics.residualRisk)} (${trade.metrics.remainingPct.toFixed(1)}% remaining)</div>
       <div>Emotion</div><div>${escapeHtml(trade.emotion || '—')}</div>
     </div>
 
-    <div class="timeline-container">
-      <strong>Execution Ladder</strong>
-      <div class="timeline">
+    <div style="margin-top:24px; padding:20px; background:#f8fafc; border:1px solid var(--line); border-radius:16px;">
+      <h4 style="margin:0 0 12px; font-size:13px; color:var(--muted); text-transform:uppercase;">Execution Ladder</h4>
+      <div style="display:flex; justify-content:space-between; align-items:center; position:relative; padding-bottom:10px;">
+        <div style="position:absolute; top:20px; left:10%; right:10%; height:2px; background:var(--line); z-index:1;"></div>
         ${renderTimeline('entry', trade.entries)}
         ${renderTimeline('exit', trade.exits)}
       </div>
     </div>
 
-    <div class="detail-section">
-      <h4>Pre-trade</h4>
-      <p><strong>Context:</strong> ${escapeHtml(trade.context || '—')}</p>
-      <p><strong>Thesis:</strong> ${escapeHtml(trade.thesis || '—')}</p>
+    <div style="margin-top:24px;">
+      <h4 style="margin:0 0 8px; font-size:14px;">Pre-trade</h4>
+      <p style="margin:0 0 8px;"><strong>Context:</strong> ${escapeHtml(trade.context || '—')}</p>
+      <p style="margin:0;"><strong>Thesis:</strong> ${escapeHtml(trade.thesis || '—')}</p>
     </div>
 
-    <div class="detail-section">
-      <h4>Review</h4>
-      <p>${escapeHtml(trade.review || '—')}</p>
-      <p><strong>Live Notes:</strong></p>
-      <pre class="notes-pre">${escapeHtml(trade.liveNotes || '—')}</pre>
-      <div class="chips">${(trade.tags || []).map(tag => `<span class="chip">#${escapeHtml(tag)}</span>`).join(' ') || '<span class="chip">태그 없음</span>'}</div>
+    <div style="margin-top:24px;">
+      <h4 style="margin:0 0 8px; font-size:14px;">Review</h4>
+      <p style="margin:0 0 12px;">${escapeHtml(trade.review || '—')}</p>
+      <strong style="font-size:13px;">Live Notes:</strong>
+      <div style="margin-top:8px; padding:16px; background:#f1f5f9; border-radius:12px; font-family:monospace; font-size:12px; white-space:pre-wrap; color:#334155;">${escapeHtml(trade.liveNotes || '—')}</div>
+      <div class="chips" style="margin-top:12px;">${(trade.tags || []).map(tag => `<span class="chip">#${escapeHtml(tag)}</span>`).join(' ') || '<span class="chip">태그 없음</span>'}</div>
       <div class="chips">${(trade.mistakes || []).map(tag => `<span class="chip danger-chip">${escapeHtml(tag)}</span>`).join(' ') || '<span class="chip">실수 없음</span>'}</div>
     </div>
 
-    <div class="detail-section">
-      <h4>Evidence</h4>
-      <div class="stack">
-        ${trade.evidence?.entryChart ? `<a class="evidence-link" target="_blank" rel="noreferrer" href="${escapeAttr(trade.evidence.entryChart)}">Entry Chart</a>` : ''}
-        ${trade.evidence?.exitChart ? `<a class="evidence-link" target="_blank" rel="noreferrer" href="${escapeAttr(trade.evidence.exitChart)}">Exit Chart</a>` : ''}
+    <div style="margin-top:24px;">
+      <h4 style="margin:0 0 8px; font-size:14px;">Evidence</h4>
+      <div style="display:flex; gap:8px;">
+        ${trade.evidence?.entryChart ? `<a href="${escapeAttr(trade.evidence.entryChart)}" target="_blank" style="padding:8px 16px; background:#e0e7ff; color:var(--accent); border-radius:8px; text-decoration:none; font-weight:700; font-size:12px;">Entry Chart 📈</a>` : ''}
+        ${trade.evidence?.exitChart ? `<a href="${escapeAttr(trade.evidence.exitChart)}" target="_blank" style="padding:8px 16px; background:#e0e7ff; color:var(--accent); border-radius:8px; text-decoration:none; font-weight:700; font-size:12px;">Exit Chart 📈</a>` : ''}
       </div>
     </div>
   `);
@@ -1035,20 +1037,20 @@ function renderTradeDetail(trade) {
   document.getElementById('load-selected-into-journal').onclick = () => openSelectedInJournal(trade.id);
 }
 
-
 function renderTimeline(type, rows) {
   if (!rows.length) return `
-    <div class="timeline-step ${type}">
-      <div class="timeline-dot"></div>
-      <div class="timeline-label">${type.toUpperCase()}</div>
-      <div class="timeline-val">—</div>
+    <div style="position:relative; z-index:2; display:flex; flex-direction:column; align-items:center; gap:8px; flex:1;">
+      <div style="width:16px; height:16px; border-radius:50%; background:#fff; border:3px solid var(--line);"></div>
+      <div style="font-size:11px; color:var(--muted); font-weight:700;">${type.toUpperCase()}</div>
+      <div class="mono" style="font-size:12px;">—</div>
     </div>
   `;
+  const color = type === 'entry' ? 'var(--accent)' : 'var(--yellow)';
   return rows.map((row, idx) => `
-    <div class="timeline-step ${type}">
-      <div class="timeline-dot"></div>
-      <div class="timeline-label">${type.toUpperCase()} ${idx + 1}</div>
-      <div class="timeline-val">${safeNumber(row.price)} / ${safeNumber(row.weight)}%</div>
+    <div style="position:relative; z-index:2; display:flex; flex-direction:column; align-items:center; gap:8px; flex:1;">
+      <div style="width:16px; height:16px; border-radius:50%; background:${color}; border:3px solid #fff; box-shadow:0 0 0 2px ${color};"></div>
+      <div style="font-size:11px; color:var(--muted); font-weight:700; margin-top:4px;">${type.toUpperCase()} ${idx + 1}</div>
+      <div class="mono" style="font-size:12px; font-weight:700; color:#0f172a;">${safeNumber(row.price)} / ${safeNumber(row.weight)}%</div>
     </div>
   `).join('');
 }
@@ -1066,16 +1068,16 @@ function renderDetailInsights(trade, rows) {
   const tickerStats = summarize(sameTicker);
 
   setHtml('detail-insights', `
-    ${noteCard('같은 셋업', `${trade.setupEntry || 'NA'} · ${sameSetup.length}건 · AvgR ${setupStats.avgR.toFixed(2)}R · Win ${setupStats.winRate.toFixed(1)}%`)}
-    ${noteCard('같은 종목', `${trade.ticker} · ${sameTicker.length}건 · AvgR ${tickerStats.avgR.toFixed(2)}R · Net ${money(tickerStats.net)}`)}
-    ${noteCard('현재 샘플', `Score ${trade.playbookScore} · Residual ${money(trade.metrics.residualRisk)} · Fees ${money(trade.metrics.totalFees)}`)}
-    <div class="similar-list">
+    ${noteCard('같은 셋업 통계', `${trade.setupEntry || 'NA'} · ${sameSetup.length}건 · AvgR ${setupStats.avgR.toFixed(2)}R · Win ${setupStats.winRate.toFixed(1)}%`)}
+    ${noteCard('같은 종목 통계', `${trade.ticker} · ${sameTicker.length}건 · AvgR ${tickerStats.avgR.toFixed(2)}R · Net ${money(tickerStats.net)}`)}
+    <div class="similar-list" style="margin-top:16px;">
+      <h4 style="margin:0 0 12px; font-size:14px;">유사 샘플 (최근 5건)</h4>
       ${similar.length ? similar.map(row => `
-        <div class="similar-item" data-id="${row.id}">
-          <strong>${escapeHtml(row.ticker)} · ${escapeHtml(row.setupEntry || 'NA')}</strong>
-          <div>${formatDate(row.date)} · ${row.metrics.r.toFixed(2)}R · Score ${row.playbookScore}</div>
+        <div class="similar-item" data-id="${row.id}" style="padding:12px 16px; border:1px solid var(--line); border-radius:12px; margin-bottom:8px; cursor:pointer;">
+          <strong style="color:#0f172a;">${escapeHtml(row.ticker)} · ${escapeHtml(row.setupEntry || 'NA')}</strong>
+          <div style="font-size:12px; color:var(--muted); margin-top:4px;">${formatDate(row.date)} · <span class="${row.metrics.r > 0 ? 'positive' : 'negative'}">${row.metrics.r.toFixed(2)}R</span> · Score ${row.playbookScore}</div>
         </div>
-      `).join('') : emptyState('유사 샘플이 아직 많지 않습니다.')}
+      `).join('') : emptyState('유사 샘플이 아직 없습니다.')}
     </div>
   `);
 
@@ -1091,29 +1093,30 @@ function renderPlaybook() {
 
   setHtml('playbook-gallery', rows.length ? rows.map(trade => `
     <article class="playbook-card" data-id="${trade.id}">
-      ${trade.evidence?.entryChart ? `<img class="playbook-img" src="${escapeAttr(trade.evidence.entryChart)}" alt="entry chart" onerror="this.style.display='none'">` : `<div class="playbook-img placeholder">No Image</div>`}
+      ${trade.evidence?.entryChart ? `<img class="playbook-img" src="${escapeAttr(trade.evidence.entryChart)}" alt="entry chart" onerror="this.style.display='none'">` : `<div class="playbook-img" style="display:grid; place-items:center; color:var(--muted); font-weight:600; font-size:12px;">NO IMAGE</div>`}
       <div class="playbook-info">
         <div class="playbook-header">
-          <strong>${escapeHtml(trade.ticker)} · ${escapeHtml(trade.setupEntry || 'NA')}</strong>
-          <span class="badge badge-good">${trade.playbookScore}/10</span>
+          <strong style="font-size:16px; color:#0f172a;">${escapeHtml(trade.ticker)}</strong>
+          <span class="badge badge-good" style="font-size:12px;">★ ${trade.playbookScore}/10</span>
         </div>
-        <div class="list-sub">${formatDateTime(trade.date)} · ${trade.session} · ${trade.side}</div>
-        <div class="${trade.metrics.r > 0 ? 'positive' : 'negative'}">${trade.metrics.r.toFixed(2)}R · ${money(trade.metrics.pnl)}</div>
-        <p>${escapeHtml(trade.thesis || trade.review || '설명이 없습니다.')}</p>
-        <div class="chips">${(trade.tags || []).slice(0, 4).map(item => `<span class="chip">#${escapeHtml(item)}</span>`).join('') || '<span class="chip">태그 없음</span>'}</div>
+        <div style="font-size:12px; color:var(--accent); font-weight:700;">${escapeHtml(trade.setupEntry || 'NA')}</div>
+        <div style="font-size:11px; color:var(--muted);">${formatDateTime(trade.date)} · ${trade.session}</div>
+        <div class="mono ${trade.metrics.r > 0 ? 'positive' : 'negative'}" style="font-size:14px; font-weight:800; margin-top:4px;">${trade.metrics.r.toFixed(2)}R (${money(trade.metrics.pnl)})</div>
+        <p style="font-size:12px; color:#475569; margin:8px 0; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">${escapeHtml(trade.thesis || trade.review || '설명 없음')}</p>
+        <div class="chips" style="margin-top:auto;">${(trade.tags || []).slice(0, 3).map(item => `<span class="chip">#${escapeHtml(item)}</span>`).join('') || '<span class="chip">태그 없음</span>'}</div>
       </div>
     </article>
-  `).join('') : emptyState('조건을 만족하는 Playbook 샘플이 없습니다.'));
+  `).join('') : emptyState('조건을 만족하는 A급 Playbook 샘플이 없습니다.'));
 
   els['playbook-gallery'].querySelectorAll('.playbook-card').forEach(card => {
     card.onclick = () => {
       selectTrade(card.dataset.id);
       state.view = 'library';
       renderViews();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     };
   });
 }
-
 
 function selectTrade(id) {
   state.selectedTradeId = id;
@@ -1228,8 +1231,8 @@ function statLine(label, value, signed) {
 function noteCard(title, body) {
   return `
     <div class="note-card">
-      <strong>${escapeHtml(title)}</strong>
-      <p>${escapeHtml(body)}</p>
+      <strong style="color:#0f172a; font-size:14px; display:block; margin-bottom:6px;">${escapeHtml(title)}</strong>
+      <p style="margin:0; color:#475569;">${escapeHtml(body)}</p>
     </div>
   `;
 }
@@ -1245,11 +1248,9 @@ function metricCard(label, value, signed) {
 
 function portfolioItem(label, value) {
   return `
-    <div class="portfolio-item">
-      <div>
-        <div class="list-title">${escapeHtml(label)}</div>
-        <div class="list-sub">${money(value)}</div>
-      </div>
+    <div style="background:#f8fafc; border:1px solid var(--line); border-radius:12px; padding:12px;">
+      <div style="font-size:12px; color:var(--muted); font-weight:700; margin-bottom:4px;">${escapeHtml(label)}</div>
+      <div style="font-size:16px; font-weight:800; color:#0f172a;">${money(value)}</div>
     </div>
   `;
 }
