@@ -20,6 +20,7 @@ export const DEFAULT_DB = {
     accountBalance: 10000,
     balanceHistory: [],
     rules: '',
+    checklists: ['손절 설정 확인', 'A급 셋업 여부', '리스크 1% 이하'], // ✨ 체크리스트 마스터 추가
   },
   trades: [],
 };
@@ -101,6 +102,7 @@ function normalizeMeta(meta = {}) {
     balanceHistory: Array.isArray(meta.balanceHistory) ? meta.balanceHistory.map(normalizeBalancePoint) : [],
     accountBalance: Number(meta.accountBalance || base.accountBalance),
     rules: String(meta.rules || ''),
+    checklists: normalizeList(meta.checklists || base.checklists), // ✨ 마스터 체크리스트 병합
   };
 }
 
@@ -158,10 +160,7 @@ function fromV5Trade(t) {
     tags: [],
     mistakes: [],
     emotion: '',
-    evidence: {
-      entryChart: t.img1 || '',
-      exitChart: t.img2 || '',
-    },
+    evidence: { entryChart: t.img1 || '', exitChart: t.img2 || '' },
     entries: (t.entries || []).map(x => ({ price: Number(x.price || 0), type: x.type || 'M', weight: Number(x.weight || 0) })),
     exits: (t.exits || []).map(x => ({ price: Number(x.price || 0), type: x.type || 'M', weight: Number(x.weight || 0) })),
   };
@@ -197,6 +196,7 @@ export function normalizeTrade(t = {}) {
     emotion: String(t.emotion || '').trim().toUpperCase(),
     tags: normalizeLowerList(t.tags),
     mistakes: normalizeLowerList(t.mistakes),
+    checkedRules: normalizeList(t.checkedRules), // ✨ 개별 트레이드 체크리스트 저장
 
     evidence: normalizeEvidence(t.evidence, t.artifacts),
     entries: normalizeLegs(t.entries, true),
