@@ -53,7 +53,13 @@ export function exportDB(db) {
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
-  link.download = `trading_dashboard_v3_${new Date().toISOString().slice(0, 10)}.json`;
+  
+  // ✨ 로컬 타임존 기반으로 정확한 오늘 날짜 파일명 생성
+  const d = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const localDateStr = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  
+  link.download = `trading_dashboard_v6_${localDateStr}.json`;
   link.click();
 }
 
@@ -62,9 +68,20 @@ export function parseImport(text) {
   return migrateDB(parsed);
 }
 
+// ✨ 방탄 마이그레이션(Bulletproof Migration) 로직 복구
 export function migrateDB(input) {
   if (!input) return structuredClone(DEFAULT_DB);
 
+  // 1. 최신 v6 포맷 (정상)
+  if (input.schemaVersion === 3 && Array.isArray(input.trades)) {
+    return {
+      schemaVersion: 3,
+      meta: normalizeMeta(input.meta),
+      trades: input.trades.map(normalizeTrade),
+    };
+  }
+
+  // 2. 아주 오래된 v5 포맷 (배열 형태)
   if (Array.isArray(input)) {
     return {
       schemaVersion: 3,
@@ -73,11 +90,12 @@ export function migrateDB(input) {
     };
   }
 
-  if (input.schemaVersion === 3 && Array.isArray(input.trades)) {
+  // 3. 구버전 v2 포맷 (객체 형태이나 schemaVersion이 없거나 구버전 객체를 가진 경우)
+  if (input.trades && Array.isArray(input.trades)) {
     return {
       schemaVersion: 3,
       meta: normalizeMeta(input.meta),
-      trades: input.trades.map(normalizeTrade),
+      trades: input.trades.map(fromV2Trade).map(normalizeTrade),
     };
   }
 
@@ -115,6 +133,22 @@ function normalizeBalancePoint(row) {
     stock: Number(row.stock || 0),
     type: String(row.type || 'PNL').toUpperCase(),
     memo: String(row.memo || '').trim(),
+  };
+}
+
+// ✨ 구버전 v2 트레이드 포맷 안전 변환
+function fromV2Trade(t) {
+  const artifacts = Array.isArray(t.artifacts) ? t.artifacts : [];
+  return {
+    ...t,
+    grade: t.grade || 'B',
+    markPrice: Number(t.markPrice || 0),
+    liveNotes: t.liveNotes || '',
+    evidence: t.evidence || {
+      entryCharts: [artifacts[0]].filter(Boolean),
+      exitCharts: [artifacts[1]].filter(Boolean),
+      liveCharts: artifacts.slice(2).filter(Boolean),
+    },
   };
 }
 
@@ -204,7 +238,6 @@ function normalizeEvidence(evidence, artifacts, legacyEntry, legacyExit) {
   const fallback = Array.isArray(artifacts) ? artifacts : [];
   const obj = evidence && typeof evidence === 'object' ? evidence : {};
   
-  // 이전 버전의 단일 문자열 포맷을 다중 배열 포맷으로 안전하게 마이그레이션
   let entryArray = Array.isArray(obj.entryCharts) ? obj.entryCharts : [];
   if (entryArray.length === 0 && (obj.entryChart || fallback[0] || legacyEntry)) {
       entryArray = [obj.entryChart || fallback[0] || legacyEntry];
