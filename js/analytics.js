@@ -77,12 +77,18 @@ export function tagStats(trades, selector) {
   })).sort((a, b) => a.totalPnl - b.totalPnl);
 }
 
+// ✨ 로컬 타임존 기반으로 정확한 날짜를 비교하는 로직
 export function filterTradesByDate(trades, from, to) {
-  const fromTime = from ? new Date(`${from}T00:00:00`).getTime() : -Infinity;
-  const toTime = to ? new Date(`${to}T23:59:59`).getTime() : Infinity;
   return trades.filter(trade => {
-    const time = new Date(trade.date).getTime();
-    return time >= fromTime && time <= toTime;
+    const tradeLocal = new Date(trade.date);
+    if (Number.isNaN(tradeLocal.getTime())) return true;
+    
+    const pad = n => String(n).padStart(2, '0');
+    const tradeDateStr = `${tradeLocal.getFullYear()}-${pad(tradeLocal.getMonth() + 1)}-${pad(tradeLocal.getDate())}`;
+
+    if (from && tradeDateStr < from) return false;
+    if (to && tradeDateStr > to) return false;
+    return true;
   });
 }
 
