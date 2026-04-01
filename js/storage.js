@@ -7,6 +7,23 @@ export const LEGACY_STORAGE_KEYS = [
 ];
 export const DRAFT_KEY = 'trading_desk_dashboard_v3_draft';
 
+// ✨ 로컬 타임존 기준 YYYY-MM-DD 추출기 (날짜 밀림 버그 방지)
+export function getLocalDateStr(dateObj = new Date()) {
+  const d = new Date(dateObj);
+  const tzOffset = d.getTimezoneOffset() * 60000;
+  return new Date(d.getTime() - tzOffset).toISOString().slice(0, 10);
+}
+
+// ✨ URL 안전장치
+export function sanitizeUrl(url) {
+  if (!url) return '';
+  let clean = url.trim();
+  if (clean && !clean.startsWith('http://') && !clean.startsWith('https://')) {
+    clean = 'https://' + clean;
+  }
+  return clean;
+}
+
 export const DEFAULT_DB = {
   schemaVersion: 3,
   meta: {
@@ -19,8 +36,16 @@ export const DEFAULT_DB = {
     balanceHistory: [],
     rules: '',
     checklists: ['손절 설정 확인', 'A급 셋업 여부', '리스크 1% 이하'],
-    lastTradeForm: null, // ✨ 입력 속도 극대화를 위한 최근 템플릿 기억
-    dailyMemos: {}, // ✨ 일자별 EOD 메모 저장소
+    lastTradeForm: null,
+    dailyMemos: {},
+    inbox: '', // ✨ Scratchpad
+    routineStates: {}, // ✨ Morning Routine 상태
+    quickLinks: [ // ✨ Quick Launch 기본값
+      { title: 'TradingView', url: 'https://kr.tradingview.com/chart/' },
+      { title: 'CoinMarketCap', url: 'https://coinmarketcap.com/' },
+      { title: 'Economic Calendar', url: 'https://kr.investing.com/economic-calendar/' },
+      { title: 'ChatGPT', url: 'https://chat.openai.com/' }
+    ]
   },
   trades: [],
 };
@@ -49,7 +74,7 @@ export function exportDB(db) {
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
-  link.download = `trading_dashboard_v3_${new Date().toISOString().slice(0, 10)}.json`;
+  link.download = `trading_dashboard_v3_${getLocalDateStr()}.json`;
   link.click();
 }
 
@@ -96,6 +121,9 @@ function normalizeMeta(meta = {}) {
     checklists: normalizeList(meta.checklists || base.checklists),
     lastTradeForm: meta.lastTradeForm || null,
     dailyMemos: meta.dailyMemos || {},
+    inbox: String(meta.inbox || ''),
+    routineStates: meta.routineStates || {},
+    quickLinks: Array.isArray(meta.quickLinks) && meta.quickLinks.length ? meta.quickLinks : base.quickLinks
   };
 }
 
@@ -104,7 +132,7 @@ function normalizeBalancePoint(row) {
     id: row.id || Date.now(),
     date: normalizeDate(row.date),
     val: Number(row.val || 0),
-    delta: Number(row.delta || 0), // ✨ 변동액 추적
+    delta: Number(row.delta || 0),
     cash: Number(row.cash || 0),
     crypto: Number(row.crypto || 0),
     usdt: Number(row.usdt || 0),
@@ -141,6 +169,8 @@ function fromV5Trade(t) {
     tags: [],
     mistakes: [],
     checkedRules: [],
+    setupNote: '',
+    repeatable: false,
     evidence: { entryChart: t.img1 || '', exitChart: t.img2 || '', liveCharts: [] },
     entries: (t.entries || []).map(x => ({ price: Number(x.price || 0), type: x.type || 'M', weight: Number(x.weight || 0) })),
     exits: (t.exits || []).map(x => ({ price: Number(x.price || 0), type: x.type || 'M', weight: Number(x.weight || 0) })),
@@ -173,6 +203,10 @@ export function normalizeTrade(t = {}) {
     thesis: String(t.thesis || '').trim(),
     review: String(t.review || '').trim(),
     liveNotes: String(t.liveNotes || '').trim(),
+    
+    // ✨ Playbook 연동 필드
+    setupNote: String(t.setupNote || '').trim(),
+    repeatable: Boolean(t.repeatable),
 
     tags: normalizeLowerList(t.tags),
     mistakes: normalizeLowerList(t.mistakes),
@@ -191,9 +225,9 @@ function normalizeEvidence(evidence, artifacts) {
   const fallback = Array.isArray(artifacts) ? artifacts : [];
   const obj = evidence && typeof evidence === 'object' ? evidence : {};
   return {
-    entryChart: String(obj.entryChart || fallback[0] || '').trim(),
-    exitChart: String(obj.exitChart || fallback[1] || '').trim(),
-    liveCharts: Array.isArray(obj.liveCharts) ? obj.liveCharts.map(v => String(v).trim()).filter(Boolean) : [],
+    entryChart: sanitizeUrl(String(obj.entryChart || fallback[0] || '').trim()),
+    exitChart: sanitizeUrl(String(obj.exitChart || fallback[1] || '').trim()),
+    liveCharts: Array.isArray(obj.liveCharts) ? obj.liveCharts.map(v => sanitizeUrl(String(v).trim())).filter(Boolean) : [],
   };
 }
 
