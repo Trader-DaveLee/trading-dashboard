@@ -64,17 +64,24 @@ export function exportDB(db) {
 
 export function parseImport(text) {
   const parsed = JSON.parse(text);
-  return migrateDB(parsed);
+  const migrated = migrateDB(parsed);
+  if (!migrated || !Array.isArray(migrated.trades)) {
+    throw new Error('Invalid import payload');
+  }
+  const looksEmpty = migrated.trades.length === 0 && (!parsed || (typeof parsed === 'object' && !Array.isArray(parsed) && !Array.isArray(parsed.trades)));
+  if (looksEmpty) throw new Error('Unsupported import schema');
+  return migrated;
 }
+
 
 export function migrateDB(input) {
   if (!input) return structuredClone(DEFAULT_DB);
 
-  if ((input.schemaVersion === 3 || input.schemaVersion === 4) && Array.isArray(input.trades)) {
+  if ((input.schemaVersion === 4 || input.schemaVersion === 3 || input.schemaVersion === 2) && Array.isArray(input.trades)) {
     return {
       schemaVersion: 4,
       meta: normalizeMeta(input.meta),
-      trades: input.trades.map(normalizeTrade),
+      trades: input.trades.filter(Boolean).map(fromV2Trade).map(normalizeTrade),
     };
   }
 
@@ -82,20 +89,32 @@ export function migrateDB(input) {
     return {
       schemaVersion: 4,
       meta: structuredClone(DEFAULT_DB.meta),
-      trades: input.map(fromV5Trade).map(normalizeTrade),
+      trades: input.filter(Boolean).map(fromV5Trade).map(normalizeTrade),
     };
   }
 
-  if (input.trades && Array.isArray(input.trades)) {
+  if (input && Array.isArray(input.trades)) {
     return {
       schemaVersion: 4,
       meta: normalizeMeta(input.meta),
-      trades: input.trades.map(fromV2Trade).map(normalizeTrade),
+      trades: input.trades.filter(Boolean).map(fromV2Trade).map(normalizeTrade),
     };
+  }
+
+  if (input && typeof input === 'object') {
+    const possibleTrades = Array.isArray(input.rows) ? input.rows : Array.isArray(input.items) ? input.items : null;
+    if (possibleTrades) {
+      return {
+        schemaVersion: 4,
+        meta: normalizeMeta(input.meta),
+        trades: possibleTrades.filter(Boolean).map(fromV2Trade).map(normalizeTrade),
+      };
+    }
   }
 
   return structuredClone(DEFAULT_DB);
 }
+
 
 function normalizeMeta(meta = {}) {
   const base = structuredClone(DEFAULT_DB.meta);
@@ -112,11 +131,21 @@ function normalizeMeta(meta = {}) {
     rules: String(meta.rules || ''),
     checklists: normalizeList(meta.checklists || base.checklists),
     lastTradeForm: meta.lastTradeForm || null,
-    quickLinks: Array.isArray(meta.quickLinks) && meta.quickLinks.length ? meta.quickLinks : base.quickLinks
+    quickLinks: normalizeQuickLinks(meta.quickLinks, base.quickLinks)
   };
 }
 
+function normalizeQuickLinks(links, fallback) {
+  const source = Array.isArray(links) && links.length ? links : fallback;
+  return source.map(row => ({
+    name: String(row?.name || '').trim() || '링크',
+    url: sanitizeUrl(row?.url || ''),
+    icon: String(row?.icon || '🔗').trim() || '🔗',
+  })).filter(row => row.url);
+}
+
 function normalizeBalancePoint(row) {
+
   return {
     id: row.id || Date.now(),
     date: normalizeDate(row.date),
@@ -168,10 +197,6 @@ function fromV5Trade(t) {
     makerFee: Number(t.fM || 0.02),
     takerFee: Number(t.fT || 0.05),
     stopPrice: Number(t.sl || 0),
-    currentPrice: 0,
-    plannerMode: 'LADDER',
-    plannerLegs: 3,
-    plannerWeightMode: 'BACKLOADED',
     targetPrice: Number(t.targetPrice || 0), // ✨ 추가
     stopType: t.slT || 'M',
     adjustment: Number(t.fine || 0),
