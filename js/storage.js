@@ -19,6 +19,8 @@ export const DEFAULT_DB = {
     balanceHistory: [],
     rules: '',
     checklists: ['손절 설정 확인', 'A급 셋업 여부', '리스크 1% 이하'],
+    lastTradeForm: null, // ✨ 입력 속도 극대화를 위한 최근 템플릿 기억
+    dailyMemos: {}, // ✨ 일자별 EOD 메모 저장소
   },
   trades: [],
 };
@@ -75,14 +77,6 @@ export function migrateDB(input) {
     };
   }
 
-  if (Array.isArray(input.trades)) {
-    return {
-      schemaVersion: 3,
-      meta: normalizeMeta(input.meta),
-      trades: input.trades.map(fromV2Trade).map(normalizeTrade),
-    };
-  }
-
   return structuredClone(DEFAULT_DB);
 }
 
@@ -100,6 +94,8 @@ function normalizeMeta(meta = {}) {
     accountBalance: Number(meta.accountBalance || base.accountBalance),
     rules: String(meta.rules || ''),
     checklists: normalizeList(meta.checklists || base.checklists),
+    lastTradeForm: meta.lastTradeForm || null,
+    dailyMemos: meta.dailyMemos || {},
   };
 }
 
@@ -108,27 +104,13 @@ function normalizeBalancePoint(row) {
     id: row.id || Date.now(),
     date: normalizeDate(row.date),
     val: Number(row.val || 0),
+    delta: Number(row.delta || 0), // ✨ 변동액 추적
     cash: Number(row.cash || 0),
     crypto: Number(row.crypto || 0),
     usdt: Number(row.usdt || 0),
     stock: Number(row.stock || 0),
     type: String(row.type || 'PNL').toUpperCase(),
     memo: String(row.memo || '').trim(),
-  };
-}
-
-function fromV2Trade(t) {
-  const artifacts = Array.isArray(t.artifacts) ? t.artifacts : [];
-  return {
-    ...t,
-    grade: t.grade || 'B',
-    markPrice: Number(t.markPrice || 0),
-    liveNotes: t.liveNotes || '',
-    evidence: t.evidence || {
-      entryChart: artifacts[0] || '',
-      exitChart: artifacts[1] || '',
-      liveCharts: artifacts.slice(2),
-    },
   };
 }
 
