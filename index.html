@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Trading Desk Hub v4.0 (Pro Edition)</title>
+  <title>Trading Desk Dashboard v4.0 (Start Page Edition)</title>
   <link rel="stylesheet" href="./css/styles.css" />
 </head>
 <body>
@@ -11,12 +11,11 @@
     <div class="brand">
       <div class="brand-mark">₿</div>
       <div>
-        <h1>Trading Desk Hub</h1>
+        <h1>Trading Desk Dashboard</h1>
         <p>Performance · Journal · Review</p>
       </div>
     </div>
     <div class="topbar-side">
-      <div class="shortcut-hint" style="color:var(--muted); font-size:11px; font-weight:700; margin-right:8px; border:1px solid var(--line); padding:6px 10px; border-radius:8px;">Cmd/Ctrl + K 🔍</div>
       <nav id="nav"></nav>
       <div class="backup-actions">
         <button id="force-save-draft" type="button" class="btn-draft">💾 임시저장</button>
@@ -35,57 +34,36 @@
   <main class="container">
     <section id="view-overview" class="view active">
       
-      <div class="grid grid-2" style="margin-bottom:24px;">
-        <article class="card compact-section">
-          <div class="section-head">
-            <div><h3 style="color:var(--accent);">Today's Console</h3><p>오늘 하루의 매매 요약</p></div>
-          </div>
-          <div id="today-console" class="stack"></div>
-        </article>
-        
-        <article class="card compact-section">
-          <div class="section-head">
-            <div><h3 style="color:var(--yellow);">Quick Launch</h3><p>자주 가는 작업 허브 (Cmd+K에서도 연동)</p></div>
-            <button type="button" id="btn-add-quick-link" class="tool-btn">➕ 추가</button>
-          </div>
-          <div id="quick-links-container" class="quick-links-grid"></div>
-        </article>
+      <div class="overview-header-top">
+        <div class="realtime-clock" id="realtime-clock"></div>
       </div>
 
-      <div class="grid grid-2" style="margin-bottom:32px;">
-        <article class="card compact-section">
-          <div class="section-head">
-            <div><h3>Morning Routine</h3><p>매매 시작 전 필수 점검 항목</p></div>
-            <button type="button" id="btn-reset-routine" class="tool-btn">전체 초기화</button>
-          </div>
-          <div id="morning-routine-container" class="stack"></div>
-        </article>
-
-        <article class="card compact-section">
-          <div class="section-head no-bottom">
-            <div><h3>Scratchpad / EOD Memo</h3><p>빠른 아이디어 수집 및 마감 일기 (자동 저장)</p></div>
-          </div>
-          <textarea id="scratchpad-input" class="rules-box" placeholder="오늘 지켜볼 종목, 관찰 포인트, 리서치 메모, 시장의 흐름 등을 자유롭게 메모하세요..." style="min-height: 180px; background: transparent; border: none; box-shadow: none; padding: 8px 0; font-size:14px; color:#334155; line-height:1.7;"></textarea>
-        </article>
-      </div>
-
-      <div class="section-head section-head-large" style="margin-top: 40px;">
+      <div class="section-head section-head-large overview-hero">
         <div>
-          <h3>Performance Analytics</h3>
-          <p>누적된 핵심 트레이딩 성과 및 복기 통계입니다.</p>
+          <h3>Overview & Dashboard</h3>
+          <p>오늘의 매매 환경과 핵심 트레이딩 성과입니다.</p>
         </div>
         <div class="date-filter-box">
           <span class="filter-label">📊 통계 기간</span>
           <input type="date" id="overview-from" />
           <span class="filter-sep">~</span>
           <input type="date" id="overview-to" />
+          <button type="button" id="overview-search" class="tool-btn primary-btn">조회</button>
           <button type="button" id="overview-clear" class="tool-btn">전체</button>
         </div>
       </div>
 
+      <div class="quick-launch-wrapper">
+        <div class="section-head no-bottom">
+          <div><h3>🚀 Quick Launch</h3><p>자주 접속하는 트레이딩 리소스</p></div>
+          <button type="button" id="btn-manage-quick-links" class="tool-btn">⚙️ 관리</button>
+        </div>
+        <div id="quick-launch-grid" class="quick-launch-grid"></div>
+      </div>
+
       <div class="overview-top-row">
         <div id="metrics" class="metrics-grid"></div>
-        <article class="card premium-balance-card overview-bank-card">
+        <article class="card premium-balance-card overview-bank-card hover-lift">
           <div class="section-head inner-divider">
             <div><h3>💼 Portfolio Status</h3><p>현재 자산 구성 및 총액</p></div>
           </div>
@@ -93,7 +71,7 @@
         </article>
       </div>
 
-      <article class="card overview-calendar-card">
+      <article class="card overview-calendar-card hover-lift">
         <div class="section-head">
           <div><h3>월간 캘린더 (Heatmap)</h3><p>일별 순손익 및 클릭하여 해당 일자 복기</p></div>
           <div class="inline-actions">
@@ -106,24 +84,24 @@
       </article>
 
       <div class="grid grid-2" style="margin-top:24px; margin-bottom:24px;">
-        <article class="card chart-card">
+        <article class="card chart-card hover-lift">
           <div class="section-head"><div><h3>Equity Curve (매매 손익)</h3><p>순수 매매 성과 누적 곡선</p></div></div>
           <div id="equity-chart" class="chart-box"></div>
         </article>
-        <article class="card chart-card">
+        <article class="card chart-card hover-lift">
           <div class="section-head"><div><h3>Balance Curve (총 자산 흐름)</h3><p>입출금이 반영된 실제 계좌 잔고 추이</p></div></div>
           <div id="balance-chart" class="chart-box"></div>
         </article>
       </div>
 
       <div class="grid grid-2">
-        <article class="card chart-card">
+        <article class="card chart-card hover-lift">
           <div class="section-head"><div><h3>셋업 성과</h3><p>Entry setup 평균 R</p></div></div>
           <div id="setup-chart" class="chart-box"></div>
         </article>
         <div class="stack">
-          <article class="card compact-section"><div class="section-head"><div><h3>주요 실수</h3><p>빈도 및 누적 손실</p></div></div><div id="mistake-list" class="stack"></div></article>
-          <article class="card compact-section"><div class="section-head"><div><h3>Desk Notes</h3><p>자동 분석 인사이트</p></div></div><div id="research-notes" class="stack"></div></article>
+          <article class="card compact-section hover-lift"><div class="section-head"><div><h3>주요 실수</h3><p>빈도 및 누적 손실</p></div></div><div id="mistake-list" class="stack"></div></article>
+          <article class="card compact-section hover-lift"><div class="section-head"><div><h3>Desk Notes</h3><p>자동 분석 인사이트</p></div></div><div id="research-notes" class="stack"></div></article>
         </div>
       </div>
     </section>
@@ -154,12 +132,10 @@
               <label><span>상태</span><select id="status"><option value="OPEN">OPEN</option><option value="CLOSED">CLOSED</option></select></label>
               <label><span>방향</span><select id="side"><option value="LONG">LONG</option><option value="SHORT">SHORT</option></select></label>
               <label><span>세션</span><select id="session"><option>ASIA</option><option>LONDON</option><option>NEW YORK</option><option>OVERLAP</option></select></label>
-              
               <label><span>Entry Setup</span>
                 <div class="input-group flex-group">
                   <select id="setup-entry"></select>
                   <button type="button" id="btn-manage-setup-entry" class="gear-btn fixed-btn">⚙️</button>
-                  <button type="button" id="btn-save-template" class="tool-btn fixed-btn" title="현재 사이즈/수수료 설정을 이 셋업의 템플릿으로 저장합니다">💾 템플릿 저장</button>
                 </div>
               </label>
               <label><span>Exit Setup</span>
@@ -178,10 +154,7 @@
             <div class="field-grid cols-1 journal-context-grid" style="margin-top: 10px;">
               <div class="grid-2" style="margin-top:0;">
                 <label><span>시장 컨텍스트</span><textarea id="context" placeholder="진입 전 시장 흐름, 유동성, 구조"></textarea></label>
-                <div class="stack" style="gap:10px;">
-                  <label><span>진입 논리 (Thesis)</span><textarea id="thesis" placeholder="왜 여기서 진입하는가?" style="min-height:60px;"></textarea></label>
-                  <label><span>무효화 기준 (Invalidation)</span><textarea id="invalidation-note" placeholder="어떤 현상이 발생하면 이 아이디어가 폐기되는가?" style="min-height:40px; border-color:#e4ebf5;"></textarea></label>
-                </div>
+                <label><span>진입 논리 및 무효화 기준</span><textarea id="thesis" placeholder="왜 여기서 진입하는지, 어디서 틀렸다고 볼지"></textarea></label>
               </div>
               <label><span>진입 차트 (Entry Chart)</span><input id="chart-entry" placeholder="https://www.tradingview.com/x/... 등 링크 입력" /></label>
             </div>
@@ -270,22 +243,16 @@
                 </div>
                 
                 <div style="background: #f8fafc; padding: 16px; border-radius: 16px; border: 1px solid var(--line);">
-                  <label class="check-inline" style="margin-bottom: 12px; padding: 10px; background: var(--yellow-soft); border-radius: 8px; border: 1px solid #f1d88f; color:#9a6800;">
-                    <input type="checkbox" id="repeatable-trade" />
-                    <span>이 셋업과 실행을 다음에도 똑같이 반복(Repeatable)하시겠습니까?</span>
+                  <label>
+                    <span>태그</span>
+                    <input id="tags" placeholder="trend, ny-open, sweep" />
+                    <div id="quick-tags" class="chips" style="margin-bottom: 12px;"></div>
                   </label>
-                  <div class="grid-2">
-                    <label>
-                      <span>태그</span>
-                      <input id="tags" placeholder="trend, ny-open, sweep" />
-                      <div id="quick-tags" class="chips" style="margin-bottom: 12px;"></div>
-                    </label>
-                    <label>
-                      <span>실수 태그</span>
-                      <input id="mistakes" placeholder="fomo, early exit, oversize" />
-                      <div id="quick-mistakes" class="chips"></div>
-                    </label>
-                  </div>
+                  <label>
+                    <span>실수 태그</span>
+                    <input id="mistakes" placeholder="fomo, early exit, oversize" />
+                    <div id="quick-mistakes" class="chips"></div>
+                  </label>
                 </div>
               </div>
             </div>
@@ -300,7 +267,7 @@
         </article>
 
         <aside class="journal-sidebar stack">
-          <article class="card premium-balance-card">
+          <article class="card premium-balance-card resizable-card">
             <div class="section-head no-bottom">
               <div><h3>💳 Account Status</h3><p>포트폴리오 자산 스냅샷</p></div>
               <span class="subtle-pill accent">Local</span>
@@ -330,7 +297,7 @@
             </div>
           </article>
 
-          <article class="card compact-card risk-summary-card">
+          <article class="card compact-card risk-summary-card resizable-card">
             <div class="section-head"><div><h3>Risk Planner</h3><p>사이즈, 리스크, 잔여 익스포저</p></div></div>
             <div class="detail-box risk-box">
               <div class="kv">
@@ -348,7 +315,7 @@
             </div>
           </article>
 
-          <article class="card compact-card">
+          <article class="card compact-card resizable-card">
             <div class="section-head"><div><h3>Desk Rules</h3><p>원칙 및 체크리스트 관리</p></div></div>
             <div class="stack">
               <label><span>📝 규칙 메모</span><textarea id="desk-rules" class="rules-box" placeholder="항상 되새길 일반 원칙들..."></textarea></label>
@@ -432,7 +399,7 @@
 
     <section id="view-playbook" class="view">
       <div class="section-head section-head-large">
-        <div><h3>A+ Playbook</h3><p>Grade S/A 등급이면서 [Repeatable]로 지정된 나만의 셋업 메뉴얼입니다.</p></div>
+        <div><h3>A+ Playbook</h3><p>Grade S 및 A 등급의 모범 셋업 갤러리입니다.</p></div>
       </div>
       <div id="playbook-gallery" class="playbook-grid"></div>
     </section>
@@ -447,13 +414,6 @@
         <button id="modal-btn-cancel" class="modal-btn modal-cancel">취소</button>
         <button id="modal-btn-confirm" class="modal-btn modal-confirm">확인</button>
       </div>
-    </div>
-  </div>
-
-  <div id="cmd-palette" class="modal-overlay">
-    <div class="palette-card">
-      <input type="text" id="palette-input" class="palette-input" placeholder="어디로 이동할까요? (명령어 검색)..." autocomplete="off" />
-      <div id="palette-list" class="palette-list"></div>
     </div>
   </div>
 
