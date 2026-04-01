@@ -7,6 +7,7 @@ export function recalcTrade(trade) {
   const maker = Number(trade.makerFee || 0) / 100;
   const taker = Number(trade.takerFee || 0) / 100;
   const stop = Number(trade.stopPrice || 0);
+  const targetPrice = Number(trade.targetPrice || 0); // ✨ 목표가(TP) 추가
   const accountSize = Math.max(0, Number(trade.accountSize || 0));
   const riskPct = Math.max(0, Number(trade.riskPct || 0));
   const riskDollar = accountSize * riskPct / 100;
@@ -41,12 +42,14 @@ export function recalcTrade(trade) {
 
     avgEntry += price * weight;
     if ((side === 1 && stop >= price) || (side === -1 && stop <= price)) directionError = true;
+    // ✨ 수량(Qty)을 구하기 위한 Unit 당 리스크(손실폭 + 수수료) 정밀 계산
     riskPerUnit += weight * (Math.abs(price - stop) + price * fee);
   }
 
   riskPerUnit += stop * ((trade.stopType || 'M') === 'M' ? maker : taker);
   if (!riskPerUnit || directionError) return baseMetrics(riskDollar, avgEntry, true);
 
+  // ✨ 허용 리스크(Risk Dollar)에 맞춰 추천 진입 수량(Qty) 자동 산출
   const qty = riskDollar ? riskDollar / riskPerUnit : 0;
   const margin = qty * avgEntry / Math.max(1, Number(trade.leverage || 1));
   const sliderPct = accountSize ? (margin / accountSize) * 100 : 0;
@@ -102,11 +105,11 @@ export function recalcTrade(trade) {
   const unrealizedR = riskDollar ? unrealizedPnl / riskDollar : 0;
   const r = riskDollar ? netPnl / riskDollar : 0;
 
-  // ✨ 신규: 정확한 본절가(Break-Even Price) 및 계좌 수익률(ROI)
+  // ✨ 수수료가 포함된 정확한 본절가(BEP)
   const breakEvenPrice = qty > 0 ? avgEntry + (side * (entryFees / qty)) : 0;
   const accountImpact = accountSize > 0 ? (netPnl / accountSize) * 100 : 0;
 
-  // ✨ 신규: 타겟 도달 시 예상 성과 (Projected PnL & R)
+  // ✨ 타겟 도달 시 예상 성과 (Projected PnL & R 자동 시뮬레이션)
   let projectedPnl = 0;
   let projectedR = 0;
   if (exits.length > 0 && trade.status === 'OPEN') {
@@ -116,12 +119,18 @@ export function recalcTrade(trade) {
     if (exitWeightSum > 0) {
       for (const leg of exits) {
          const price = Number(leg.price);
-         const w = (Number(leg.weight) / exitWeightSum); // 비중 100%로 환산
+         const w = (Number(leg.weight) / exitWeightSum);
          projectedGross += (price - avgEntry) * side * (qty * w);
          projectedExitFees += price * (qty * w) * (leg.type === 'M' ? maker : taker);
       }
     }
     projectedPnl = projectedGross - entryFees - projectedExitFees;
+    projectedR = riskDollar ? projectedPnl / riskDollar : 0;
+  } else if (targetPrice > 0 && trade.status === 'OPEN' && remainingQty > 0) {
+    // Exits 레그가 없더라도 목표가(TP)가 있으면 100% 청산 기준으로 자동 시뮬레이션
+    const projectedGross = (targetPrice - avgEntry) * side * remainingQty;
+    const projectedExitFees = targetPrice * remainingQty * taker; // 보수적으로 테이커 계산
+    projectedPnl = projectedGross - entryFeesRemaining - projectedExitFees;
     projectedR = riskDollar ? projectedPnl / riskDollar : 0;
   }
 
