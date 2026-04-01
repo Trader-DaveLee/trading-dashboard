@@ -26,7 +26,7 @@ let draftTimer = null;
 const ID_LIST = [
   'nav','force-save-draft','export-json','import-json-btn','import-json','journal-status','draft-saved-at',
   'view-overview','metrics','overview-from','overview-to','overview-clear','overview-search','prev-month','calendar-title','next-month','calendar','equity-chart','balance-chart','setup-chart','mistake-list','research-notes','overview-portfolio',
-  'realtime-clock','quick-launch-grid','btn-manage-quick-links','today-console','eod-memo',
+  'realtime-clock','quick-launch-grid','btn-manage-quick-links',
   'view-journal','trade-form','trade-id','trade-date','btn-now','ticker','btn-manage-ticker','status','session','side','setup-entry','btn-manage-setup-entry','setup-exit','btn-manage-setup-exit',
   'account-size','risk-pct','leverage','maker-fee','taker-fee','stop-price','mark-price','stop-type','adjustment',
   'context','thesis','review','chart-entry','chart-exit','tags','mistakes',
@@ -145,7 +145,6 @@ function autoResize(el) {
   el.style.height = (el.scrollHeight) + 'px';
 }
 
-// ✨ 순서 변경 헬퍼 함수
 function swapArray(arr, idx1, idx2) {
   if (idx1 < 0 || idx1 >= arr.length || idx2 < 0 || idx2 >= arr.length) return;
   const temp = arr[idx1];
@@ -165,7 +164,6 @@ function initMeta() {
   renderQuickLaunch();
 }
 
-// ✨ 티커, 셋업 등 공통 리스트 매니저 (순서 변경 버튼 추가됨)
 function openListManager(key, title, casing) {
   if(!els['list-manage-modal']) return;
   els['list-manage-modal'].classList.add('show');
@@ -218,7 +216,6 @@ function openListManager(key, title, casing) {
   renderItems();
 }
 
-// ✨ Quick Launch 매니저 (순서 변경 버튼 추가됨)
 function openQuickLinkManager() {
   if(!els['ql-modal']) return;
   els['ql-modal'].classList.add('show');
@@ -371,7 +368,6 @@ function bindEvents() {
     });
   }
 
-  // ✨ 체크리스트 추가
   if(els['btn-add-check']) {
     els['btn-add-check'].onclick = () => {
       const val = getVal('new-check-input').trim();
@@ -383,16 +379,6 @@ function bindEvents() {
         renderTradeChecklist(); 
       }
     };
-  }
-  
-  if (els['eod-memo']) {
-    els['eod-memo'].addEventListener('input', function() {
-      autoResize(this);
-      const todayStr = new Date().toISOString().slice(0, 10);
-      if (!state.db.meta.dailyMemos) state.db.meta.dailyMemos = {};
-      state.db.meta.dailyMemos[todayStr] = this.value;
-      saveDB(state.db);
-    });
   }
 
   bindKeyboardShortcuts();
@@ -491,7 +477,6 @@ function renderQuickLaunch() {
   `).join('');
 }
 
-// ✨ 마스터 체크리스트 렌더링 (순서 변경 버튼 추가됨)
 window.__desk_del_check = (idx) => {
   state.db.meta.checklists.splice(idx, 1);
   saveDB(state.db); renderMasterChecklist(); renderTradeChecklist();
@@ -602,7 +587,7 @@ function renderLiveCharts() {
   container.innerHTML = state.draftLiveCharts.map((url, idx) => `
     <div style="display:flex; gap:8px;">
       <input type="text" class="live-chart-input" value="${escapeAttr(url)}" placeholder="https://www.tradingview.com/x/... 등 링크 입력" data-index="${idx}" />
-      <button type="button" class="tool-btn btn-del-live-chart" data-index="${idx}" style="color:var(--muted); border-color:var(--line);">✕</button>
+      <button type="button" class="tool-btn btn-del-live-chart danger-text" data-index="${idx}">✕</button>
     </div>
   `).join('');
 
@@ -638,7 +623,7 @@ function renderLegs(kind) {
         <input type="number" step="0.01" class="leg-weight" value="${safeNumber(leg.weight)}" placeholder="Weight" />
         <span class="unit right">%</span>
       </div>
-      <button type="button" class="tool-btn leg-delete" style="color:var(--muted); border-color:var(--line);">✕</button>
+      <button type="button" class="tool-btn leg-delete danger-text" style="color:var(--muted); border-color:var(--line);">✕</button>
     </div>
   `).join('');
 
@@ -975,8 +960,6 @@ function metricCard(label, value, colorClass) {
 }
 
 function renderOverview() {
-  renderTodayConsole();
-
   const trades = getOverviewTrades();
   const stats = summarize(trades);
   const setups = groupAverageR(stats.closed, trade => trade.setupEntry);
