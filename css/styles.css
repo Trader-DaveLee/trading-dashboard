@@ -94,7 +94,7 @@ input:focus, select:focus, textarea:focus {
 #nav button:hover { color: var(--text); }
 #nav button.active { background: #ffffff; color: var(--accent); box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
 
-/* 범용 버튼 디자인 고급화 */
+/* 범용 툴 버튼 디자인 */
 .tool-btn, .backup-actions button { 
   border: 1px solid #e2e8f0; background: #ffffff; color: #475569; padding: 12px 18px; 
   border-radius: var(--radius-sm); font-weight: 700; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); 
@@ -107,7 +107,7 @@ input:focus, select:focus, textarea:focus {
 .gear-btn {
   border: 1px solid var(--line); background: #f8fafc; color: var(--muted);
   padding: 12px; border-radius: var(--radius-sm); font-size: 14px; cursor: pointer; transition: 0.2s;
-  display: flex; align-items: center; justify-content: center;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
 .gear-btn:hover { background: #e2e8f0; color: #0f172a; border-color: #cbd5e1; }
 .icon-btn { border-radius: 50%; width: 46px; height: 46px; padding: 0; display: grid; place-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.02);}
@@ -155,6 +155,7 @@ input:focus, select:focus, textarea:focus {
 .quick-link-card:hover { background: #ffffff; border-color: var(--accent); box-shadow: 0 6px 16px rgba(37,99,235,0.12); transform: translateY(-2px); color: var(--accent); }
 .quick-link-icon { font-size: 16px; }
 
+/* 리스트 관리 모달 UI */
 .list-manage-row { display: flex; justify-content: space-between; align-items: center; background: #f8fafc; border: 1px solid var(--line); padding: 12px 16px; border-radius: 12px; margin-bottom: 8px; transition: 0.2s;}
 .list-manage-row:hover { border-color: #cbd5e1; background: #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.02);}
 .list-manage-row > span, .list-manage-row > strong { flex: 1; word-break: break-all; padding-right: 12px; }
@@ -177,6 +178,7 @@ input:focus, select:focus, textarea:focus {
 .filter-label, .filter-sep { color: var(--muted); font-weight: 800; font-size: 12px; }
 .calendar-title { font-size: 18px; font-weight: 800; color: var(--text); }
 
+/* Overview Metric 6대 박스 럭셔리 그라데이션 적용 */
 .overview-top-row { display: grid; grid-template-columns: 2.5fr 1fr; gap: 24px; margin-bottom: 24px; }
 .metrics-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
 .metric {
@@ -248,6 +250,7 @@ label span { display: block; margin-bottom: 10px; color: var(--muted); font-size
 .input-with-unit .unit.left { border-right: 1px solid var(--line); }
 .input-with-unit .unit.right { border-left: 1px solid var(--line); }
 
+
 .compact-panel { background: #f8fafc; border: 1px solid var(--line); border-radius: 20px; padding: 24px; }
 .mini-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .mini-head h4 { margin: 0; color: var(--muted); font-size: 13px; font-weight: 800; text-transform: uppercase; }
@@ -281,7 +284,12 @@ label span { display: block; margin-bottom: 10px; color: var(--muted); font-size
 .eval-item .positive { color: #34d399; }
 .eval-item .negative { color: #f87171; }
 
-/* ✨ 플로팅 액션 바 (화면 하단에 항상 떠있음) - 순서 원복 & 애니메이션 적용 */
+/* Total R-Multiple 디자인 가운데 정렬 */
+.review-kpi { background: #ffffff; border: 1px solid var(--line); border-radius: 16px; padding: 16px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.02); height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center;}
+.review-kpi-label { font-size: 11px; color: var(--muted); font-weight: 800; text-transform: uppercase; }
+.review-kpi-value { font-size: 32px; font-weight: 900; letter-spacing: -1px; color: var(--accent); margin-top: 8px; width: 100%; display: flex; justify-content: center;}
+
+/* ✨ 플로팅 액션 바 (화면 하단에 항상 떠있음) */
 .journal-actions-sticky {
   position: sticky; bottom: 32px; z-index: 40;
   display: flex; gap: 12px; align-items: center; justify-content: center;
@@ -470,7 +478,9 @@ tbody tr:hover { background: #f1f5f9; cursor: pointer; }
   .post-trade-eval-box { padding: 24px; }
   .eval-header { flex-direction: column; align-items: flex-start; gap: 16px;}
   .eval-grid { grid-template-columns: repeat(2, 1fr); gap: 16px; }
-  
+  .eval-item { border-right: none; padding-right: 0; border-bottom: 1px solid #334155; padding-bottom: 12px; }
+  .eval-item:last-child { border-bottom: none; padding-bottom: 0; }
+
   .table-wrap { background: transparent; border: none; box-shadow: none; overflow: visible; }
   .table-wrap table, .table-wrap thead, .table-wrap tbody, .table-wrap th, .table-wrap td, .table-wrap tr { display: block; width: 100%; }
   .table-wrap thead { display: none; } 
