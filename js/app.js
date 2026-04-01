@@ -26,7 +26,7 @@ let draftTimer = null;
 const ID_LIST = [
   'nav','force-save-draft','export-json','import-json-btn','import-json','journal-status','draft-saved-at',
   'view-overview','metrics','overview-from','overview-to','overview-clear','overview-search','prev-month','calendar-title','next-month','calendar','equity-chart','balance-chart','setup-chart','mistake-list','research-notes','overview-portfolio',
-  'realtime-clock','quick-launch-grid','btn-manage-quick-links',
+  'realtime-clock','quick-launch-grid','btn-manage-quick-links','today-console','eod-memo',
   'view-journal','trade-form','trade-id','trade-date','btn-now','ticker','btn-manage-ticker','status','session','side','setup-entry','btn-manage-setup-entry','setup-exit','btn-manage-setup-exit',
   'account-size','risk-pct','leverage','maker-fee','taker-fee','stop-price','mark-price','stop-type','adjustment',
   'context','thesis','review','chart-entry','chart-exit','tags','mistakes',
@@ -145,6 +145,14 @@ function autoResize(el) {
   el.style.height = (el.scrollHeight) + 'px';
 }
 
+// ✨ 순서 변경 헬퍼 함수
+function swapArray(arr, idx1, idx2) {
+  if (idx1 < 0 || idx1 >= arr.length || idx2 < 0 || idx2 >= arr.length) return;
+  const temp = arr[idx1];
+  arr[idx1] = arr[idx2];
+  arr[idx2] = temp;
+}
+
 function initMeta() {
   state.db.meta.tagPresets = state.db.meta.tagPresets || ['trend', 'sweep'];
   state.db.meta.mistakePresets = state.db.meta.mistakePresets || ['fomo', 'early exit'];
@@ -157,7 +165,7 @@ function initMeta() {
   renderQuickLaunch();
 }
 
-// ✨ 리스트 전용 매니저 모달
+// ✨ 티커, 셋업 등 공통 리스트 매니저 (순서 변경 버튼 추가됨)
 function openListManager(key, title, casing) {
   if(!els['list-manage-modal']) return;
   els['list-manage-modal'].classList.add('show');
@@ -168,19 +176,26 @@ function openListManager(key, title, casing) {
     const arr = state.db.meta[key] || [];
     els['list-manage-items'].innerHTML = arr.length ? arr.map((item, idx) => `
       <div class="list-manage-row">
-        <span>${escapeHtml(item)}</span>
-        <button type="button" class="btn-del-item" data-idx="${idx}">✕</button>
+        <span style="font-weight:700;">${escapeHtml(item)}</span>
+        <div class="row-actions">
+          <button type="button" class="btn-icon-sm btn-up" data-idx="${idx}" title="위로">↑</button>
+          <button type="button" class="btn-icon-sm btn-down" data-idx="${idx}" title="아래로">↓</button>
+          <button type="button" class="btn-icon-sm btn-del-item danger-text" data-idx="${idx}" title="삭제">✕</button>
+        </div>
       </div>
     `).join('') : emptyState('등록된 항목이 없습니다.');
 
-    els['list-manage-items'].querySelectorAll('.btn-del-item').forEach(btn => {
-      btn.onclick = (e) => {
-        arr.splice(e.target.dataset.idx, 1);
-        saveDB(state.db);
-        renderItems();
-        renderDropdowns();
-        renderQuickChips();
-      };
+    els['list-manage-items'].querySelectorAll('.btn-up').forEach(btn => btn.onclick = (e) => {
+      swapArray(arr, Number(e.target.dataset.idx), Number(e.target.dataset.idx) - 1);
+      saveDB(state.db); renderItems(); renderDropdowns();
+    });
+    els['list-manage-items'].querySelectorAll('.btn-down').forEach(btn => btn.onclick = (e) => {
+      swapArray(arr, Number(e.target.dataset.idx), Number(e.target.dataset.idx) + 1);
+      saveDB(state.db); renderItems(); renderDropdowns();
+    });
+    els['list-manage-items'].querySelectorAll('.btn-del-item').forEach(btn => btn.onclick = (e) => {
+      arr.splice(e.target.dataset.idx, 1);
+      saveDB(state.db); renderItems(); renderDropdowns(); renderQuickChips();
     });
   };
 
@@ -188,17 +203,13 @@ function openListManager(key, title, casing) {
     let val = els['list-manage-input'].value.trim();
     if (!val) return;
     val = casing === 'upper' ? val.toUpperCase() : val.toLowerCase();
-    
     if (!state.db.meta[key]) state.db.meta[key] = [];
     const arr = state.db.meta[key];
-    
     if (!arr.includes(val)) {
       arr.push(val);
       saveDB(state.db);
       els['list-manage-input'].value = '';
-      renderItems();
-      renderDropdowns();
-      renderQuickChips();
+      renderItems(); renderDropdowns(); renderQuickChips();
     } else {
       showModal({ type: 'ALERT', title: '오류', desc: '이미 존재하는 항목입니다.' });
     }
@@ -207,7 +218,7 @@ function openListManager(key, title, casing) {
   renderItems();
 }
 
-// ✨ Quick Launch 매니저 모달
+// ✨ Quick Launch 매니저 (순서 변경 버튼 추가됨)
 function openQuickLinkManager() {
   if(!els['ql-modal']) return;
   els['ql-modal'].classList.add('show');
@@ -222,17 +233,25 @@ function openQuickLinkManager() {
           <strong>${escapeHtml(item.name)}</strong>
           <span style="color:var(--muted); font-size:11px;">${escapeHtml(item.url)}</span>
         </div>
-        <button type="button" class="btn-del-item" data-idx="${idx}">✕</button>
+        <div class="row-actions">
+          <button type="button" class="btn-icon-sm btn-up" data-idx="${idx}">↑</button>
+          <button type="button" class="btn-icon-sm btn-down" data-idx="${idx}">↓</button>
+          <button type="button" class="btn-icon-sm btn-del-item danger-text" data-idx="${idx}">✕</button>
+        </div>
       </div>
     `).join('') : emptyState('등록된 링크가 없습니다.');
 
-    els['ql-items'].querySelectorAll('.btn-del-item').forEach(btn => {
-      btn.onclick = (e) => {
-        arr.splice(e.target.dataset.idx, 1);
-        saveDB(state.db);
-        renderItems();
-        renderQuickLaunch();
-      };
+    els['ql-items'].querySelectorAll('.btn-up').forEach(btn => btn.onclick = (e) => {
+      swapArray(arr, Number(e.target.dataset.idx), Number(e.target.dataset.idx) - 1);
+      saveDB(state.db); renderItems(); renderQuickLaunch();
+    });
+    els['ql-items'].querySelectorAll('.btn-down').forEach(btn => btn.onclick = (e) => {
+      swapArray(arr, Number(e.target.dataset.idx), Number(e.target.dataset.idx) + 1);
+      saveDB(state.db); renderItems(); renderQuickLaunch();
+    });
+    els['ql-items'].querySelectorAll('.btn-del-item').forEach(btn => btn.onclick = (e) => {
+      arr.splice(e.target.dataset.idx, 1);
+      saveDB(state.db); renderItems(); renderQuickLaunch();
     });
   };
 
@@ -240,38 +259,26 @@ function openQuickLinkManager() {
     const name = getVal('ql-name').trim();
     const url = getVal('ql-url').trim();
     const icon = getVal('ql-icon').trim();
-    
-    if (!name || !url) {
-      showModal({ type: 'ALERT', title: '입력 오류', desc: '이름과 URL은 필수입니다.' });
-      return;
-    }
-    
+    if (!name || !url) { showModal({ type: 'ALERT', title: '입력 오류', desc: '이름과 URL은 필수입니다.' }); return; }
     if (!state.db.meta.quickLinks) state.db.meta.quickLinks = [];
     state.db.meta.quickLinks.push({ name, url: sanitizeUrl(url), icon: icon || '🔗' });
     saveDB(state.db);
-    
     setVal('ql-name', ''); setVal('ql-url', ''); setVal('ql-icon', '');
-    renderItems();
-    renderQuickLaunch();
+    renderItems(); renderQuickLaunch();
   };
 
   renderItems();
 }
 
-
 function bindEvents() {
-  if(els['modal-btn-cancel']) {
-    els['modal-btn-cancel'].onclick = () => { hideModal(); if (modalCallback) modalCallback(null); };
-  }
-  if(els['modal-btn-confirm']) {
-    els['modal-btn-confirm'].onclick = () => {
-      hideModal();
-      if (modalCallback) {
-        const inp = els['modal-input'];
-        modalCallback(inp.style.display === 'block' ? inp.value : true);
-      }
-    };
-  }
+  if(els['modal-btn-cancel']) els['modal-btn-cancel'].onclick = () => { hideModal(); if (modalCallback) modalCallback(null); };
+  if(els['modal-btn-confirm']) els['modal-btn-confirm'].onclick = () => {
+    hideModal();
+    if (modalCallback) {
+      const inp = els['modal-input'];
+      modalCallback(inp.style.display === 'block' ? inp.value : true);
+    }
+  };
   
   if(els['list-manage-close']) els['list-manage-close'].onclick = () => els['list-manage-modal'].classList.remove('show');
   if(els['ql-close']) els['ql-close'].onclick = () => els['ql-modal'].classList.remove('show');
@@ -329,12 +336,7 @@ function bindEvents() {
   els['import-json'].onchange = handleImport;
 
   if(els['overview-search']) els['overview-search'].onclick = () => renderOverview();
-  
-  els['overview-clear'].onclick = () => {
-    setVal('overview-from', '');
-    setVal('overview-to', '');
-    renderOverview();
-  };
+  els['overview-clear'].onclick = () => { setVal('overview-from', ''); setVal('overview-to', ''); renderOverview(); };
 
   const filterIds = ['q','f-from','f-to','f-status','f-side','f-session','f-setup','f-tag','f-mistake','f-grade','sort'];
   filterIds.forEach(id => els[id].addEventListener('input', renderLibrary));
@@ -369,6 +371,7 @@ function bindEvents() {
     });
   }
 
+  // ✨ 체크리스트 추가
   if(els['btn-add-check']) {
     els['btn-add-check'].onclick = () => {
       const val = getVal('new-check-input').trim();
@@ -380,6 +383,16 @@ function bindEvents() {
         renderTradeChecklist(); 
       }
     };
+  }
+  
+  if (els['eod-memo']) {
+    els['eod-memo'].addEventListener('input', function() {
+      autoResize(this);
+      const todayStr = new Date().toISOString().slice(0, 10);
+      if (!state.db.meta.dailyMemos) state.db.meta.dailyMemos = {};
+      state.db.meta.dailyMemos[todayStr] = this.value;
+      saveDB(state.db);
+    });
   }
 
   bindKeyboardShortcuts();
@@ -478,20 +491,27 @@ function renderQuickLaunch() {
   `).join('');
 }
 
+// ✨ 마스터 체크리스트 렌더링 (순서 변경 버튼 추가됨)
 window.__desk_del_check = (idx) => {
   state.db.meta.checklists.splice(idx, 1);
-  saveDB(state.db);
-  renderMasterChecklist();
-  renderTradeChecklist();
+  saveDB(state.db); renderMasterChecklist(); renderTradeChecklist();
+};
+window.__desk_move_check = (idx, dir) => {
+  swapArray(state.db.meta.checklists, idx, idx + dir);
+  saveDB(state.db); renderMasterChecklist(); renderTradeChecklist();
 };
 
 function renderMasterChecklist() {
   if(!els['master-checklist-list']) return;
   const list = state.db.meta.checklists || [];
   els['master-checklist-list'].innerHTML = list.length ? list.map((item, idx) => `
-    <div style="display:flex; justify-content:space-between; align-items:center; background:#fff; border:1px solid var(--line); padding:8px 12px; border-radius:8px;">
-      <span style="font-size:12px; font-weight:700;">${escapeHtml(item)}</span>
-      <button type="button" class="tool-btn" style="padding:4px 8px; font-size:10px;" onclick="window.__desk_del_check(${idx})">✕</button>
+    <div class="list-manage-row" style="background:#fff; border:1px solid var(--line); padding:6px 12px; border-radius:8px; margin-bottom:6px;">
+      <span style="font-size:12px; font-weight:700; flex:1;">${escapeHtml(item)}</span>
+      <div class="row-actions">
+        <button type="button" class="btn-icon-sm" onclick="window.__desk_move_check(${idx}, -1)">↑</button>
+        <button type="button" class="btn-icon-sm" onclick="window.__desk_move_check(${idx}, 1)">↓</button>
+        <button type="button" class="btn-icon-sm danger-text" onclick="window.__desk_del_check(${idx})">✕</button>
+      </div>
     </div>
   `).join('') : '<span class="muted-caption" style="font-size:12px;">등록된 체크리스트가 없습니다.</span>';
 }
@@ -555,6 +575,7 @@ function hydrateInitialForm() {
   setVal('taker-fee', tpl.takerFee || 0.05);
   
   setVal('desk-rules', state.db.meta.rules || '');
+  setTimeout(() => autoResize(els['desk-rules']), 0);
   
   state.draftEntries = [{ price: 0, type: 'M', weight: 100 }];
   state.draftExits = [];
@@ -954,6 +975,8 @@ function metricCard(label, value, colorClass) {
 }
 
 function renderOverview() {
+  renderTodayConsole();
+
   const trades = getOverviewTrades();
   const stats = summarize(trades);
   const setups = groupAverageR(stats.closed, trade => trade.setupEntry);
@@ -1634,6 +1657,10 @@ function emptyState(text) {
 
 function splitCsv(value) {
   return String(value || '').split(',').map(v => v.trim()).filter(Boolean);
+}
+
+function splitLines(value) {
+  return String(value || '').split('\n').map(v => v.trim()).filter(Boolean);
 }
 
 function cloneRows(rows) {
