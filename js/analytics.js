@@ -77,28 +77,6 @@ export function tagStats(trades, selector) {
   })).sort((a, b) => a.totalPnl - b.totalPnl);
 }
 
-export function recentWindowStats(trades, size = 20) {
-  const rows = [...trades].sort((a, b) => new Date(a.date) - new Date(b.date)).slice(-size);
-  return {
-    count: rows.length,
-    avgR: avg(rows.map(r => r.metrics.r)),
-    netPnl: sum(rows.map(r => r.metrics.pnl)),
-    realizedPnl: sum(rows.map(r => r.metrics.realizedPnl)),
-    unrealizedPnl: sum(rows.map(r => r.metrics.unrealizedPnl)),
-    winRate: rows.length ? rows.filter(r => r.metrics.pnl > 0).length / rows.length * 100 : 0,
-    feeDrag: sum(rows.map(r => r.metrics.totalFees)),
-  };
-}
-
-export function sessionSetupStats(trades) {
-  return bucketStats(trades, trade => `${trade.session} · ${trade.setupEntry}`.trim())
-    .filter(row => row.label !== ' · ');
-}
-
-export function gradeStats(trades) {
-  return bucketStats(trades, trade => trade.grade || 'UNLABELED');
-}
-
 export function filterTradesByDate(trades, from, to) {
   const fromTime = from ? new Date(`${from}T00:00:00`).getTime() : -Infinity;
   const toTime = to ? new Date(`${to}T23:59:59`).getTime() : Infinity;
