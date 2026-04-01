@@ -114,35 +114,37 @@
                 <p>거래 기본 정보와 진입 근거</p>
               </div>
 
-              <div id="pretrade-brief" class="summary-box section-summary">티커·방향·세션·셋업을 선택하면 프리뷰가 표시됩니다.</div>
+              <div id="pretrade-brief" class="summary-box section-summary">티커·방향·셋업을 선택하면 프리뷰가 표시됩니다.</div>
 
               <details class="context-guide details-guide" style="margin-top:16px;">
                 <summary>작성 가이드 보기</summary>
                 <div class="details-guide-body">
                   <p><strong>이 섹션의 목적</strong>은 “왜 지금 이 거래를 열려고 하는지”를 한 번 더 언어로 점검하는 것입니다. 실제 손절/추가진입/익절 판단이 흔들릴 때 가장 먼저 돌아볼 기준이 됩니다.</p>
                   <ul>
-                    <li><strong>시장 컨텍스트</strong>: 구조, 유동성 위치, 세션 특징, 뉴스/촉매를 적습니다.</li>
+                    <li><strong>시장 컨텍스트</strong>: 구조, 유동성 위치, 뉴스/촉매를 적습니다.</li>
                     <li><strong>진입 논리 및 무효화</strong>: 진입 트리거, 틀렸다고 보는 가격/조건, 추가 진입 조건, 익절 계획을 적습니다.</li>
                     <li>리스크 계산이 좋아도 <strong>맥락이 약하면 좋은 거래가 아닙니다.</strong> 손절은 명확한데 진입 이유가 흐리면 규모를 줄이거나 패스하는 것이 맞습니다.</li>
                   </ul>
                 </div>
               </details>
 
-              <div class="field-grid responsive-cols journal-core-grid" style="margin-top:24px;">
-                <label style="grid-column: span 2;"><span>날짜/시간</span>
+              <div class="field-grid cols-2 pretrade-top-grid" style="margin-top:24px;">
+                <label><span>날짜/시간</span>
                   <div class="input-group flex-group">
                     <input id="trade-date" type="datetime-local" required />
                     <button type="button" id="btn-now" class="tool-btn fixed-btn">지금</button>
                   </div>
                 </label>
-                <label><span>세션</span><select id="session"><option>ASIA</option><option>LONDON</option><option>NEW YORK</option><option>OVERLAP</option></select></label>
+                <label><span>방향</span><select id="side"><option value="LONG">LONG</option><option value="SHORT">SHORT</option></select></label>
+              </div>
+
+              <div class="field-grid cols-3 pretrade-bottom-grid" style="margin-top:16px;">
                 <label><span>티커</span>
                   <div class="input-group flex-group">
                     <select id="ticker" required></select>
                     <button type="button" id="btn-manage-ticker" class="gear-btn fixed-btn">⚙️</button>
                   </div>
                 </label>
-                <label><span>방향</span><select id="side"><option value="LONG">LONG</option><option value="SHORT">SHORT</option></select></label>
                 <label><span>Entry Setup</span>
                   <div class="input-group flex-group">
                     <select id="setup-entry"></select>
@@ -175,7 +177,7 @@
                   <span class="muted-caption">시장 컨텍스트 프롬프트</span>
                   <div class="chips compact-chips">
                     <button type="button" id="btn-context-structure" class="chip-btn">구조/유동성</button>
-                    <button type="button" id="btn-context-catalyst" class="chip-btn">세션/촉매</button>
+                    <button type="button" id="btn-context-catalyst" class="chip-btn">뉴스/촉매</button>
                   </div>
                 </div>
                 <div class="context-helper-group">
@@ -202,7 +204,7 @@
               <details class="details-guide" style="margin-top:8px;">
                 <summary>사용 가이드 보기</summary>
                 <div class="details-guide-body">
-                  <p><strong>입력 순서</strong>: 현재가(= 미실현 손익 계산 기준) → 손절가 → 목표가 → 리스크(%) → 진입 전략 → 추천안 생성/조정 → 실제 체결 반영.</p>
+                  <p><strong>입력 순서</strong>: 현재가 → 손절가 → 목표가 → 리스크(%) → 진입 전략 → 추천안 생성/조정 → 실제 체결 반영.</p>
                   <ul>
                     <li><strong>단일 진입</strong>: 한 번에 진입할 때 적합합니다. 변동성이 낮고 손절이 명확할 때 유리합니다.</li>
                     <li><strong>균형 분할</strong>: 현재가와 손절 사이를 무난하게 나눠 들어가는 기본형입니다.</li>
@@ -211,32 +213,26 @@
                     <li><strong>Step / Leg</strong>: 분할 진입의 각 단계를 뜻합니다. 한 번에 전부 들어가지 않고 계획된 순서대로 진입하는 단위입니다.</li>
                     <li><strong>비중 스타일 (Risk Share Mode)</strong>: 각 단계에 허용 리스크를 어떻게 배분할지 정합니다. 균등 배분은 고르게, 초기 진입 비중↑은 첫 진입을 크게, 확인 후 비중↑은 뒤쪽 단계를 더 크게 둡니다.</li>
                   </ul>
-                  <p><strong>현재가와 Mark Price</strong>: 이 화면에서는 현재가 입력값을 주문 설계와 미실현 손익 계산에 함께 사용합니다. 즉, 따로 Mark Price를 넣지 않아도 현재가 하나로 충분합니다.</p>
-                  <p><strong>과신하면 안 되는 경우</strong>: 손절 기준이 불명확하거나, 변동성 이벤트 직전/직후이거나, 목표가가 비현실적일 때 계산값은 참고치일 뿐입니다.</p>
+                                    <p><strong>과신하면 안 되는 경우</strong>: 손절 기준이 불명확하거나, 변동성 이벤트 직전/직후이거나, 목표가가 비현실적일 때 계산값은 참고치일 뿐입니다.</p>
                 </div>
               </details>
 
               <div class="execution-section-group" style="margin-top:24px;">
-                <div class="mini-head"><h4>PRICE MAP</h4><span class="muted-caption">주문 설계와 미실현 손익 계산에 함께 쓰는 기준 가격</span></div>
+                <div class="mini-head"><h4>PRICE MAP</h4><span class="muted-caption">현재가를 기준으로 손절/목표 거리와 리스크 범위를 빠르게 확인합니다.</span></div>
                 <div class="field-grid cols-3 compact-panel execution-grid">
-                  <label>
-                    <span>현재가 (Now / Mark)</span>
-                    <input id="current-price" type="number" step="0.01" />
-                    <small class="input-help">오픈 포지션의 미실현 손익 계산에도 이 값을 사용합니다.</small>
-                  </label>
+                  <label><span>현재가</span><input id="current-price" type="number" step="0.01" /></label>
                   <label><span>손절가 (SL)</span><input id="stop-price" type="number" step="0.01" /></label>
                   <label><span>목표가 (TP)</span><input id="target-price" type="number" step="0.01" placeholder="예상 목표가" /></label>
                 </div>
-                <input id="mark-price" type="hidden" />
+                <div id="price-map-distance-summary" class="summary-box" style="margin-top:12px;">현재가, 손절가, 목표가를 입력하면 거리 비율이 자동 계산됩니다.</div>
               </div>
 
               <div class="execution-section-group" style="margin-top:18px;">
                 <div class="mini-head"><h4>RISK BUDGET</h4><span class="muted-caption">이번 트레이드에 쓸 최대 손실과 기본 레버리지</span></div>
-                <div class="field-grid cols-4 compact-panel execution-grid">
+                <div class="field-grid cols-3 compact-panel execution-grid">
                   <label><span>매매용 시드 ($)</span><input id="account-size" type="number" step="1" value="10000" /></label>
                   <label><span>리스크 (%)</span><input id="risk-pct" type="number" step="0.01" value="0.5" /></label>
                   <label><span>기본 레버리지</span><input id="leverage" type="number" step="0.1" value="5" /></label>
-                  <label><span>미세 보정 (+/- $)</span><input id="adjustment" type="number" step="0.01" value="0" /></label>
                 </div>
               </div>
 
@@ -462,16 +458,6 @@
                 <div>잔여 포지션 리스크</div><div id="risk-residual" class="mono">$0</div>
               </div>
             </div>
-            <div class="mini-head" style="margin-top:16px;"><h4>SCALE-IN SIMULATOR</h4><button type="button" id="btn-apply-scalein" class="tool-btn btn-sm primary-btn">추가진입 적용</button></div>
-            <div class="field-grid cols-4 compact-panel" style="padding:16px; margin-top:12px;">
-              <label><span>추가 진입가</span><input id="scalein-price" type="number" step="0.01" /></label>
-              <label><span>추가 Risk Share (%)</span><input id="scalein-risk-share" type="number" step="0.1" value="10" /></label>
-              <label><span>추가 레버리지</span><input id="scalein-leverage" type="number" step="0.1" value="5" /></label>
-              <label><span>수수료 타입</span><select id="scalein-type"><option value="M">Maker</option><option value="T" selected>Taker</option></select></label>
-            </div>
-            <div id="scalein-summary" class="summary-box" style="margin-top:12px;">추가 진입가와 리스크 비중을 입력하면 평균단가/리스크/목표 수익 변화가 즉시 표시됩니다.</div>
-            <div class="mini-head" style="margin-top:16px;"><h4>TARGET PROJECTION</h4></div>
-            <div id="target-ladder-summary" class="summary-box" style="margin-top:12px;">목표가 또는 Target / Filled Exit 레그를 입력하면 단계별 프로젝션이 표시됩니다.</div>
           </article>
 
           <article class="card compact-card">
@@ -509,8 +495,7 @@
           <label><span>To</span><input id="f-to" type="date" /></label>
           <label><span>상태</span><select id="f-status"><option value="ALL">ALL</option><option>OPEN</option><option>CLOSED</option></select></label>
           <label><span>방향</span><select id="f-side"><option value="ALL">ALL</option><option>LONG</option><option>SHORT</option></select></label>
-          <label><span>세션</span><select id="f-session"><option value="ALL">ALL</option><option>ASIA</option><option>LONDON</option><option>NEW YORK</option><option>OVERLAP</option></select></label>
-          <label><span>셋업</span><input id="f-setup" placeholder="BREAKOUT" /></label>
+                    <label><span>셋업</span><input id="f-setup" placeholder="BREAKOUT" /></label>
           <label><span>태그</span><input id="f-tag" placeholder="trend, sweep" /></label>
           <label><span>실수</span><input id="f-mistake" placeholder="fomo, early exit" /></label>
           <label><span>Grade</span><select id="f-grade"><option value="ALL">ALL</option><option>S</option><option>A</option><option>B</option><option>C</option><option>D</option></select></label>
@@ -543,7 +528,6 @@
                 <th>상태</th>
                 <th>티커</th>
                 <th>방향</th>
-                <th>세션</th>
                 <th>셋업</th>
                 <th>Avg In</th>
                 <th>Avg Out</th>

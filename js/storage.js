@@ -183,7 +183,6 @@ function fromV5Trade(t) {
     ticker: t.ticker || 'BTCUSDT',
     status: t.status || 'CLOSED',
     side: t.dir === -1 ? 'SHORT' : 'LONG',
-    session: 'NEW YORK',
     setupEntry: t.setupE || '',
     setupExit: t.setupX || '',
     grade: t.grade || 'B',
@@ -199,7 +198,6 @@ function fromV5Trade(t) {
     stopPrice: Number(t.sl || 0),
     targetPrice: Number(t.targetPrice || 0), // ✨ 추가
     stopType: t.slT || 'M',
-    adjustment: Number(t.fine || 0),
     markPrice: 0,
     context: '',
     thesis: '',
@@ -221,7 +219,6 @@ export function normalizeTrade(t = {}) {
     ticker: String(t.ticker || 'BTCUSDT').trim().toUpperCase(),
     status: String(t.status || 'OPEN').toUpperCase(),
     side: String(t.side || 'LONG').toUpperCase(),
-    session: String(t.session || 'NEW YORK').trim().toUpperCase(),
     setupEntry: String(t.setupEntry || '').trim().toUpperCase(),
     setupExit: String(t.setupExit || '').trim().toUpperCase(),
     grade: String(t.grade || 'B').trim().toUpperCase(),
@@ -238,7 +235,6 @@ export function normalizeTrade(t = {}) {
     stopPrice: Number(t.stopPrice || 0),
     targetPrice: Number(t.targetPrice || 0), // ✨ 추가
     stopType: String(t.stopType || 'M').toUpperCase(),
-    adjustment: Number(t.adjustment || 0),
     markPrice: Number(t.markPrice || 0),
 
     context: String(t.context || '').trim(),

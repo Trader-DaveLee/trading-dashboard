@@ -135,8 +135,7 @@ export function recalcTrade(trade) {
   }
 
   const totalFees = entryFees + exitFees;
-  const adjustment = Number(trade.adjustment || 0);
-  const netPnl = realizedPnl + unrealizedPnl + adjustment;
+  const netPnl = realizedPnl + unrealizedPnl;
   const grossForFee = Math.abs(grossRealized + grossUnrealized);
   const feePctOfGross = grossForFee > 0 ? (totalFees / grossForFee) * 100 : 0;
 
@@ -230,7 +229,6 @@ export function recalcTrade(trade) {
     grossRealized, realizedPnl, grossUnrealized, unrealizedPnl, pnl: netPnl, netPnl,
     realizedR, unrealizedR, r, totalFees, entryFees, exitFees, feePctOfGross,
     breakEvenPrice, accountImpact, projectedPnl, projectedR, hasProjection, projectionSteps,
-    scaleInCount: entries.length, scaleOutCount: exitRows.length,
     entryBreakdown, weightedLeverage, actualRiskUsed, actualRiskPctOfBudget, availableRiskDollar, overRiskDollar,
   };
 }
@@ -345,29 +343,6 @@ function plannerWeightModeLabel(value) {
   }[value] || '확인 후 비중↑';
 }
 
-export function calcScaleInScenario(trade, candidate) {
-  const price = Number(candidate?.price || 0);
-  const weight = Math.max(0, Number(candidate?.weight || 0));
-  const leverage = Math.max(1, Number(candidate?.leverage || trade.leverage || 1));
-  const type = String(candidate?.type || 'T').toUpperCase() === 'M' ? 'M' : 'T';
-  if (!price || !weight) return { valid: false, reason: '추가 진입가와 Risk Share를 입력하세요.' };
-  const metricsBefore = trade.metrics || recalcTrade(trade);
-  const scenarioTrade = { ...trade, entries: [...(trade.entries || []), { price, weight, leverage, type }] };
-  const metricsAfter = recalcTrade(scenarioTrade);
-  return {
-    valid: metricsAfter.valid,
-    candidate: { price, weight, leverage, type },
-    before: metricsBefore,
-    after: metricsAfter,
-    deltaQty: metricsAfter.qty - metricsBefore.qty,
-    deltaMargin: metricsAfter.margin - metricsBefore.margin,
-    deltaRisk: metricsAfter.actualRiskUsed - metricsBefore.actualRiskUsed,
-    deltaProjectedPnl: metricsAfter.projectedPnl - metricsBefore.projectedPnl,
-    deltaProjectedR: metricsAfter.projectedR - metricsBefore.projectedR,
-    withinRiskLimit: metricsAfter.actualRiskPctOfBudget <= 100.0001,
-  };
-}
-
 function baseMetrics(riskDollar = 0, avgEntry = 0, directionError = false) {
   return {
     valid: false, directionError, exitExceeds100: false, missingMarkPrice: false, riskDollar, avgEntry, avgExit: 0,
@@ -376,6 +351,6 @@ function baseMetrics(riskDollar = 0, avgEntry = 0, directionError = false) {
     grossRealized: 0, realizedPnl: 0, grossUnrealized: 0, unrealizedPnl: 0,
     pnl: 0, netPnl: 0, realizedR: 0, unrealizedR: 0, r: 0,
     totalFees: 0, entryFees: 0, exitFees: 0, feePctOfGross: 0, breakEvenPrice: 0, accountImpact: 0, projectedPnl: 0, projectedR: 0, hasProjection: false, projectionSteps: [],
-    scaleInCount: 0, scaleOutCount: 0, entryBreakdown: [], weightedLeverage: 1, actualRiskUsed: 0, actualRiskPctOfBudget: 0, availableRiskDollar: riskDollar, overRiskDollar: 0,
+    entryBreakdown: [], weightedLeverage: 1, actualRiskUsed: 0, actualRiskPctOfBudget: 0, availableRiskDollar: riskDollar, overRiskDollar: 0,
   };
 }

@@ -574,3 +574,8 @@ tbody tr:hover { background: #f1f5f9; cursor: pointer; }
   .assessment-grid { grid-template-columns: 1fr; }
   .execution-section-group { padding: 14px; }
 }
+
+
+.pretrade-top-grid, .pretrade-bottom-grid { align-items: end; }
+.pretrade-bottom-grid label select { min-width: 0; }
+#price-map-distance-summary .subtle-pill { background:#fff; }

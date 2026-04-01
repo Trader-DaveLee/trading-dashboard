@@ -1,4 +1,4 @@
-import { generatePlannerSuggestion, calcScaleInScenario } from './calc.js';
+import { generatePlannerSuggestion } from './calc.js';
 import {
   summarize, groupAverageR, tagStats, filterTradesByDate
 } from './analytics.js';
@@ -30,8 +30,8 @@ const ID_LIST = [
   'nav','force-save-draft','export-json','import-json-btn','import-json','journal-status','draft-saved-at',
   'view-overview','metrics','overview-from','overview-to','overview-clear','overview-search','prev-month','calendar-title','next-month','calendar','equity-chart','balance-chart','setup-chart','mistake-list','research-notes','overview-portfolio',
   'realtime-clock','quick-launch-grid','btn-manage-quick-links','journal-sidebar','journal-pretrade-phase','journal-risk-phase','risk-planner-card','pretrade-brief','btn-context-structure','btn-context-catalyst','btn-thesis-trigger','btn-thesis-invalidation','planner-mode-note',
-  'view-journal','trade-form','trade-id','trade-date','btn-now','ticker','btn-manage-ticker','status','status-toggle','session','side','setup-entry','btn-manage-setup-entry','setup-exit','btn-manage-setup-exit',
-  'account-size','risk-pct','leverage','current-price','planner-mode','planner-legs','planner-weight-mode','btn-generate-plan','btn-apply-plan','planner-summary','maker-fee','taker-fee','stop-price','target-price','mark-price','stop-type','adjustment',
+  'view-journal','trade-form','trade-id','trade-date','btn-now','ticker','btn-manage-ticker','status','status-toggle','side','setup-entry','btn-manage-setup-entry','setup-exit','btn-manage-setup-exit',
+  'account-size','risk-pct','leverage','current-price','planner-mode','planner-legs','planner-weight-mode','btn-generate-plan','btn-apply-plan','planner-summary','maker-fee','taker-fee','stop-price','target-price','stop-type','price-map-distance-summary',
   'context','thesis','review','tags','mistakes',
   'add-entry','entries','add-exit','exits','calc-summary','quick-tags','quick-mistakes','live-notes','btn-insert-time','add-live-chart','live-charts-container',
   'add-entry-chart','entry-charts-container','add-exit-chart','exit-charts-container',
@@ -40,8 +40,8 @@ const ID_LIST = [
   'duplicate-trade','reset-form','delete-trade','grade',
   'desk-rules','master-checklist-list','new-check-input','btn-add-check','trade-checklist-container',
   'risk-risk-dollar','risk-qty','risk-margin','risk-slider','risk-notional','risk-stop-distance','risk-fees','risk-realized','risk-unrealized','risk-residual','risk-actual-risk','risk-risk-usage','risk-weighted-lev','risk-avg-entry','risk-bep','risk-remaining-risk',
-  'risk-projected-pnl','risk-projected-r','scalein-price','scalein-risk-share','scalein-leverage','scalein-type','btn-apply-scalein','scalein-summary','target-ladder-summary',
-  'view-library','q','f-from','f-to','f-status','f-side','f-session','f-setup','f-tag','f-mistake','f-grade','sort','clear-filters','library-result-count','review-position','review-breadcrumb','prev-trade','next-trade','filter-same-setup','filter-same-ticker','clear-quick-filter','trade-table','detail','detail-insights',
+  'risk-projected-pnl','risk-projected-r',
+  'view-library','q','f-from','f-to','f-status','f-side','f-setup','f-tag','f-mistake','f-grade','sort','clear-filters','library-result-count','review-position','review-breadcrumb','prev-trade','next-trade','filter-same-setup','filter-same-ticker','clear-quick-filter','trade-table','detail','detail-insights',
   'view-playbook','playbook-gallery',
   'app-modal','modal-title','modal-desc','modal-input','modal-btn-cancel','modal-btn-confirm',
   'list-manage-modal','list-manage-title','list-manage-input','list-manage-add','list-manage-items','list-manage-close',
@@ -305,8 +305,8 @@ function bindEvents() {
   if(els['btn-manage-setup-exit']) els['btn-manage-setup-exit'].onclick = () => openListManager('exitSetups', 'Exit Setup', 'upper');
   if(els['btn-manage-quick-links']) els['btn-manage-quick-links'].onclick = () => openQuickLinkManager();
 
-  if(els['btn-context-structure']) els['btn-context-structure'].onclick = () => appendTemplateToField('context', '시장 구조: \n유동성 위치: \n세션 특징: ');
-  if(els['btn-context-catalyst']) els['btn-context-catalyst'].onclick = () => appendTemplateToField('context', '촉매 / 뉴스: \n체크할 변수: ');
+  if(els['btn-context-structure']) els['btn-context-structure'].onclick = () => appendTemplateToField('context', '시장 구조: \n유동성 위치: \n핵심 변수: ');
+  if(els['btn-context-catalyst']) els['btn-context-catalyst'].onclick = () => appendTemplateToField('context', '뉴스 / 촉매: \n체크할 변수: ');
   if(els['btn-thesis-trigger']) els['btn-thesis-trigger'].onclick = () => appendTemplateToField('thesis', '엔트리 트리거: \n추가 진입 조건: ');
   if(els['btn-thesis-invalidation']) els['btn-thesis-invalidation'].onclick = () => appendTemplateToField('thesis', '무효화 기준: \n청산 계획: ');
 
@@ -314,11 +314,6 @@ function bindEvents() {
   initStatusToggle();
 
   if(els['btn-now']) els['btn-now'].onclick = () => { setVal('trade-date', inputDate(nowIso())); markDirty(); updatePreview(); };
-  if (els['current-price']) {
-    const syncCurrentToMark = () => { if (els['mark-price']) els['mark-price'].value = els['current-price'].value; };
-    els['current-price'].addEventListener('input', syncCurrentToMark);
-    els['current-price'].addEventListener('change', syncCurrentToMark);
-  }
   if(els['prev-month']) els['prev-month'].onclick = () => { state.month.setMonth(state.month.getMonth() - 1); renderCalendar(); };
   if(els['next-month']) els['next-month'].onclick = () => { state.month.setMonth(state.month.getMonth() + 1); renderCalendar(); };
 
@@ -326,7 +321,6 @@ function bindEvents() {
   if(els['add-exit']) els['add-exit'].onclick = () => { state.draftExits.push({ price: 0, type: 'M', weight: 0, status: 'PLANNED' }); renderLegs('exit'); updatePreview(); };
   if(els['btn-generate-plan']) els['btn-generate-plan'].onclick = () => { updatePreview(); refreshJournalStatus('추천 플랜 재계산'); };
   if(els['btn-apply-plan']) els['btn-apply-plan'].onclick = applyPlannerSuggestion;
-  if(els['btn-apply-scalein']) els['btn-apply-scalein'].onclick = applyScaleIn;
   
   if(els['add-entry-chart']) els['add-entry-chart'].onclick = () => { state.draftEntryCharts.push(''); renderChartInputs('entry'); updatePreview(); };
   if(els['add-exit-chart']) els['add-exit-chart'].onclick = () => { state.draftExitCharts.push(''); renderChartInputs('exit'); updatePreview(); };
@@ -345,7 +339,7 @@ function bindEvents() {
   if(els['overview-search']) els['overview-search'].onclick = () => renderOverview();
   if(els['overview-clear']) els['overview-clear'].onclick = () => { setVal('overview-from', ''); setVal('overview-to', ''); renderOverview(); };
 
-  const filterIds = ['q','f-from','f-to','f-status','f-side','f-session','f-setup','f-tag','f-mistake','f-grade','sort'];
+  const filterIds = ['q','f-from','f-to','f-status','f-side','f-setup','f-tag','f-mistake','f-grade','sort'];
   filterIds.forEach(id => {
     if(els[id]) {
       els[id].addEventListener('input', renderLibrary);
@@ -401,8 +395,8 @@ function bindEvents() {
   bindKeyboardShortcuts();
 
   [
-    'trade-date','ticker','status','session','side','setup-entry','setup-exit',
-    'account-size','risk-pct','leverage','current-price','planner-mode','planner-legs','planner-weight-mode','btn-generate-plan','btn-apply-plan','planner-summary','maker-fee','taker-fee','stop-price','target-price','mark-price','stop-type','adjustment',
+    'trade-date','ticker','status','side','setup-entry','setup-exit',
+    'account-size','risk-pct','leverage','current-price','planner-mode','planner-legs','planner-weight-mode','btn-generate-plan','btn-apply-plan','planner-summary','maker-fee','taker-fee','stop-price','target-price','stop-type','price-map-distance-summary',
     'context','thesis','review','tags','mistakes','grade','live-notes'
   ].forEach(id => {
     if (!els[id]) return;
@@ -751,13 +745,11 @@ function resetFormForce() {
 
   [
     'trade-id','context','thesis','review','tags','mistakes','live-notes',
-    'mark-price','adjustment','stop-price','target-price','current-price','scalein-price'
+    'stop-price','target-price','current-price'
   ].forEach(id => setVal(id, ''));
   setVal('planner-mode', 'BALANCED');
   setVal('planner-legs', 3);
   setVal('planner-weight-mode', 'BACKLOADED');
-  setVal('scalein-risk-share', 10);
-  setVal('scalein-type', 'T');
 
   setVal('trade-date', inputDate(nowIso()));
   setVal('status', 'OPEN');
@@ -835,14 +827,13 @@ function readForm() {
     ticker: getVal('ticker'),
     status: getVal('status'),
     side: getVal('side'),
-    session: getVal('session'),
     setupEntry: getVal('setup-entry'),
     setupExit: getVal('setup-exit'),
     grade: getVal('grade'),
     accountSize: Number(getVal('account-size') || 0),
     riskPct: Number(getVal('risk-pct') || 0),
     leverage: Number(getVal('leverage') || 0),
-    currentPrice: Number(getVal('current-price') || getVal('mark-price') || 0),
+    currentPrice: Number(getVal('current-price') || 0),
     plannerMode: getVal('planner-mode') || 'BALANCED',
     plannerLegs: Number(getVal('planner-legs') || 3),
     plannerWeightMode: getVal('planner-weight-mode') || 'BACKLOADED',
@@ -850,9 +841,8 @@ function readForm() {
     takerFee: Number(getVal('taker-fee') || 0),
     stopPrice: Number(getVal('stop-price') || 0),
     targetPrice: Number(getVal('target-price') || 0),
-    markPrice: Number(getVal('current-price') || getVal('mark-price') || 0),
+    markPrice: Number(getVal('current-price') || 0),
     stopType: getVal('stop-type'),
-    adjustment: Number(getVal('adjustment') || 0),
     context: getVal('context'),
     thesis: getVal('thesis'),
     review: getVal('review'),
@@ -959,7 +949,6 @@ function applyTradeToForm(trade, options = {}) {
   setVal('ticker', trade.ticker);
   setVal('status', trade.status);
   setVal('side', trade.side);
-  setVal('session', trade.session);
   setVal('setup-entry', trade.setupEntry);
   setVal('setup-exit', trade.setupExit);
   setVal('grade', trade.grade);
@@ -974,10 +963,8 @@ function applyTradeToForm(trade, options = {}) {
   setVal('taker-fee', trade.takerFee);
   setVal('stop-price', trade.stopPrice || '');
   setVal('target-price', trade.targetPrice || '');
-  setVal('mark-price', trade.currentPrice || trade.markPrice || '');
   if (typeof initStatusToggle === 'function') initStatusToggle();
   setVal('stop-type', trade.stopType);
-  setVal('adjustment', trade.adjustment || 0);
   setVal('context', trade.context || '');
   setVal('thesis', trade.thesis || '');
   setVal('review', trade.review || '');
@@ -1015,9 +1002,8 @@ function updatePreview() {
   renderRiskPanel(metrics, trade);
   renderTradeEvaluation(metrics, trade);
   renderPlannerModeNote(trade);
+  renderPriceMapDistanceSummary(trade);
   renderPlannerSummary(trade);
-  renderScaleInSummary(trade);
-  renderTargetLadderSummary(metrics, trade);
   if (typeof initStatusToggle === 'function') initStatusToggle();
 
   if(els['risk-bep']) els['risk-bep'].textContent = metrics.breakEvenPrice > 0 ? safeNumber(metrics.breakEvenPrice.toFixed(4)) : '0.00';
@@ -1028,7 +1014,7 @@ function renderPreTradeBrief(trade) {
   if (!els['pretrade-brief']) return;
   const bits = [
     trade.ticker || '티커 미선택',
-    `${trade.side || '—'} · ${trade.session || '—'}`,
+    `${trade.side || '—'}`,
     trade.setupEntry || '셋업 미선택',
     trade.status || 'OPEN'
   ];
@@ -1052,6 +1038,27 @@ function renderPlannerModeNote(trade) {
     PYRAMID: '피라미딩은 수익 방향으로 추세가 확인될수록 추가 진입합니다. 브레이크아웃·추세 추종 환경에 적합하지만 과도한 추격 매수/매도는 피해야 합니다.'
   };
   setText('planner-mode-note', notes[mode] || notes.BALANCED);
+}
+
+function renderPriceMapDistanceSummary(trade) {
+  if (!els['price-map-distance-summary']) return;
+  const current = Number(trade.currentPrice || 0);
+  const stop = Number(trade.stopPrice || 0);
+  const target = Number(trade.targetPrice || 0);
+  if (!current || !stop) {
+    setHtml('price-map-distance-summary', '현재가, 손절가, 목표가를 입력하면 거리 비율이 자동 계산됩니다.');
+    return;
+  }
+  const stopPct = current ? Math.abs((stop - current) / current) * 100 : 0;
+  const targetPct = current && target ? Math.abs((target - current) / current) * 100 : 0;
+  const stopDir = stop > current ? '+' : '-';
+  const targetDir = target ? (target > current ? '+' : '-') : '';
+  setHtml('price-map-distance-summary', `
+    <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center;">
+      <span class="subtle-pill">현재가 대비 손절 거리 ${stopDir}${stopPct.toFixed(2)}%</span>
+      <span class="subtle-pill">현재가 대비 목표 거리 ${target ? `${targetDir}${targetPct.toFixed(2)}%` : '미입력'}</span>
+    </div>
+  `);
 }
 
 function appendTemplateToField(id, template) {
@@ -1169,7 +1176,7 @@ function renderCalcSummary(metrics, trade) {
   let warnHtml = '';
   if (metrics.directionError) warnHtml += '<div class="warn-text">⚠️ 방향과 손절 위치가 충돌합니다.</div>';
   if (metrics.exitExceeds100) warnHtml += `<div class="warn-text" style="color:var(--red);">⚠️ 실제 청산(FILLED) 비중 합계가 100%를 초과합니다. (${metrics.actualExitPct.toFixed(1)}%)</div>`;
-  if (trade.status === 'OPEN' && metrics.missingMarkPrice) warnHtml += '<div class="warn-text">⚠️ 현재가(Now / Mark)가 없어 미실현 손익이 0으로 처리됩니다.</div>';
+  if (trade.status === 'OPEN' && metrics.missingMarkPrice) warnHtml += '<div class="warn-text">⚠️ 현재가가 없어 미실현 손익이 0으로 처리됩니다.</div>';
   if (metrics.actualRiskPctOfBudget > 100) warnHtml += `<div class="warn-text" style="color:var(--red);">⚠️ 허용 리스크를 ${metrics.actualRiskPctOfBudget.toFixed(1)}% 사용 중입니다. (초과 ${moneyAbs(metrics.overRiskDollar)})</div>`;
 
   if (!metrics.valid && !metrics.exitExceeds100) {
@@ -1259,93 +1266,6 @@ function renderPlannerSummary(trade) {
       }).join('')}
     </div>
   `);
-}
-
-function readScaleInCandidate() {
-  return {
-    price: Number(getVal('scalein-price') || 0),
-    weight: Number(getVal('scalein-risk-share') || 0),
-    leverage: Number(getVal('scalein-leverage') || getVal('leverage') || 1),
-    type: getVal('scalein-type') || 'T',
-  };
-}
-
-function renderScaleInSummary(trade) {
-  if (!els['scalein-summary']) return;
-  const candidate = readScaleInCandidate();
-  const scenario = calcScaleInScenario(trade, candidate);
-  if (!scenario.valid) {
-    setHtml('scalein-summary', `<div class="summary-invalid" style="color:var(--muted); font-weight:600;">${escapeHtml(scenario.reason || '추가 진입 시뮬레이션을 계산할 수 없습니다.')}</div>`);
-    return;
-  }
-  const after = scenario.after;
-  const riskColor = after.actualRiskPctOfBudget > 100 ? 'negative' : 'positive';
-  setHtml('scalein-summary', `
-    <div class="summary-grid">
-      <div class="summary-item"><div class="summary-label">New Avg Entry</div><div class="summary-value">${safeNumber(after.avgEntry.toFixed(4))}</div></div>
-      <div class="summary-item"><div class="summary-label">Δ Qty</div><div class="summary-value">${qty(scenario.deltaQty)}</div></div>
-      <div class="summary-item"><div class="summary-label">Δ Margin</div><div class="summary-value">${moneyAbs(scenario.deltaMargin)}</div></div>
-      <div class="summary-item"><div class="summary-label">Risk Usage</div><div class="summary-value ${riskColor}">${after.actualRiskPctOfBudget.toFixed(1)}%</div></div>
-      <div class="summary-item"><div class="summary-label">Δ Risk</div><div class="summary-value ${scenario.deltaRisk > 0 ? 'negative' : ''}">${money(scenario.deltaRisk)}</div></div>
-      <div class="summary-item"><div class="summary-label">New BEP</div><div class="summary-value">${safeNumber(after.breakEvenPrice.toFixed(4))}</div></div>
-      <div class="summary-item"><div class="summary-label">Projected PnL</div><div class="summary-value ${after.projectedPnl >= 0 ? 'positive' : 'negative'}">${money(after.projectedPnl)}</div></div>
-      <div class="summary-item"><div class="summary-label">Projected R</div><div class="summary-value ${after.projectedR >= 0 ? 'positive' : 'negative'}">${after.projectedR.toFixed(2)}R</div></div>
-    </div>
-    <div style="margin-top:12px; font-size:12px; font-weight:700; color:${after.actualRiskPctOfBudget > 100 ? 'var(--red)' : 'var(--muted)'};">
-      ${after.actualRiskPctOfBudget > 100 ? `허용 리스크를 ${after.actualRiskPctOfBudget.toFixed(1)}% 사용하게 됩니다.` : `추가 진입 후에도 허용 리스크 안에서 유지됩니다.`}
-    </div>
-  `);
-}
-
-function renderTargetLadderSummary(metrics, trade) {
-  if (!els['target-ladder-summary']) return;
-  if (!metrics.hasProjection || !metrics.projectionSteps.length) {
-    setHtml('target-ladder-summary', `<div class="summary-invalid" style="color:var(--muted); font-weight:600;">목표가(TP) 또는 Planned Exit 레그를 입력하면 단계별 수익/잔여 리스크를 표시합니다.</div>`);
-    return;
-  }
-  setHtml('target-ladder-summary', `
-    <div class="summary-grid">
-      ${metrics.projectionSteps.map(step => `
-        <div class="summary-item">
-          <div class="summary-label">${escapeHtml(step.label)}</div>
-          <div class="summary-value">${safeNumber(step.price.toFixed(4))}</div>
-          <div style="font-size:12px; color:var(--muted); font-weight:700; margin-top:6px;">Close ${step.closePct.toFixed(1)}% · Cum ${money(step.cumulativePnl)}</div>
-          <div style="font-size:12px; color:#334155; margin-top:4px;">${step.cumulativeR.toFixed(2)}R · Rem Risk ${moneyAbs(step.remainingRisk)}</div>
-        </div>
-      `).join('')}
-    </div>
-  `);
-}
-
-function applyPlannerSuggestion() {
-  const trade = readForm();
-  const suggestion = generatePlannerSuggestion(trade);
-  if (!suggestion.valid) {
-    showModal({ type: 'ALERT', title: '플래너 오류', desc: suggestion.reason || '추천 플랜을 계산할 수 없습니다.' });
-    return;
-  }
-  state.draftEntries = suggestion.entries.map(leg => ({ price: leg.price, type: leg.type, weight: leg.weight, leverage: leg.leverage }));
-  renderLegs('entry');
-  markDirty();
-  updatePreview();
-  persistDraft(true);
-  refreshJournalStatus('추천 진입 플랜 적용 완료');
-}
-
-function applyScaleIn() {
-  const trade = readForm();
-  const scenario = calcScaleInScenario(trade, readScaleInCandidate());
-  if (!scenario.valid) {
-    showModal({ type: 'ALERT', title: 'Scale-In 오류', desc: scenario.reason || '추가 진입 시뮬레이션을 계산할 수 없습니다.' });
-    return;
-  }
-  state.draftEntries.push({ ...scenario.candidate });
-  setVal('scalein-price', '');
-  renderLegs('entry');
-  markDirty();
-  updatePreview();
-  persistDraft(true);
-  refreshJournalStatus('추가 진입이 Execution Entries에 반영되었습니다.');
 }
 
 function metricCard(label, value, colorClass) {
@@ -1671,7 +1591,6 @@ function renderLibrary() {
       <td data-label="상태">${trade.status === 'OPEN' ? '<span class="badge-open">OPEN</span>' : '<span class="badge-closed">CLOSED</span>'}</td>
       <td data-label="티커" style="font-weight:800; color:#0f172a;">${escapeHtml(trade.ticker)}</td>
       <td data-label="방향">${escapeHtml(trade.side)}</td>
-      <td data-label="세션">${escapeHtml(trade.session)}</td>
       <td data-label="셋업" style="font-weight:700;">${escapeHtml(trade.setupEntry || '—')}</td>
       <td data-label="Avg In" class="mono">${trade.metrics.avgEntry ? moneyAbs(trade.metrics.avgEntry) : '—'}</td>
       <td data-label="Avg Out" class="mono">${trade.metrics.avgExit ? moneyAbs(trade.metrics.avgExit) : '—'}</td>
@@ -1680,7 +1599,7 @@ function renderLibrary() {
       <td data-label="Grade"><span class="badge ${trade.grade === 'S' || trade.grade === 'A' ? 'badge-good' : ''}">${trade.grade}</span></td>
       <td data-label="태그">${(trade.tags || []).slice(0, 3).map(tag => `<span class="chip">${escapeHtml(tag)}</span>`).join(' ')}</td>
     </tr>
-  `).join('') : `<tr><td colspan="12">${emptyState('검색 결과가 없습니다.')}</td></tr>`);
+  `).join('') : `<tr><td colspan="11">${emptyState('검색 결과가 없습니다.')}</td></tr>`);
 
   els['trade-table'].querySelectorAll('tr[data-id]').forEach(row => {
     row.onclick = () => selectTrade(row.dataset.id);
@@ -1701,7 +1620,6 @@ function filterLibraryTrades() {
   const to = getVal('f-to');
   const status = getVal('f-status');
   const side = getVal('f-side');
-  const session = getVal('f-session');
   const setup = getVal('f-setup').trim().toLowerCase();
   const tag = getVal('f-tag').trim().toLowerCase();
   const mistake = getVal('f-mistake').trim().toLowerCase();
@@ -1713,7 +1631,6 @@ function filterLibraryTrades() {
   rows = rows.filter(trade => {
     if (status !== 'ALL' && trade.status !== status) return false;
     if (side !== 'ALL' && trade.side !== side) return false;
-    if (session !== 'ALL' && trade.session !== session) return false;
     if (grade !== 'ALL' && trade.grade !== grade) return false;
     if (setup && !(trade.setupEntry || '').toLowerCase().includes(setup)) return false;
     if (tag && !(trade.tags || []).some(value => value.includes(tag))) return false;
@@ -1721,7 +1638,7 @@ function filterLibraryTrades() {
     if (q) {
       const haystack = [
         trade.ticker, trade.setupEntry, trade.setupExit, trade.context, trade.thesis, trade.review,
-        trade.liveNotes, trade.session,
+        trade.liveNotes,
         ...(trade.tags || []), ...(trade.mistakes || [])
       ].join(' ').toLowerCase();
       if (!haystack.includes(q)) return false;
@@ -1751,7 +1668,6 @@ function renderTradeDetail(trade) {
     </div>
     <div class="kv">
       <div>티커</div><div><strong>${escapeHtml(trade.ticker)}</strong> · ${escapeHtml(trade.side)} · ${escapeHtml(trade.status)}</div>
-      <div>세션</div><div>${escapeHtml(trade.session)}</div>
       <div>Setup</div><div>${escapeHtml(trade.setupEntry || '—')} → ${escapeHtml(trade.setupExit || '—')}</div>
       <div>Grade</div><div><span class="badge ${trade.grade === 'S' || trade.grade === 'A' ? 'badge-good' : ''}">${escapeHtml(trade.grade)}</span></div>
       <div>Avg In / Avg Out</div><div class="mono">${moneyAbs(trade.metrics.avgEntry)} / ${trade.metrics.avgExit ? moneyAbs(trade.metrics.avgExit) : '—'}</div>
@@ -1871,22 +1787,15 @@ function renderPlaybook() {
 
   let html = '';
   rows.forEach(trade => {
-    const entryC = Array.isArray(trade.evidence?.entryCharts) ? trade.evidence.entryCharts[0] : '';
-    const hasDirectImage = Boolean(entryC && entryC.match(/\.(jpeg|jpg|gif|png|webp)$/i));
-    const heroHtml = hasDirectImage
-      ? `<img class="playbook-img" src="${escapeAttr(entryC)}" alt="chart" onerror="this.style.display='none'">`
-      : `<div class="playbook-img placeholder">Chart Links Ready</div>`;
-
     html += `
     <article class="playbook-card" data-id="${trade.id}">
-      ${heroHtml}
       <div class="playbook-info" style="padding: 16px; display:flex; flex-direction:column; flex:1;">
         <div class="playbook-header" style="display:flex; justify-content:space-between; align-items:center;">
           <strong style="font-size:16px; color:#0f172a; font-weight:900;">${escapeHtml(trade.ticker)}</strong>
           <span class="badge badge-good" style="font-size:12px;">Grade ${trade.grade}</span>
         </div>
         <div style="font-size:12px; color:var(--accent); font-weight:800; margin-top:4px;">${escapeHtml(trade.setupEntry || 'NA')}</div>
-        <div style="font-size:11px; color:var(--muted); font-weight:600; margin-top:2px;">${formatDateTime(trade.date)} · ${trade.session}</div>
+        <div style="font-size:11px; color:var(--muted); font-weight:600; margin-top:2px;">${formatDateTime(trade.date)}</div>
         <div class="mono ${trade.metrics.r > 0 ? 'positive' : 'negative'}" style="font-size:14px; font-weight:800; margin-top:8px;">${trade.metrics.r.toFixed(2)}R (${money(trade.metrics.pnl)})</div>
         <p style="font-size:12px; color:#334155; font-weight:500; margin:8px 0; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">${escapeHtml(trade.thesis || trade.review || '설명 없음')}</p>
         ${buildPlaybookLinks(trade)}
@@ -1955,7 +1864,6 @@ function clearFilters() {
   ['q','f-from','f-to','f-setup','f-tag','f-mistake'].forEach(id => setVal(id, ''));
   setVal('f-status', 'ALL');
   setVal('f-side', 'ALL');
-  setVal('f-session', 'ALL');
   setVal('f-grade', 'ALL');
   setVal('sort', 'newest');
   renderLibrary();

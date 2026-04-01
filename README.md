@@ -39,3 +39,10 @@
 2. multiple target 고도화
 3. stop moved / BEP / trailing stop 이벤트 구조화
 4. import/migration 안전성 추가 강화
+
+
+## Latest cleanup
+- Removed session field from Journal and Library workflows.
+- Removed micro-adjustment input and sidebar scale-in/target projection cards.
+- Unified current price as the single live pricing input for planner and unrealized PnL.
+- Playbook now uses chart links only (no placeholder image blocks).
