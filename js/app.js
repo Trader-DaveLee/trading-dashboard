@@ -534,7 +534,6 @@ function renderQuickChips() {
   }
 }
 
-// ✨ 다중 차트 렌더링 통합 (Entry, Exit, Live)
 function renderChartInputs(type) {
   let arr, containerId;
   if(type === 'entry') { arr = state.draftEntryCharts; containerId = 'entry-charts-container'; }
@@ -894,11 +893,10 @@ function updatePreview() {
   const metrics = trade.metrics;
   renderCalcSummary(metrics, trade);
   renderRiskPanel(metrics);
-  renderTradeEvaluation(metrics, trade); // ✨ 자동 평가 패널 연결
+  renderTradeEvaluation(metrics, trade);
   setText('deep-review-r', `${metrics.r.toFixed(2)}R`);
 }
 
-// ✨ Post-Trade Review 요약 자동 평가 패널 구현
 function renderTradeEvaluation(metrics, trade) {
   const container = els['post-trade-eval'];
   if (!container) return;
@@ -1036,7 +1034,6 @@ function renderOverview() {
   renderOverviewPortfolio();
 }
 
-// ✨ Today Console 요약 렌더링
 function renderTodayConsole() {
   if (!els['today-console']) return;
   const todayStr = new Date().toISOString().slice(0, 10);
