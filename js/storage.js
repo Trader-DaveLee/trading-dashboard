@@ -105,7 +105,7 @@ function normalizeBalancePoint(row) {
     crypto: Number(row.crypto || 0),
     usdt: Number(row.usdt || 0),
     stock: Number(row.stock || 0),
-    type: String(row.type || 'PNL').toUpperCase(), // ✨ Phase 2: 자금 흐름 타입 (PNL, DEPOSIT, WITHDRAWAL, MANUAL)
+    type: String(row.type || 'PNL').toUpperCase(),
     memo: String(row.memo || '').trim(),
   };
 }
@@ -137,7 +137,7 @@ function fromV5Trade(t) {
     tags: [],
     mistakes: [],
     checkedRules: [],
-    evidence: { entryChart: t.img1 || '', exitChart: t.img2 || '' },
+    evidence: { entryChart: t.img1 || '', exitChart: t.img2 || '', liveCharts: [] },
     entries: (t.entries || []).map(x => ({ price: Number(x.price || 0), type: x.type || 'M', weight: Number(x.weight || 0) })),
     exits: (t.exits || []).map(x => ({ price: Number(x.price || 0), type: x.type || 'M', weight: Number(x.weight || 0) })),
   };
@@ -189,6 +189,7 @@ function normalizeEvidence(evidence, artifacts) {
   return {
     entryChart: String(obj.entryChart || fallback[0] || '').trim(),
     exitChart: String(obj.exitChart || fallback[1] || '').trim(),
+    liveCharts: Array.isArray(obj.liveCharts) ? obj.liveCharts.map(v => String(v).trim()).filter(Boolean) : [],
   };
 }
 
