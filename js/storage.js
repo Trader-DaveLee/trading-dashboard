@@ -20,19 +20,11 @@ export const DEFAULT_DB = {
     rules: '',
     checklists: ['손절 설정 확인', 'A급 셋업 여부', '리스크 1% 이하'],
     lastTradeForm: null,
-    dailyMemos: {},
     quickLinks: [
-      { title: 'TradingView', url: 'https://tradingview.com' },
-      { title: 'CoinMarketCap', url: 'https://coinmarketcap.com' }
-    ],
-    morningRoutine: [
-      { task: '전일/간밤 주요 뉴스 확인', done: false },
-      { task: 'HTF (상위 타임프레임) 구조 파악', done: false },
-      { task: '오늘의 허용 손실(Daily Stop) 리마인드', done: false },
-      { task: '진입 및 무효화 주요 레벨 세팅', done: false }
-    ],
-    scratchpad: '',
-    setupTemplates: {}
+      { name: 'TradingView', url: 'https://tradingview.com', icon: '📈' },
+      { name: 'CoinMarketCap', url: 'https://coinmarketcap.com', icon: '🪙' },
+      { name: 'Economic Calendar', url: 'https://kr.investing.com/economic-calendar/', icon: '📅' }
+    ]
   },
   trades: [],
 };
@@ -70,7 +62,6 @@ export function parseImport(text) {
   return migrateDB(parsed);
 }
 
-// ✨ 이중 안전망이 적용된 향상된 마이그레이션 로직
 export function migrateDB(input) {
   if (!input) return structuredClone(DEFAULT_DB);
 
@@ -87,15 +78,6 @@ export function migrateDB(input) {
       schemaVersion: 3,
       meta: normalizeMeta(input.meta),
       trades: input.trades.map(normalizeTrade),
-    };
-  }
-
-  // v1/v2 등 알 수 없는 객체 구조 복원 방어 로직
-  if (input.meta || input.trades) {
-    return {
-      schemaVersion: 3,
-      meta: normalizeMeta(input.meta),
-      trades: (Array.isArray(input.trades) ? input.trades : []).map(fromV2Trade).map(normalizeTrade),
     };
   }
 
@@ -117,11 +99,7 @@ function normalizeMeta(meta = {}) {
     rules: String(meta.rules || ''),
     checklists: normalizeList(meta.checklists || base.checklists),
     lastTradeForm: meta.lastTradeForm || null,
-    dailyMemos: meta.dailyMemos || {},
-    quickLinks: Array.isArray(meta.quickLinks) ? meta.quickLinks : base.quickLinks,
-    morningRoutine: Array.isArray(meta.morningRoutine) ? meta.morningRoutine : base.morningRoutine,
-    scratchpad: String(meta.scratchpad || ''),
-    setupTemplates: meta.setupTemplates || {}
+    quickLinks: Array.isArray(meta.quickLinks) && meta.quickLinks.length ? meta.quickLinks : base.quickLinks
   };
 }
 
@@ -137,21 +115,6 @@ function normalizeBalancePoint(row) {
     stock: Number(row.stock || 0),
     type: String(row.type || 'PNL').toUpperCase(),
     memo: String(row.memo || '').trim(),
-  };
-}
-
-function fromV2Trade(t) {
-  const artifacts = Array.isArray(t.artifacts) ? t.artifacts : [];
-  return {
-    ...t,
-    grade: t.grade || 'B',
-    markPrice: Number(t.markPrice || 0),
-    liveNotes: t.liveNotes || '',
-    evidence: t.evidence || {
-      entryChart: artifacts[0] || '',
-      exitChart: artifacts[1] || '',
-      liveCharts: [],
-    },
   };
 }
 
@@ -177,8 +140,6 @@ function fromV5Trade(t) {
     markPrice: 0,
     context: '',
     thesis: '',
-    invalidationNote: '',
-    repeatable: false,
     review: t.memo || '',
     liveNotes: '',
     tags: [],
@@ -214,8 +175,6 @@ export function normalizeTrade(t = {}) {
 
     context: String(t.context || '').trim(),
     thesis: String(t.thesis || '').trim(),
-    invalidationNote: String(t.invalidationNote || '').trim(), // ✨ Playbook 연동 무효화 필드
-    repeatable: Boolean(t.repeatable), // ✨ Playbook 연동 반복 여부 필드
     review: String(t.review || '').trim(),
     liveNotes: String(t.liveNotes || '').trim(),
 
@@ -232,13 +191,23 @@ export function normalizeTrade(t = {}) {
   return trade;
 }
 
+// ✨ URL이 http나 https로 시작하지 않으면 자동으로 붙여주는 안전장치
+export function sanitizeUrl(url) {
+  if (!url) return '';
+  let trimmed = String(url).trim();
+  if (trimmed && !/^https?:\/\//i.test(trimmed)) {
+    trimmed = 'https://' + trimmed;
+  }
+  return trimmed;
+}
+
 function normalizeEvidence(evidence, artifacts) {
   const fallback = Array.isArray(artifacts) ? artifacts : [];
   const obj = evidence && typeof evidence === 'object' ? evidence : {};
   return {
-    entryChart: String(obj.entryChart || fallback[0] || '').trim(),
-    exitChart: String(obj.exitChart || fallback[1] || '').trim(),
-    liveCharts: Array.isArray(obj.liveCharts) ? obj.liveCharts.map(v => String(v).trim()).filter(Boolean) : [],
+    entryChart: sanitizeUrl(obj.entryChart || fallback[0]),
+    exitChart: sanitizeUrl(obj.exitChart || fallback[1]),
+    liveCharts: Array.isArray(obj.liveCharts) ? obj.liveCharts.map(v => sanitizeUrl(v)).filter(Boolean) : [],
   };
 }
 
