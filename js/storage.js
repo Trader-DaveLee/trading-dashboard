@@ -7,23 +7,6 @@ export const LEGACY_STORAGE_KEYS = [
 ];
 export const DRAFT_KEY = 'trading_desk_dashboard_v3_draft';
 
-// ✨ 로컬 타임존 기준 YYYY-MM-DD 추출기 (날짜 밀림 버그 방지)
-export function getLocalDateStr(dateObj = new Date()) {
-  const d = new Date(dateObj);
-  const tzOffset = d.getTimezoneOffset() * 60000;
-  return new Date(d.getTime() - tzOffset).toISOString().slice(0, 10);
-}
-
-// ✨ URL 안전장치
-export function sanitizeUrl(url) {
-  if (!url) return '';
-  let clean = url.trim();
-  if (clean && !clean.startsWith('http://') && !clean.startsWith('https://')) {
-    clean = 'https://' + clean;
-  }
-  return clean;
-}
-
 export const DEFAULT_DB = {
   schemaVersion: 3,
   meta: {
@@ -38,14 +21,18 @@ export const DEFAULT_DB = {
     checklists: ['손절 설정 확인', 'A급 셋업 여부', '리스크 1% 이하'],
     lastTradeForm: null,
     dailyMemos: {},
-    inbox: '', // ✨ Scratchpad
-    routineStates: {}, // ✨ Morning Routine 상태
-    quickLinks: [ // ✨ Quick Launch 기본값
-      { title: 'TradingView', url: 'https://kr.tradingview.com/chart/' },
-      { title: 'CoinMarketCap', url: 'https://coinmarketcap.com/' },
-      { title: 'Economic Calendar', url: 'https://kr.investing.com/economic-calendar/' },
-      { title: 'ChatGPT', url: 'https://chat.openai.com/' }
-    ]
+    quickLinks: [
+      { title: 'TradingView', url: 'https://tradingview.com' },
+      { title: 'CoinMarketCap', url: 'https://coinmarketcap.com' }
+    ],
+    morningRoutine: [
+      { task: '전일/간밤 주요 뉴스 확인', done: false },
+      { task: 'HTF (상위 타임프레임) 구조 파악', done: false },
+      { task: '오늘의 허용 손실(Daily Stop) 리마인드', done: false },
+      { task: '진입 및 무효화 주요 레벨 세팅', done: false }
+    ],
+    scratchpad: '',
+    setupTemplates: {}
   },
   trades: [],
 };
@@ -74,7 +61,7 @@ export function exportDB(db) {
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
-  link.download = `trading_dashboard_v3_${getLocalDateStr()}.json`;
+  link.download = `trading_dashboard_v3_${new Date().toISOString().slice(0, 10)}.json`;
   link.click();
 }
 
@@ -83,6 +70,7 @@ export function parseImport(text) {
   return migrateDB(parsed);
 }
 
+// ✨ 이중 안전망이 적용된 향상된 마이그레이션 로직
 export function migrateDB(input) {
   if (!input) return structuredClone(DEFAULT_DB);
 
@@ -99,6 +87,15 @@ export function migrateDB(input) {
       schemaVersion: 3,
       meta: normalizeMeta(input.meta),
       trades: input.trades.map(normalizeTrade),
+    };
+  }
+
+  // v1/v2 등 알 수 없는 객체 구조 복원 방어 로직
+  if (input.meta || input.trades) {
+    return {
+      schemaVersion: 3,
+      meta: normalizeMeta(input.meta),
+      trades: (Array.isArray(input.trades) ? input.trades : []).map(fromV2Trade).map(normalizeTrade),
     };
   }
 
@@ -121,9 +118,10 @@ function normalizeMeta(meta = {}) {
     checklists: normalizeList(meta.checklists || base.checklists),
     lastTradeForm: meta.lastTradeForm || null,
     dailyMemos: meta.dailyMemos || {},
-    inbox: String(meta.inbox || ''),
-    routineStates: meta.routineStates || {},
-    quickLinks: Array.isArray(meta.quickLinks) && meta.quickLinks.length ? meta.quickLinks : base.quickLinks
+    quickLinks: Array.isArray(meta.quickLinks) ? meta.quickLinks : base.quickLinks,
+    morningRoutine: Array.isArray(meta.morningRoutine) ? meta.morningRoutine : base.morningRoutine,
+    scratchpad: String(meta.scratchpad || ''),
+    setupTemplates: meta.setupTemplates || {}
   };
 }
 
@@ -139,6 +137,21 @@ function normalizeBalancePoint(row) {
     stock: Number(row.stock || 0),
     type: String(row.type || 'PNL').toUpperCase(),
     memo: String(row.memo || '').trim(),
+  };
+}
+
+function fromV2Trade(t) {
+  const artifacts = Array.isArray(t.artifacts) ? t.artifacts : [];
+  return {
+    ...t,
+    grade: t.grade || 'B',
+    markPrice: Number(t.markPrice || 0),
+    liveNotes: t.liveNotes || '',
+    evidence: t.evidence || {
+      entryChart: artifacts[0] || '',
+      exitChart: artifacts[1] || '',
+      liveCharts: [],
+    },
   };
 }
 
@@ -164,13 +177,13 @@ function fromV5Trade(t) {
     markPrice: 0,
     context: '',
     thesis: '',
+    invalidationNote: '',
+    repeatable: false,
     review: t.memo || '',
     liveNotes: '',
     tags: [],
     mistakes: [],
     checkedRules: [],
-    setupNote: '',
-    repeatable: false,
     evidence: { entryChart: t.img1 || '', exitChart: t.img2 || '', liveCharts: [] },
     entries: (t.entries || []).map(x => ({ price: Number(x.price || 0), type: x.type || 'M', weight: Number(x.weight || 0) })),
     exits: (t.exits || []).map(x => ({ price: Number(x.price || 0), type: x.type || 'M', weight: Number(x.weight || 0) })),
@@ -201,12 +214,10 @@ export function normalizeTrade(t = {}) {
 
     context: String(t.context || '').trim(),
     thesis: String(t.thesis || '').trim(),
+    invalidationNote: String(t.invalidationNote || '').trim(), // ✨ Playbook 연동 무효화 필드
+    repeatable: Boolean(t.repeatable), // ✨ Playbook 연동 반복 여부 필드
     review: String(t.review || '').trim(),
     liveNotes: String(t.liveNotes || '').trim(),
-    
-    // ✨ Playbook 연동 필드
-    setupNote: String(t.setupNote || '').trim(),
-    repeatable: Boolean(t.repeatable),
 
     tags: normalizeLowerList(t.tags),
     mistakes: normalizeLowerList(t.mistakes),
@@ -225,9 +236,9 @@ function normalizeEvidence(evidence, artifacts) {
   const fallback = Array.isArray(artifacts) ? artifacts : [];
   const obj = evidence && typeof evidence === 'object' ? evidence : {};
   return {
-    entryChart: sanitizeUrl(String(obj.entryChart || fallback[0] || '').trim()),
-    exitChart: sanitizeUrl(String(obj.exitChart || fallback[1] || '').trim()),
-    liveCharts: Array.isArray(obj.liveCharts) ? obj.liveCharts.map(v => sanitizeUrl(String(v).trim())).filter(Boolean) : [],
+    entryChart: String(obj.entryChart || fallback[0] || '').trim(),
+    exitChart: String(obj.exitChart || fallback[1] || '').trim(),
+    liveCharts: Array.isArray(obj.liveCharts) ? obj.liveCharts.map(v => String(v).trim()).filter(Boolean) : [],
   };
 }
 
