@@ -243,9 +243,8 @@ tbody tr:hover { background: #f1f5f9; cursor: pointer; }
 .empty-state { color: var(--muted); padding: 40px 20px; text-align: center; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 20px; font-weight: 700; }
 .review-bar { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 20px; padding: 16px 20px; border: 1px solid var(--line); background: #ffffff; border-radius: 20px; box-shadow: var(--shadow-subtle); }
 
-/* ✨ Sidebar Account Status 최적화 */
+/* Sidebar Account Status 최적화 */
 .journal-sidebar { position: sticky; top: 100px; align-content: start; }
-.resizable-card { resize: vertical; overflow: auto; min-height: 150px; }
 .bank-balance-shell { border-radius: 16px; overflow: hidden; border: 1px solid var(--line); background: #ffffff; margin-bottom: 12px; box-shadow: var(--shadow-subtle); }
 .bank-balance-head { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; background: #f8fafc; border-bottom: 1px solid var(--line); }
 .bank-balance-head span { color: var(--muted); font-weight: 800; font-size: 12px; text-transform: uppercase; }
@@ -278,7 +277,7 @@ tbody tr:hover { background: #f1f5f9; cursor: pointer; }
 
 
 /* ==========================================================================
-   📱 Mobile Optimization (Responsive UI)
+   📱 Mobile Optimization (Responsive UI) & Card View
    ========================================================================== */
 @media (max-width: 768px) {
   .container { padding: 12px; }
@@ -331,4 +330,22 @@ tbody tr:hover { background: #f1f5f9; cursor: pointer; }
   input, select, textarea, .tool-btn, .btn-save-balance { font-size: 14px; padding: 14px; }
   .check-inline { padding: 8px 0; }
   .check-inline input[type="checkbox"] { width: 22px; height: 22px; }
+
+  /* ✨ Phase 4: 모바일 Library 카드 뷰 (Card View) 전면 전환 */
+  .table-wrap { background: transparent; border: none; box-shadow: none; overflow: visible; }
+  .table-wrap table, .table-wrap thead, .table-wrap tbody, .table-wrap th, .table-wrap td, .table-wrap tr { display: block; width: 100%; }
+  .table-wrap thead { display: none; } /* 테이블 헤더 숨김 */
+  .table-wrap tr {
+    background: #fff; border: 1px solid var(--line); border-radius: 16px; margin-bottom: 16px;
+    padding: 16px; box-shadow: var(--shadow-subtle); display: grid; gap: 8px;
+  }
+  .table-wrap td {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 6px 0; border-bottom: 1px dashed #edf2f8; text-align: right;
+  }
+  .table-wrap td:last-child { border-bottom: none; }
+  .table-wrap td::before {
+    content: attr(data-label); font-weight: 800; color: var(--muted); text-transform: uppercase; font-size: 11px; text-align: left;
+  }
+  .selected-row { background: var(--accent-soft) !important; border-color: var(--accent); }
 }
