@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Trading Desk Dashboard v3.6 (Pro Edition)</title>
+  <title>Trading Desk Dashboard v3.7 (Pro Edition)</title>
   <link rel="stylesheet" href="./css/styles.css" />
 </head>
 <body>
@@ -49,7 +49,7 @@
 
       <div class="overview-top-row">
         <div id="metrics" class="metrics-grid"></div>
-        <article class="card premium-balance-card overview-bank-card hover-lift">
+        <article class="card premium-balance-card overview-bank-card">
           <div class="section-head inner-divider">
             <div><h3>💼 Portfolio Status</h3><p>현재 자산 구성 및 총액</p></div>
           </div>
@@ -58,17 +58,21 @@
       </div>
 
       <div class="grid grid-2" style="margin-bottom:24px;">
-        <article class="card chart-card hover-lift">
-          <div class="section-head"><div><h3>Equity Curve (매매 손익)</h3><p>순수 매매 성과 누적 곡선</p></div></div>
-          <div id="equity-chart" class="chart-box"></div>
+        <article class="card compact-section">
+          <div class="section-head">
+            <div><h3 style="color:var(--accent);">Today's Console</h3><p>오늘 하루의 매매 요약</p></div>
+          </div>
+          <div id="today-console" class="stack"></div>
         </article>
-        <article class="card chart-card hover-lift">
-          <div class="section-head"><div><h3>Balance Curve (총 자산 흐름)</h3><p>입출금이 반영된 실제 계좌 잔고 추이</p></div></div>
-          <div id="balance-chart" class="chart-box"></div>
+        <article class="card compact-section">
+          <div class="section-head">
+            <div><h3>EOD Memo (마감 일기)</h3><p>오늘 시장의 흐름과 내일의 대응</p></div>
+          </div>
+          <textarea id="eod-memo" class="rules-box" placeholder="오늘 시장은 어땠고, 내일은 어떻게 매매할 것인가..." style="min-height: 120px;"></textarea>
         </article>
       </div>
 
-      <article class="card overview-calendar-card hover-lift">
+      <article class="card overview-calendar-card">
         <div class="section-head">
           <div><h3>월간 캘린더 (Heatmap)</h3><p>일별 순손익 및 클릭하여 해당 일자 복기</p></div>
           <div class="inline-actions">
@@ -80,14 +84,25 @@
         <div id="calendar" class="calendar calendar-large"></div>
       </article>
 
-      <div class="grid grid-2" style="margin-top:24px;">
-        <article class="card chart-card hover-lift">
+      <div class="grid grid-2" style="margin-top:24px; margin-bottom:24px;">
+        <article class="card chart-card">
+          <div class="section-head"><div><h3>Equity Curve (매매 손익)</h3><p>순수 매매 성과 누적 곡선</p></div></div>
+          <div id="equity-chart" class="chart-box"></div>
+        </article>
+        <article class="card chart-card">
+          <div class="section-head"><div><h3>Balance Curve (총 자산 흐름)</h3><p>입출금이 반영된 실제 계좌 잔고 추이</p></div></div>
+          <div id="balance-chart" class="chart-box"></div>
+        </article>
+      </div>
+
+      <div class="grid grid-2">
+        <article class="card chart-card">
           <div class="section-head"><div><h3>셋업 성과</h3><p>Entry setup 평균 R</p></div></div>
           <div id="setup-chart" class="chart-box"></div>
         </article>
         <div class="stack">
-          <article class="card compact-section hover-lift"><div class="section-head"><div><h3>주요 실수</h3><p>빈도 및 누적 손실</p></div></div><div id="mistake-list" class="stack"></div></article>
-          <article class="card compact-section hover-lift"><div class="section-head"><div><h3>Desk Notes</h3><p>자동 분석 인사이트</p></div></div><div id="research-notes" class="stack"></div></article>
+          <article class="card compact-section"><div class="section-head"><div><h3>주요 실수</h3><p>빈도 및 누적 손실</p></div></div><div id="mistake-list" class="stack"></div></article>
+          <article class="card compact-section"><div class="section-head"><div><h3>Desk Notes</h3><p>자동 분석 인사이트</p></div></div><div id="research-notes" class="stack"></div></article>
         </div>
       </div>
     </section>
@@ -390,6 +405,18 @@
       <div id="playbook-gallery" class="playbook-grid"></div>
     </section>
   </main>
+
+  <div id="app-modal" class="modal-overlay">
+    <div class="modal-card">
+      <div id="modal-title" class="modal-title">알림</div>
+      <div id="modal-desc" class="modal-desc"></div>
+      <input type="text" id="modal-input" class="modal-input" />
+      <div class="modal-actions">
+        <button id="modal-btn-cancel" class="modal-btn modal-cancel">취소</button>
+        <button id="modal-btn-confirm" class="modal-btn modal-confirm">확인</button>
+      </div>
+    </div>
+  </div>
 
   <script type="module" src="./js/app.js"></script>
 </body>
