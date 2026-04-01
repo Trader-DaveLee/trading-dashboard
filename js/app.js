@@ -89,10 +89,11 @@ function cacheEls() {
   });
 }
 
-// ✨ 커스텀 모달 (Alert, Confirm, Prompt 대체)
+// ✨ 커스텀 모달 기능
 let modalCallback = null;
 function showModal({ type, title, desc, placeholder, val }, callback) {
   modalCallback = callback;
+  if(!els['app-modal']) return;
   els['app-modal'].classList.add('show');
   setText('modal-title', title || '알림');
   setHtml('modal-desc', desc || '');
@@ -109,7 +110,7 @@ function showModal({ type, title, desc, placeholder, val }, callback) {
 }
 
 function hideModal() {
-  els['app-modal'].classList.remove('show');
+  if(els['app-modal']) els['app-modal'].classList.remove('show');
 }
 
 function autoResize(el) {
@@ -130,14 +131,18 @@ function initMeta() {
 }
 
 function bindEvents() {
-  els['modal-btn-cancel'].onclick = () => { hideModal(); if (modalCallback) modalCallback(null); };
-  els['modal-btn-confirm'].onclick = () => {
-    hideModal();
-    if (modalCallback) {
-      const inp = els['modal-input'];
-      modalCallback(inp.style.display === 'block' ? inp.value : true);
-    }
-  };
+  if(els['modal-btn-cancel']) {
+    els['modal-btn-cancel'].onclick = () => { hideModal(); if (modalCallback) modalCallback(null); };
+  }
+  if(els['modal-btn-confirm']) {
+    els['modal-btn-confirm'].onclick = () => {
+      hideModal();
+      if (modalCallback) {
+        const inp = els['modal-input'];
+        modalCallback(inp.style.display === 'block' ? inp.value : true);
+      }
+    };
+  }
 
   els['btn-manage-ticker'].onclick = () => manageList('tickers', 'Ticker', 'upper');
   els['btn-manage-setup-entry'].onclick = () => manageList('entrySetups', 'Entry Setup', 'upper');
@@ -541,7 +546,6 @@ function resetFormForce() {
   setVal('setup-entry', state.db.meta.entrySetups[0] || '');
   setVal('setup-exit', state.db.meta.exitSetups[0] || '');
 
-  // 템플릿 로드
   const tpl = state.db.meta.lastTradeForm || {};
   setVal('account-size', tpl.accountSize || Math.round(Number(state.db.meta.accountBalance || 10000)));
   setVal('risk-pct', tpl.riskPct || 0.5);
@@ -649,7 +653,6 @@ function handleSubmit(event) {
     return;
   }
   
-  // ✨ Phase 1: 원칙 (Grade S) 강제 검증
   if (trade.grade === 'S' && trade.checkedRules.length < state.db.meta.checklists.length) {
     showModal({ type: 'ALERT', title: '원칙 위반 경고', desc: 'S등급은 설정한 원칙(체크리스트)을 100% 완벽히 지켰을 때만 부여할 수 있습니다.<br>체크리스트를 확인하거나 등급을 하향 조정하세요.' });
     return;
@@ -662,7 +665,6 @@ function handleSubmit(event) {
     state.db.trades.unshift(trade);
   }
 
-  // ✨ 최근 입력값 템플릿 저장
   state.db.meta.lastTradeForm = {
     accountSize: trade.accountSize,
     riskPct: trade.riskPct,
@@ -821,7 +823,7 @@ function metricCard(label, value, colorClass) {
   `;
 }
 
-// ✨ Today Console 렌더링
+// ✨ Today Console 추가
 function renderTodayConsole() {
   if (!els['today-console']) return;
   const todayStr = new Date().toISOString().slice(0, 10);
@@ -891,7 +893,7 @@ function renderOverview() {
 
   renderCalendar();
   renderEquityChart(stats.closed);
-  renderBalanceChart(); 
+  renderBalanceChart();
   renderOverviewPortfolio();
 }
 
@@ -982,6 +984,7 @@ function renderBalanceChart() {
   setHtml('balance-chart', lineSvg(points, true));
 }
 
+// ✨ 완벽히 복원된 SVG 차트 그리기 함수
 function lineSvg(points, isBalance = false) {
   if (points.length === 0) return '';
   const width = 780, height = 280, pad = 32;
@@ -1009,13 +1012,39 @@ function lineSvg(points, isBalance = false) {
   const area = `${d} L ${pad + (points.length - 1) * xStep} ${height - pad} L ${pad} ${height - pad} Z`;
   
   return `
-    <svg viewBox="0 0 ${width} ${height}" aria-label="chart">
-      <line x1="${pad}" y1="${height - pad}" x2="${width - pad}" y2="${height - pad}" class="grid-line" />
-      <line x1="${pad}" y1="${pad}" x2="${pad}" y2="${height - pad}" class="grid-line" />
-      <path d="${area}" class="area"></path>
-      <path d="${d}" class="line"></path>
+    <svg viewBox="0 0 ${width} ${height}" aria-label="chart" style="width:100%; height:100%;">
+      <line x1="${pad}" y1="${height - pad}" x2="${width - pad}" y2="${height - pad}" style="stroke:var(--line);" />
+      <line x1="${pad}" y1="${pad}" x2="${pad}" y2="${height - pad}" style="stroke:var(--line);" />
+      <path d="${area}" style="fill:rgba(37, 99, 235, 0.1);"></path>
+      <path d="${d}" style="fill:none; stroke:var(--accent); stroke-width:3px;"></path>
     </svg>
   `;
+}
+
+function renderSetupChart(rows) {
+  if (!rows.length) {
+    setHtml('setup-chart', emptyState('표시할 데이터가 없습니다.'));
+    return;
+  }
+  const width = 780;
+  const rowHeight = 28;
+  const gap = 12;
+  const height = rows.length * (rowHeight + gap) + 20;
+  const max = Math.max(...rows.map(row => Math.abs(row.value)), 1);
+
+  setHtml('setup-chart', `
+    <svg viewBox="0 0 ${width} ${height}" style="width:100%; height:100%;">
+      ${rows.map((row, idx) => {
+        const y = idx * (rowHeight + gap) + 10;
+        const barWidth = (Math.abs(row.value) / max) * 420;
+        return `
+          <text x="0" y="${y + 18}" fill="var(--muted)" font-size="11px" font-weight="800">${escapeHtml(row.label)} (${row.count})</text>
+          <rect x="280" y="${y}" width="${barWidth}" height="${rowHeight}" fill="${row.value >= 0 ? 'var(--green)' : 'var(--red)'}" rx="8"></rect>
+          <text x="${290 + barWidth}" y="${y + 18}" fill="var(--text)" font-size="11px" font-weight="800">${row.value.toFixed(2)}R</text>
+        `;
+      }).join('')}
+    </svg>
+  `);
 }
 
 function renderOverviewPortfolio() {
@@ -1075,6 +1104,14 @@ function renderAccountBalance() {
       ${row.memo ? `<div style="font-size:11px; color:#475569; background:#f1f5f9; padding:4px 8px; border-radius:6px; display:inline-block; margin-top:2px;">${escapeHtml(row.memo)}</div>` : ''}
     </div>
   `).join('') : emptyState('잔고 히스토리가 없습니다.'));
+}
+
+function calcTotalBalance() {
+  if(!els['bal-cash']) return 0;
+  const total = ['bal-cash','bal-crypto','bal-usdt','bal-stock']
+    .reduce((sum, id) => sum + Number(els[id].value || 0), 0);
+  setText('bal-total', moneyAbsNatural(total));
+  return total;
 }
 
 function updateBalance() {
