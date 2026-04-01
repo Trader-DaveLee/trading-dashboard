@@ -28,7 +28,7 @@ let draftTimer = null;
 const ID_LIST = [
   'nav','force-save-draft','export-json','import-json-btn','import-json','journal-status','draft-saved-at',
   'view-overview','metrics','overview-from','overview-to','overview-clear','overview-search','prev-month','calendar-title','next-month','calendar','equity-chart','balance-chart','setup-chart','mistake-list','research-notes','overview-portfolio',
-  'realtime-clock','quick-launch-grid','btn-manage-quick-links',
+  'realtime-clock','quick-launch-grid','btn-manage-quick-links','today-console','eod-memo',
   'view-journal','trade-form','trade-id','trade-date','btn-now','ticker','btn-manage-ticker','status','session','side','setup-entry','btn-manage-setup-entry','setup-exit','btn-manage-setup-exit',
   'account-size','risk-pct','leverage','maker-fee','taker-fee','stop-price','mark-price','stop-type','adjustment',
   'context','thesis','review','tags','mistakes',
@@ -341,9 +341,12 @@ function bindEvents() {
 
   if(els['btn-update-balance']) els['btn-update-balance'].onclick = updateBalance;
   
+  document.querySelectorAll('textarea.auto-resize').forEach(ta => {
+    ta.addEventListener('input', function() { autoResize(this); });
+  });
+
   if(els['desk-rules']) {
     els['desk-rules'].addEventListener('input', function() {
-      autoResize(this);
       state.db.meta.rules = this.value;
       saveDB(state.db);
     });
@@ -573,6 +576,7 @@ function hydrateInitialForm() {
   setVal('taker-fee', tpl.takerFee || 0.05);
   
   setVal('desk-rules', state.db.meta.rules || '');
+  setTimeout(() => autoResize(els['desk-rules']), 0);
   
   state.draftEntries = [{ price: 0, type: 'M', weight: 100 }];
   state.draftExits = [];
@@ -890,11 +894,11 @@ function updatePreview() {
   const metrics = trade.metrics;
   renderCalcSummary(metrics, trade);
   renderRiskPanel(metrics);
-  renderTradeEvaluation(metrics, trade); // ✨ 자동 평가 패널
+  renderTradeEvaluation(metrics, trade); // ✨ 자동 평가 패널 연결
   setText('deep-review-r', `${metrics.r.toFixed(2)}R`);
 }
 
-// ✨ Post-Trade 요약 자동 평가 패널 구현
+// ✨ Post-Trade Review 요약 자동 평가 패널 구현
 function renderTradeEvaluation(metrics, trade) {
   const container = els['post-trade-eval'];
   if (!container) return;
@@ -917,11 +921,13 @@ function renderTradeEvaluation(metrics, trade) {
   const winRateImpact = newWinRate - oldWinRate;
 
   setHtml('post-trade-eval', `
-    <div class="eval-item"><label>투입 시드</label><span>${moneyAbs(metrics.margin)}</span></div>
-    <div class="eval-item"><label>평균 진입</label><span>${moneyAbs(metrics.avgEntry)}</span></div>
-    <div class="eval-item"><label>평균 청산</label><span>${moneyAbs(metrics.avgExit)}</span></div>
-    <div class="eval-item"><label>최종 PnL</label><span class="${metrics.netPnl > 0 ? 'positive' : 'negative'}">${money(metrics.netPnl)}</span></div>
-    <div class="eval-item"><label>계좌 승률 변화</label><span class="${winRateImpact > 0 ? 'positive' : winRateImpact < 0 ? 'negative' : ''}">${winRateImpact > 0 ? '+' : ''}${winRateImpact.toFixed(2)}%p</span></div>
+    <div class="eval-grid">
+      <div class="eval-item"><label>투입 마진</label><span class="eval-value">${moneyAbs(metrics.margin)}</span></div>
+      <div class="eval-item"><label>평균 진입</label><span class="eval-value">${moneyAbs(metrics.avgEntry)}</span></div>
+      <div class="eval-item"><label>평균 청산</label><span class="eval-value">${moneyAbs(metrics.avgExit)}</span></div>
+      <div class="eval-item"><label>수수료</label><span class="eval-value negative">-${moneyAbs(metrics.totalFees)}</span></div>
+      <div class="eval-item"><label>최종 손익</label><span class="eval-value ${metrics.netPnl > 0 ? 'positive' : 'negative'}">${money(metrics.netPnl)}</span></div>
+    </div>
   `);
 }
 
@@ -991,6 +997,8 @@ function metricCard(label, value, colorClass) {
 }
 
 function renderOverview() {
+  renderTodayConsole();
+
   const trades = getOverviewTrades();
   const stats = summarize(trades);
   const setups = groupAverageR(stats.closed, trade => trade.setupEntry);
@@ -1026,6 +1034,39 @@ function renderOverview() {
   renderEquityChart(stats.closed);
   renderBalanceChart(); 
   renderOverviewPortfolio();
+}
+
+// ✨ Today Console 요약 렌더링
+function renderTodayConsole() {
+  if (!els['today-console']) return;
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const todays = state.db.trades.filter(t => t.date.slice(0,10) === todayStr);
+  const s = summarize(todays);
+  
+  if(!state.db.meta.dailyMemos) state.db.meta.dailyMemos = {};
+  setVal('eod-memo', state.db.meta.dailyMemos[todayStr] || '');
+  setTimeout(() => autoResize(els['eod-memo']), 0);
+
+  if (!todays.length) {
+    setHtml('today-console', emptyState('오늘 기록된 매매가 없습니다.'));
+  } else {
+    setHtml('today-console', `
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <div style="font-size:24px; font-weight:900; color:${s.net >= 0 ? 'var(--green)' : 'var(--red)'};">${money(s.net)}</div>
+        <div style="font-size:18px; font-weight:800; color:var(--text);">${s.avgR.toFixed(2)}R</div>
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+        <div style="background:#f1f5f9; padding:10px; border-radius:8px; text-align:center;">
+          <span style="display:block; font-size:11px; color:var(--muted); font-weight:800;">WINS / LOSSES</span>
+          <strong style="font-size:14px;">${s.wins.length}W / ${s.losses.length}L</strong>
+        </div>
+        <div style="background:#f1f5f9; padding:10px; border-radius:8px; text-align:center;">
+          <span style="display:block; font-size:11px; color:var(--muted); font-weight:800;">FEES PAID</span>
+          <strong style="font-size:14px; color:var(--red);">${moneyAbs(s.fees)}</strong>
+        </div>
+      </div>
+    `);
+  }
 }
 
 function renderStackStats(id, rows, formatter) {
@@ -1493,7 +1534,10 @@ function renderPlaybook() {
 
   let html = '';
   rows.forEach(trade => {
-    const chartUrl = trade.evidence?.exitChart || trade.evidence?.entryChart;
+    const exitC = Array.isArray(trade.evidence?.exitCharts) ? trade.evidence.exitCharts[0] : null;
+    const entryC = Array.isArray(trade.evidence?.entryCharts) ? trade.evidence.entryCharts[0] : null;
+    const chartUrl = exitC || entryC;
+    
     let imgHtml = '';
     if (chartUrl) {
       if (chartUrl.match(/\.(jpeg|jpg|gif|png|webp)$/i)) {
