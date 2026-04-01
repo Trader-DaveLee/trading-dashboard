@@ -1,11 +1,6 @@
 import { recalcTrade } from './calc.js';
-import {
-  summarize, groupAverageR, tagStats, filterTradesByDate
-} from './analytics.js';
-import {
-  loadDB, saveDB, exportDB, parseImport, normalizeTrade, sanitizeUrl,
-  loadDraft, saveDraft, clearDraft
-} from './storage.js';
+import { summarize, groupAverageR, tagStats, filterTradesByDate } from './analytics.js';
+import { loadDB, saveDB, exportDB, parseImport, normalizeTrade, sanitizeUrl, loadDraft, saveDraft, clearDraft } from './storage.js';
 
 const state = {
   db: loadDB(),
@@ -34,10 +29,7 @@ const ID_LIST = [
   'context','thesis','review','tags','mistakes',
   'add-entry','entries','add-exit','exits','calc-summary','quick-tags','quick-mistakes','live-notes','btn-insert-time','add-live-chart','live-charts-container',
   'add-entry-chart','entry-charts-container','add-exit-chart','exit-charts-container',
-  
-  // ✨ 실시간 영수증(Phase 4) 관련 ID
   'eval-status-badge', 'eval-margin', 'eval-bep', 'eval-fees', 'eval-pnl', 'eval-r', 'eval-roi', 'label-pnl', 'label-r',
-  
   'bal-cash','bal-crypto','bal-usdt','bal-stock','bal-total','balance-type','balance-memo','btn-update-balance','balance-history',
   'duplicate-trade','reset-form','delete-trade','grade',
   'desk-rules','master-checklist-list','new-check-input','btn-add-check','trade-checklist-container',
@@ -54,13 +46,6 @@ window.__desk = {
   applySameSetupFilter: () => filterBySelectedSetup(),
   applySameTickerFilter: () => filterBySelectedTicker(),
 };
-
-function getLocalDateKey(dateObj) {
-  const d = dateObj ? new Date(dateObj) : new Date();
-  if (Number.isNaN(d.getTime())) return '';
-  const pad = n => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
 
 window.__desk_jump_date = (dateString) => {
   setVal('f-from', dateString);
@@ -101,9 +86,7 @@ function bootstrap() {
 }
 
 function cacheEls() {
-  ID_LIST.forEach(id => {
-    els[id] = document.getElementById(id);
-  });
+  ID_LIST.forEach(id => { els[id] = document.getElementById(id); });
 }
 
 function startClock() {
@@ -111,10 +94,8 @@ function startClock() {
     const now = new Date();
     const pad = n => String(n).padStart(2, '0');
     const days = ['일','월','화','수','목','금','토'];
-    
     const dateStr = `${now.getFullYear()}. ${pad(now.getMonth()+1)}. ${pad(now.getDate())} (${days[now.getDay()]})`;
     const timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
-    
     if(els['realtime-clock']) {
       els['realtime-clock'].innerHTML = `<div class="clock-time">${timeStr}</div><div class="clock-date">${dateStr}</div>`;
     }
@@ -211,15 +192,12 @@ function openListManager(key, title, casing) {
     if (!state.db.meta[key]) state.db.meta[key] = [];
     const arr = state.db.meta[key];
     if (!arr.includes(val)) {
-      arr.push(val);
-      saveDB(state.db);
-      els['list-manage-input'].value = '';
+      arr.push(val); saveDB(state.db); els['list-manage-input'].value = '';
       renderItems(); renderDropdowns(); renderQuickChips();
     } else {
       showModal({ type: 'ALERT', title: '오류', desc: '이미 존재하는 항목입니다.' });
     }
   };
-
   renderItems();
 }
 
@@ -266,11 +244,9 @@ function openQuickLinkManager() {
     if (!name || !url) { showModal({ type: 'ALERT', title: '입력 오류', desc: '이름과 URL은 필수입니다.' }); return; }
     if (!state.db.meta.quickLinks) state.db.meta.quickLinks = [];
     state.db.meta.quickLinks.push({ name, url: sanitizeUrl(url), icon: icon || '🔗' });
-    saveDB(state.db);
-    setVal('ql-name', ''); setVal('ql-url', ''); setVal('ql-icon', '');
+    saveDB(state.db); setVal('ql-name', ''); setVal('ql-url', ''); setVal('ql-icon', '');
     renderItems(); renderQuickLaunch();
   };
-
   renderItems();
 }
 
@@ -892,50 +868,47 @@ function applyTradeToForm(trade, options = {}) {
   updatePreview();
 }
 
-// ✨ 화면 업데이트 및 영수증 실시간 렌더링
 function updatePreview() {
   const trade = readForm();
   const metrics = trade.metrics;
-  
   renderCalcSummary(metrics, trade);
   renderRiskPanel(metrics);
-  renderTradeEvaluation(metrics, trade); // 영수증 렌더링
-
-  // 기존 Risk Planner 본절가 반영
+  renderTradeEvaluation(metrics, trade); // ✨ 자동 평가 패널 연동
+  setText('deep-review-r', `${metrics.r.toFixed(2)}R`);
+  
   if(els['risk-bep']) els['risk-bep'].textContent = metrics.breakEvenPrice > 0 ? safeNumber(metrics.breakEvenPrice.toFixed(4)) : '0.00';
 }
 
-// ✨ 통합된 영수증(Receipt) 평가 패널 렌더링
 function renderTradeEvaluation(metrics, trade) {
-  if (!els['eval-status-badge']) return;
+  const container = els['post-trade-eval'];
+  if (!container) return;
+  
+  if (trade.status !== 'CLOSED' || !metrics.valid) {
+    container.classList.add('hidden');
+    return;
+  }
+  container.classList.remove('hidden');
 
-  const isClosed = trade.status === 'CLOSED';
+  const isWin = metrics.netPnl > 0;
+  const otherClosed = state.db.trades.filter(t => t.status === 'CLOSED' && t.id !== trade.id);
+  const oldWins = otherClosed.filter(t => t.metrics.pnl > 0).length;
+  const oldTotal = otherClosed.length;
+  const oldWinRate = oldTotal ? (oldWins / oldTotal) * 100 : 0;
   
-  // 상태 바지 표시 (OPEN/CLOSED)
-  els['eval-status-badge'].innerHTML = isClosed 
-    ? '<span style="color:#94a3b8;">FINAL (CLOSED)</span>' 
-    : '<span style="color:#60a5fa;">PROJECTED (OPEN)</span>';
+  const newWins = oldWins + (isWin ? 1 : 0);
+  const newTotal = oldTotal + 1;
+  const newWinRate = (newWins / newTotal) * 100;
+  const winRateImpact = newWinRate - oldWinRate;
 
-  // 값 바인딩
-  els['eval-margin'].textContent = moneyAbs(metrics.margin);
-  els['eval-bep'].textContent = metrics.breakEvenPrice > 0 ? safeNumber(metrics.breakEvenPrice.toFixed(4)) : '0.00';
-  els['eval-fees'].textContent = `-${moneyAbs(metrics.totalFees)}`;
-  
-  const displayPnl = isClosed ? metrics.netPnl : (metrics.exitPct > 0 ? metrics.projectedPnl : metrics.unrealizedPnl);
-  const displayR = isClosed ? metrics.r : (metrics.exitPct > 0 ? metrics.projectedR : metrics.unrealizedR);
-  
-  els['eval-pnl'].textContent = money(displayPnl);
-  els['eval-pnl'].className = `eval-value ${displayPnl > 0 ? 'positive' : displayPnl < 0 ? 'negative' : ''}`;
-  
-  els['eval-r'].textContent = `${displayR.toFixed(2)}R`;
-  els['eval-r'].className = `eval-value ${displayR > 0 ? 'positive' : displayR < 0 ? 'negative' : ''}`;
-  
-  els['eval-roi'].textContent = `${metrics.accountImpact > 0 ? '+' : ''}${metrics.accountImpact.toFixed(2)}%`;
-  els['eval-roi'].className = `eval-value ${metrics.accountImpact > 0 ? 'positive' : metrics.accountImpact < 0 ? 'negative' : ''}`;
-
-  // 라벨 문구 변경 (예상 vs 최종)
-  if(els['label-pnl']) els['label-pnl'].textContent = isClosed ? '최종 PnL' : '예상 PnL';
-  if(els['label-r']) els['label-r'].textContent = isClosed ? '최종 R' : '예상 R';
+  setHtml('post-trade-eval', `
+    <div class="eval-grid">
+      <div class="eval-item"><label>투입 마진</label><span class="eval-value">${moneyAbs(metrics.margin)}</span></div>
+      <div class="eval-item"><label>평균 진입</label><span class="eval-value">${moneyAbs(metrics.avgEntry)}</span></div>
+      <div class="eval-item"><label>평균 청산</label><span class="eval-value">${moneyAbs(metrics.avgExit)}</span></div>
+      <div class="eval-item"><label>수수료</label><span class="eval-value negative">-${moneyAbs(metrics.totalFees)}</span></div>
+      <div class="eval-item"><label>최종 손익</label><span class="eval-value ${metrics.netPnl > 0 ? 'positive' : 'negative'}">${money(metrics.netPnl)}</span></div>
+    </div>
+  `);
 }
 
 function renderCalcSummary(metrics, trade) {
