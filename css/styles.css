@@ -50,12 +50,34 @@ input:focus, select:focus, textarea:focus {
 }
 .hidden { display: none !important; }
 
-/* ✨ Desk Rules 자동 높이 조절 텍스트 상자 전용 스타일 */
+/* ✨ Desk Rules / EOD Memo 자동 높이 조절 텍스트 상자 전용 스타일 */
 .rules-box {
   resize: none; 
   overflow: hidden; 
   min-height: 80px; 
 }
+
+/* ✨ 커스텀 모달 스타일 */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+  z-index: 9999; display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none; transition: opacity 0.2s ease;
+}
+.modal-overlay.show { opacity: 1; pointer-events: auto; }
+.modal-card {
+  background: #fff; width: 400px; max-width: 90%; border-radius: 20px; padding: 24px;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.1); transform: translateY(20px); transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.modal-overlay.show .modal-card { transform: translateY(0); }
+.modal-title { font-size: 18px; font-weight: 800; color: var(--text); margin-bottom: 8px; }
+.modal-desc { font-size: 13px; color: var(--muted); margin-bottom: 16px; line-height: 1.5; font-weight: 600;}
+.modal-input { width: 100%; margin-bottom: 16px; display: none; }
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+.modal-btn { padding: 10px 16px; border-radius: 12px; font-weight: 700; border: none; cursor: pointer; transition: 0.2s; font-size: 13px;}
+.modal-cancel { background: #f1f5f9; color: var(--muted); }
+.modal-cancel:hover { background: #e2e8f0; color: var(--text); }
+.modal-confirm { background: var(--accent); color: #fff; }
+.modal-confirm:hover { background: var(--accent-hover); }
 
 /* Topbar */
 .topbar {
@@ -331,10 +353,9 @@ tbody tr:hover { background: #f1f5f9; cursor: pointer; }
   .check-inline { padding: 8px 0; }
   .check-inline input[type="checkbox"] { width: 22px; height: 22px; }
 
-  /* ✨ Phase 4: 모바일 Library 카드 뷰 (Card View) 전면 전환 */
   .table-wrap { background: transparent; border: none; box-shadow: none; overflow: visible; }
   .table-wrap table, .table-wrap thead, .table-wrap tbody, .table-wrap th, .table-wrap td, .table-wrap tr { display: block; width: 100%; }
-  .table-wrap thead { display: none; } /* 테이블 헤더 숨김 */
+  .table-wrap thead { display: none; } 
   .table-wrap tr {
     background: #fff; border: 1px solid var(--line); border-radius: 16px; margin-bottom: 16px;
     padding: 16px; box-shadow: var(--shadow-subtle); display: grid; gap: 8px;
