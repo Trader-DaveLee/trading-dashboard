@@ -1,6 +1,11 @@
 import { recalcTrade } from './calc.js';
-import { summarize, groupAverageR, tagStats, filterTradesByDate } from './analytics.js';
-import { loadDB, saveDB, exportDB, parseImport, normalizeTrade, sanitizeUrl, loadDraft, saveDraft, clearDraft } from './storage.js';
+import {
+  summarize, groupAverageR, tagStats, filterTradesByDate
+} from './analytics.js';
+import {
+  loadDB, saveDB, exportDB, parseImport, normalizeTrade, sanitizeUrl,
+  loadDraft, saveDraft, clearDraft
+} from './storage.js';
 
 const state = {
   db: loadDB(),
@@ -25,7 +30,7 @@ const ID_LIST = [
   'view-overview','metrics','overview-from','overview-to','overview-clear','overview-search','prev-month','calendar-title','next-month','calendar','equity-chart','balance-chart','setup-chart','mistake-list','research-notes','overview-portfolio',
   'realtime-clock','quick-launch-grid','btn-manage-quick-links',
   'view-journal','trade-form','trade-id','trade-date','btn-now','ticker','btn-manage-ticker','status','session','side','setup-entry','btn-manage-setup-entry','setup-exit','btn-manage-setup-exit',
-  'account-size','risk-pct','leverage','maker-fee','taker-fee','stop-price','mark-price','stop-type','adjustment',
+  'account-size','risk-pct','leverage','maker-fee','taker-fee','stop-price','target-price','mark-price','stop-type','adjustment',
   'context','thesis','review','tags','mistakes',
   'add-entry','entries','add-exit','exits','calc-summary','quick-tags','quick-mistakes','live-notes','btn-insert-time','add-live-chart','live-charts-container',
   'add-entry-chart','entry-charts-container','add-exit-chart','exit-charts-container',
@@ -33,7 +38,8 @@ const ID_LIST = [
   'bal-cash','bal-crypto','bal-usdt','bal-stock','bal-total','balance-type','balance-memo','btn-update-balance','balance-history',
   'duplicate-trade','reset-form','delete-trade','grade',
   'desk-rules','master-checklist-list','new-check-input','btn-add-check','trade-checklist-container',
-  'risk-risk-dollar','risk-qty','risk-margin','risk-slider','risk-notional','risk-stop-distance','risk-fees','risk-realized','risk-unrealized','risk-residual','risk-bep',
+  'risk-risk-dollar','risk-qty','risk-margin','risk-slider','risk-notional','risk-stop-distance','risk-fees','risk-realized','risk-unrealized','risk-residual',
+  'risk-projected-pnl','risk-projected-r',
   'view-library','q','f-from','f-to','f-status','f-side','f-session','f-setup','f-tag','f-mistake','f-grade','sort','clear-filters','library-result-count','review-position','review-breadcrumb','prev-trade','next-trade','filter-same-setup','filter-same-ticker','clear-quick-filter','trade-table','detail','detail-insights',
   'view-playbook','playbook-gallery',
   'app-modal','modal-title','modal-desc','modal-input','modal-btn-cancel','modal-btn-confirm',
@@ -46,6 +52,13 @@ window.__desk = {
   applySameSetupFilter: () => filterBySelectedSetup(),
   applySameTickerFilter: () => filterBySelectedTicker(),
 };
+
+function getLocalDateKey(dateObj) {
+  const d = dateObj ? new Date(dateObj) : new Date();
+  if (Number.isNaN(d.getTime())) return '';
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
 
 window.__desk_jump_date = (dateString) => {
   setVal('f-from', dateString);
@@ -86,7 +99,9 @@ function bootstrap() {
 }
 
 function cacheEls() {
-  ID_LIST.forEach(id => { els[id] = document.getElementById(id); });
+  ID_LIST.forEach(id => {
+    els[id] = document.getElementById(id);
+  });
 }
 
 function startClock() {
@@ -94,8 +109,10 @@ function startClock() {
     const now = new Date();
     const pad = n => String(n).padStart(2, '0');
     const days = ['일','월','화','수','목','금','토'];
+    
     const dateStr = `${now.getFullYear()}. ${pad(now.getMonth()+1)}. ${pad(now.getDate())} (${days[now.getDay()]})`;
     const timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+    
     if(els['realtime-clock']) {
       els['realtime-clock'].innerHTML = `<div class="clock-time">${timeStr}</div><div class="clock-date">${dateStr}</div>`;
     }
@@ -192,12 +209,15 @@ function openListManager(key, title, casing) {
     if (!state.db.meta[key]) state.db.meta[key] = [];
     const arr = state.db.meta[key];
     if (!arr.includes(val)) {
-      arr.push(val); saveDB(state.db); els['list-manage-input'].value = '';
+      arr.push(val);
+      saveDB(state.db);
+      els['list-manage-input'].value = '';
       renderItems(); renderDropdowns(); renderQuickChips();
     } else {
       showModal({ type: 'ALERT', title: '오류', desc: '이미 존재하는 항목입니다.' });
     }
   };
+
   renderItems();
 }
 
@@ -244,9 +264,11 @@ function openQuickLinkManager() {
     if (!name || !url) { showModal({ type: 'ALERT', title: '입력 오류', desc: '이름과 URL은 필수입니다.' }); return; }
     if (!state.db.meta.quickLinks) state.db.meta.quickLinks = [];
     state.db.meta.quickLinks.push({ name, url: sanitizeUrl(url), icon: icon || '🔗' });
-    saveDB(state.db); setVal('ql-name', ''); setVal('ql-url', ''); setVal('ql-icon', '');
+    saveDB(state.db);
+    setVal('ql-name', ''); setVal('ql-url', ''); setVal('ql-icon', '');
     renderItems(); renderQuickLaunch();
   };
+
   renderItems();
 }
 
@@ -349,7 +371,7 @@ function bindEvents() {
 
   [
     'trade-date','ticker','status','session','side','setup-entry','setup-exit',
-    'account-size','risk-pct','leverage','maker-fee','taker-fee','stop-price','mark-price','stop-type','adjustment',
+    'account-size','risk-pct','leverage','maker-fee','taker-fee','stop-price','target-price','mark-price','stop-type','adjustment',
     'context','thesis','review','tags','mistakes','grade','live-notes'
   ].forEach(id => {
     if (!els[id]) return;
@@ -553,6 +575,7 @@ function hydrateInitialForm() {
   setVal('leverage', tpl.leverage || 5);
   setVal('maker-fee', tpl.makerFee || 0.02);
   setVal('taker-fee', tpl.takerFee || 0.05);
+  setVal('target-price', ''); // 폼 초기화 시 목표가는 비움
   
   setVal('desk-rules', state.db.meta.rules || '');
   setTimeout(() => autoResize(els['desk-rules']), 0);
@@ -584,6 +607,8 @@ function renderLegs(kind) {
   const key = kind === 'entry' ? 'draftEntries' : 'draftExits';
   const target = els[kind === 'entry' ? 'entries' : 'exits'];
   if(!target) return;
+  
+  // ✨ Scaling In/Out 레이아웃을 넓게 1줄로 쓰는 형태로 렌더링
   target.innerHTML = state[key].map((leg, index) => `
     <div class="leg-row" data-kind="${kind}" data-index="${index}">
       <div class="input-with-unit">
@@ -636,7 +661,7 @@ function resetFormForce() {
 
   [
     'trade-id','context','thesis','review','tags','mistakes','live-notes',
-    'mark-price','adjustment','stop-price'
+    'mark-price','adjustment','stop-price','target-price'
   ].forEach(id => setVal(id, ''));
 
   setVal('trade-date', inputDate(new Date().toISOString()));
@@ -722,6 +747,7 @@ function readForm() {
     makerFee: Number(getVal('maker-fee') || 0),
     takerFee: Number(getVal('taker-fee') || 0),
     stopPrice: Number(getVal('stop-price') || 0),
+    targetPrice: Number(getVal('target-price') || 0),
     markPrice: Number(getVal('mark-price') || 0),
     stopType: getVal('stop-type'),
     adjustment: Number(getVal('adjustment') || 0),
@@ -838,6 +864,7 @@ function applyTradeToForm(trade, options = {}) {
   setVal('maker-fee', trade.makerFee);
   setVal('taker-fee', trade.takerFee);
   setVal('stop-price', trade.stopPrice || '');
+  setVal('target-price', trade.targetPrice || '');
   setVal('mark-price', trade.markPrice || '');
   setVal('stop-type', trade.stopType);
   setVal('adjustment', trade.adjustment || 0);
@@ -868,47 +895,46 @@ function applyTradeToForm(trade, options = {}) {
   updatePreview();
 }
 
+// ✨ 화면 업데이트 및 영수증 실시간 렌더링
 function updatePreview() {
   const trade = readForm();
   const metrics = trade.metrics;
+  
   renderCalcSummary(metrics, trade);
   renderRiskPanel(metrics);
-  renderTradeEvaluation(metrics, trade); // ✨ 자동 평가 패널 연동
-  setText('deep-review-r', `${metrics.r.toFixed(2)}R`);
-  
+  renderTradeEvaluation(metrics, trade); // 영수증 렌더링
+
   if(els['risk-bep']) els['risk-bep'].textContent = metrics.breakEvenPrice > 0 ? safeNumber(metrics.breakEvenPrice.toFixed(4)) : '0.00';
 }
 
+// ✨ 통합된 영수증(Receipt) 평가 패널 렌더링
 function renderTradeEvaluation(metrics, trade) {
-  const container = els['post-trade-eval'];
-  if (!container) return;
-  
-  if (trade.status !== 'CLOSED' || !metrics.valid) {
-    container.classList.add('hidden');
-    return;
-  }
-  container.classList.remove('hidden');
+  if (!els['eval-status-badge']) return;
 
-  const isWin = metrics.netPnl > 0;
-  const otherClosed = state.db.trades.filter(t => t.status === 'CLOSED' && t.id !== trade.id);
-  const oldWins = otherClosed.filter(t => t.metrics.pnl > 0).length;
-  const oldTotal = otherClosed.length;
-  const oldWinRate = oldTotal ? (oldWins / oldTotal) * 100 : 0;
+  const isClosed = trade.status === 'CLOSED';
   
-  const newWins = oldWins + (isWin ? 1 : 0);
-  const newTotal = oldTotal + 1;
-  const newWinRate = (newWins / newTotal) * 100;
-  const winRateImpact = newWinRate - oldWinRate;
+  els['eval-status-badge'].innerHTML = isClosed 
+    ? '<span style="color:#94a3b8;">FINAL (CLOSED)</span>' 
+    : '<span style="color:#60a5fa;">PROJECTED (OPEN)</span>';
 
-  setHtml('post-trade-eval', `
-    <div class="eval-grid">
-      <div class="eval-item"><label>투입 마진</label><span class="eval-value">${moneyAbs(metrics.margin)}</span></div>
-      <div class="eval-item"><label>평균 진입</label><span class="eval-value">${moneyAbs(metrics.avgEntry)}</span></div>
-      <div class="eval-item"><label>평균 청산</label><span class="eval-value">${moneyAbs(metrics.avgExit)}</span></div>
-      <div class="eval-item"><label>수수료</label><span class="eval-value negative">-${moneyAbs(metrics.totalFees)}</span></div>
-      <div class="eval-item"><label>최종 손익</label><span class="eval-value ${metrics.netPnl > 0 ? 'positive' : 'negative'}">${money(metrics.netPnl)}</span></div>
-    </div>
-  `);
+  els['eval-margin'].textContent = moneyAbs(metrics.margin);
+  els['eval-bep'].textContent = metrics.breakEvenPrice > 0 ? safeNumber(metrics.breakEvenPrice.toFixed(4)) : '0.00';
+  els['eval-fees'].textContent = `-${moneyAbs(metrics.totalFees)}`;
+  
+  const displayPnl = isClosed ? metrics.netPnl : (metrics.exitPct > 0 ? metrics.projectedPnl : metrics.unrealizedPnl);
+  const displayR = isClosed ? metrics.r : (metrics.exitPct > 0 ? metrics.projectedR : metrics.unrealizedR);
+  
+  els['eval-pnl'].textContent = money(displayPnl);
+  els['eval-pnl'].className = `eval-value ${displayPnl > 0 ? 'positive' : displayPnl < 0 ? 'negative' : ''}`;
+  
+  els['eval-r'].textContent = `${displayR.toFixed(2)}R`;
+  els['eval-r'].className = `eval-value ${displayR > 0 ? 'positive' : displayR < 0 ? 'negative' : ''}`;
+  
+  els['eval-roi'].textContent = `${metrics.accountImpact > 0 ? '+' : ''}${metrics.accountImpact.toFixed(2)}%`;
+  els['eval-roi'].className = `eval-value ${metrics.accountImpact > 0 ? 'positive' : metrics.accountImpact < 0 ? 'negative' : ''}`;
+
+  if(els['label-pnl']) els['label-pnl'].textContent = isClosed ? '최종 PnL' : '예상 PnL';
+  if(els['label-r']) els['label-r'].textContent = isClosed ? '최종 R' : '예상 R';
 }
 
 function renderCalcSummary(metrics, trade) {
@@ -956,10 +982,11 @@ function renderCalcSummary(metrics, trade) {
 
 function renderRiskPanel(metrics) {
   setText('risk-risk-dollar', moneyAbs(metrics.riskDollar));
+  setText('risk-projected-pnl', moneyAbs(metrics.projectedPnl));
+  setText('risk-projected-r', `${metrics.projectedR.toFixed(2)}R`);
   setText('risk-qty', qty(metrics.qty));
   setText('risk-margin', moneyAbs(metrics.margin));
   setText('risk-slider', `${metrics.sliderPct.toFixed(1)}%`);
-  setText('risk-notional', moneyAbs(metrics.notional));
   setText('risk-stop-distance', `${metrics.stopDistancePct.toFixed(2)}%`);
   setText('risk-fees', moneyAbs(metrics.totalFees));
   setText('risk-realized', money(metrics.realizedPnl));
