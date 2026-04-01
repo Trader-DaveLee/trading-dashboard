@@ -15,8 +15,8 @@ const state = {
   filteredTrades: [],
   draftEntries: [{ price: 0, type: 'M', weight: 100 }],
   draftExits: [],
-  draftEntryCharts: [], // ✨ 진입 차트 관리
-  draftExitCharts: [],  // ✨ 종료 차트 관리
+  draftEntryCharts: [],
+  draftExitCharts: [],
   draftLiveCharts: [],
   dirty: false,
 };
@@ -28,12 +28,12 @@ let draftTimer = null;
 const ID_LIST = [
   'nav','force-save-draft','export-json','import-json-btn','import-json','journal-status','draft-saved-at',
   'view-overview','metrics','overview-from','overview-to','overview-clear','overview-search','prev-month','calendar-title','next-month','calendar','equity-chart','balance-chart','setup-chart','mistake-list','research-notes','overview-portfolio',
-  'realtime-clock','quick-launch-grid','btn-manage-quick-links','today-console','eod-memo',
+  'realtime-clock','quick-launch-grid','btn-manage-quick-links',
   'view-journal','trade-form','trade-id','trade-date','btn-now','ticker','btn-manage-ticker','status','session','side','setup-entry','btn-manage-setup-entry','setup-exit','btn-manage-setup-exit',
   'account-size','risk-pct','leverage','maker-fee','taker-fee','stop-price','mark-price','stop-type','adjustment',
   'context','thesis','review','tags','mistakes',
   'add-entry','entries','add-exit','exits','calc-summary','quick-tags','quick-mistakes','live-notes','btn-insert-time','add-live-chart','live-charts-container',
-  'add-entry-chart','entry-charts-container','add-exit-chart','exit-charts-container','post-trade-summary', // ✨ 추가된 ID
+  'add-entry-chart','entry-charts-container','add-exit-chart','exit-charts-container','post-trade-eval',
   'bal-cash','bal-crypto','bal-usdt','bal-stock','bal-total','balance-type','balance-memo','btn-update-balance','balance-history',
   'duplicate-trade','reset-form','delete-trade','grade','deep-review-r',
   'desk-rules','master-checklist-list','new-check-input','btn-add-check','trade-checklist-container',
@@ -295,9 +295,9 @@ function bindEvents() {
   if(els['add-entry']) els['add-entry'].onclick = () => { state.draftEntries.push({ price: 0, type: 'M', weight: 0 }); renderLegs('entry'); updatePreview(); };
   if(els['add-exit']) els['add-exit'].onclick = () => { state.draftExits.push({ price: 0, type: 'M', weight: 0 }); renderLegs('exit'); updatePreview(); };
   
-  if(els['add-live-chart']) els['add-live-chart'].onclick = () => { state.draftLiveCharts.push(''); renderChartInputs('live'); updatePreview(); };
   if(els['add-entry-chart']) els['add-entry-chart'].onclick = () => { state.draftEntryCharts.push(''); renderChartInputs('entry'); updatePreview(); };
   if(els['add-exit-chart']) els['add-exit-chart'].onclick = () => { state.draftExitCharts.push(''); renderChartInputs('exit'); updatePreview(); };
+  if(els['add-live-chart']) els['add-live-chart'].onclick = () => { state.draftLiveCharts.push(''); renderChartInputs('live'); updatePreview(); };
 
   if(els['reset-form']) els['reset-form'].onclick = resetForm;
   if(els['delete-trade']) els['delete-trade'].onclick = deleteTrade;
@@ -341,12 +341,9 @@ function bindEvents() {
 
   if(els['btn-update-balance']) els['btn-update-balance'].onclick = updateBalance;
   
-  document.querySelectorAll('textarea.auto-resize').forEach(ta => {
-    ta.addEventListener('input', function() { autoResize(this); });
-  });
-
   if(els['desk-rules']) {
     els['desk-rules'].addEventListener('input', function() {
+      autoResize(this);
       state.db.meta.rules = this.value;
       saveDB(state.db);
     });
@@ -534,42 +531,7 @@ function renderQuickChips() {
   }
 }
 
-function hydrateInitialForm() {
-  const tpl = state.db.meta.lastTradeForm || {};
-  setVal('trade-date', inputDate(new Date().toISOString()));
-  setVal('account-size', tpl.accountSize || Math.round(Number(state.db.meta.accountBalance || 10000)));
-  setVal('risk-pct', tpl.riskPct || 0.5);
-  setVal('leverage', tpl.leverage || 5);
-  setVal('maker-fee', tpl.makerFee || 0.02);
-  setVal('taker-fee', tpl.takerFee || 0.05);
-  
-  setVal('desk-rules', state.db.meta.rules || '');
-  setTimeout(() => autoResize(els['desk-rules']), 0);
-  
-  state.draftEntries = [{ price: 0, type: 'M', weight: 100 }];
-  state.draftExits = [];
-  state.draftEntryCharts = [''];
-  state.draftExitCharts = [''];
-  state.draftLiveCharts = [];
-  renderLegs('entry');
-  renderLegs('exit');
-  renderChartInputs('entry');
-  renderChartInputs('exit');
-  renderChartInputs('live');
-  renderTradeChecklist([]);
-  calcTotalBalance();
-}
-
-function restoreDraftIfPresent() {
-  const draft = loadDraft();
-  if (!draft?.trade) return;
-  applyTradeToForm(draft.trade, { keepId: Boolean(draft.trade.id) });
-  if (draft.savedAt) {
-    setText('draft-saved-at', `Draft ${formatDateTime(draft.savedAt)} 저장`);
-  }
-}
-
-// ✨ 공통 차트 인풋 렌더링 (Entry, Exit, Live)
+// ✨ 다중 차트 렌더링 통합 (Entry, Exit, Live)
 function renderChartInputs(type) {
   let arr, containerId;
   if(type === 'entry') { arr = state.draftEntryCharts; containerId = 'entry-charts-container'; }
@@ -599,6 +561,40 @@ function renderChartInputs(type) {
       markDirty(); persistDraft();
     };
   });
+}
+
+function hydrateInitialForm() {
+  const tpl = state.db.meta.lastTradeForm || {};
+  setVal('trade-date', inputDate(new Date().toISOString()));
+  setVal('account-size', tpl.accountSize || Math.round(Number(state.db.meta.accountBalance || 10000)));
+  setVal('risk-pct', tpl.riskPct || 0.5);
+  setVal('leverage', tpl.leverage || 5);
+  setVal('maker-fee', tpl.makerFee || 0.02);
+  setVal('taker-fee', tpl.takerFee || 0.05);
+  
+  setVal('desk-rules', state.db.meta.rules || '');
+  
+  state.draftEntries = [{ price: 0, type: 'M', weight: 100 }];
+  state.draftExits = [];
+  state.draftEntryCharts = [''];
+  state.draftExitCharts = [''];
+  state.draftLiveCharts = [];
+  renderLegs('entry');
+  renderLegs('exit');
+  renderChartInputs('entry');
+  renderChartInputs('exit');
+  renderChartInputs('live');
+  renderTradeChecklist([]);
+  calcTotalBalance();
+}
+
+function restoreDraftIfPresent() {
+  const draft = loadDraft();
+  if (!draft?.trade) return;
+  applyTradeToForm(draft.trade, { keepId: Boolean(draft.trade.id) });
+  if (draft.savedAt) {
+    setText('draft-saved-at', `Draft ${formatDateTime(draft.savedAt)} 저장`);
+  }
 }
 
 function renderLegs(kind) {
@@ -894,22 +890,22 @@ function updatePreview() {
   const metrics = trade.metrics;
   renderCalcSummary(metrics, trade);
   renderRiskPanel(metrics);
-  renderPostTradeSummary(metrics, trade);
+  renderTradeEvaluation(metrics, trade); // ✨ 자동 평가 패널
   setText('deep-review-r', `${metrics.r.toFixed(2)}R`);
 }
 
-// ✨ Post-Trade Review 요약 정보 렌더링
-function renderPostTradeSummary(metrics, trade) {
-  const container = els['post-trade-summary'];
+// ✨ Post-Trade 요약 자동 평가 패널 구현
+function renderTradeEvaluation(metrics, trade) {
+  const container = els['post-trade-eval'];
   if (!container) return;
+  
   if (trade.status !== 'CLOSED' || !metrics.valid) {
-    container.style.display = 'none';
+    container.classList.add('hidden');
     return;
   }
-  container.style.display = 'grid';
+  container.classList.remove('hidden');
 
   const isWin = metrics.netPnl > 0;
-  // 현재 폼을 제외한 전체 폐제(Closed) 거래 계산 (승률 영향 파악용)
   const otherClosed = state.db.trades.filter(t => t.status === 'CLOSED' && t.id !== trade.id);
   const oldWins = otherClosed.filter(t => t.metrics.pnl > 0).length;
   const oldTotal = otherClosed.length;
@@ -920,23 +916,12 @@ function renderPostTradeSummary(metrics, trade) {
   const newWinRate = (newWins / newTotal) * 100;
   const winRateImpact = newWinRate - oldWinRate;
 
-  setHtml('post-trade-summary', `
-    <div class="post-trade-kpi-item">
-      <label>투입 시드 (Risked)</label>
-      <span class="mono">${moneyAbs(metrics.margin)}</span>
-    </div>
-    <div class="post-trade-kpi-item">
-      <label>수수료 (Fees)</label>
-      <span class="mono negative">-${moneyAbs(metrics.totalFees)}</span>
-    </div>
-    <div class="post-trade-kpi-item">
-      <label>최종 손익 (Net PnL)</label>
-      <span class="mono ${metrics.netPnl > 0 ? 'positive' : 'negative'}">${money(metrics.netPnl)}</span>
-    </div>
-    <div class="post-trade-kpi-item">
-      <label>계좌 승률 변화</label>
-      <span class="mono ${winRateImpact > 0 ? 'positive' : winRateImpact < 0 ? 'negative' : ''}">${winRateImpact > 0 ? '+' : ''}${winRateImpact.toFixed(2)}%</span>
-    </div>
+  setHtml('post-trade-eval', `
+    <div class="eval-item"><label>투입 시드</label><span>${moneyAbs(metrics.margin)}</span></div>
+    <div class="eval-item"><label>평균 진입</label><span>${moneyAbs(metrics.avgEntry)}</span></div>
+    <div class="eval-item"><label>평균 청산</label><span>${moneyAbs(metrics.avgExit)}</span></div>
+    <div class="eval-item"><label>최종 PnL</label><span class="${metrics.netPnl > 0 ? 'positive' : 'negative'}">${money(metrics.netPnl)}</span></div>
+    <div class="eval-item"><label>계좌 승률 변화</label><span class="${winRateImpact > 0 ? 'positive' : winRateImpact < 0 ? 'negative' : ''}">${winRateImpact > 0 ? '+' : ''}${winRateImpact.toFixed(2)}%p</span></div>
   `);
 }
 
@@ -1041,36 +1026,6 @@ function renderOverview() {
   renderEquityChart(stats.closed);
   renderBalanceChart(); 
   renderOverviewPortfolio();
-  
-  if (!els['today-console']) return;
-  const todayStr = new Date().toISOString().slice(0, 10);
-  const todays = state.db.trades.filter(t => t.date.slice(0,10) === todayStr);
-  const s = summarize(todays);
-  
-  if(!state.db.meta.dailyMemos) state.db.meta.dailyMemos = {};
-  setVal('eod-memo', state.db.meta.dailyMemos[todayStr] || '');
-  setTimeout(() => autoResize(els['eod-memo']), 0);
-
-  if (!todays.length) {
-    setHtml('today-console', emptyState('오늘 기록된 매매가 없습니다.'));
-  } else {
-    setHtml('today-console', `
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-        <div style="font-size:24px; font-weight:900; color:${s.net >= 0 ? 'var(--green)' : 'var(--red)'};">${money(s.net)}</div>
-        <div style="font-size:18px; font-weight:800; color:var(--text);">${s.avgR.toFixed(2)}R</div>
-      </div>
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
-        <div style="background:#f1f5f9; padding:10px; border-radius:8px; text-align:center;">
-          <span style="display:block; font-size:11px; color:var(--muted); font-weight:800;">WINS / LOSSES</span>
-          <strong style="font-size:14px;">${s.wins.length}W / ${s.losses.length}L</strong>
-        </div>
-        <div style="background:#f1f5f9; padding:10px; border-radius:8px; text-align:center;">
-          <span style="display:block; font-size:11px; color:var(--muted); font-weight:800;">FEES PAID</span>
-          <strong style="font-size:14px; color:var(--red);">${moneyAbs(s.fees)}</strong>
-        </div>
-      </div>
-    `);
-  }
 }
 
 function renderStackStats(id, rows, formatter) {
@@ -1538,10 +1493,7 @@ function renderPlaybook() {
 
   let html = '';
   rows.forEach(trade => {
-    const exitC = Array.isArray(trade.evidence?.exitCharts) ? trade.evidence.exitCharts[0] : null;
-    const entryC = Array.isArray(trade.evidence?.entryCharts) ? trade.evidence.entryCharts[0] : null;
-    const chartUrl = exitC || entryC;
-    
+    const chartUrl = trade.evidence?.exitChart || trade.evidence?.entryChart;
     let imgHtml = '';
     if (chartUrl) {
       if (chartUrl.match(/\.(jpeg|jpg|gif|png|webp)$/i)) {
@@ -1719,6 +1671,10 @@ function emptyState(text) {
 
 function splitCsv(value) {
   return String(value || '').split(',').map(v => v.trim()).filter(Boolean);
+}
+
+function splitLines(value) {
+  return String(value || '').split('\n').map(v => v.trim()).filter(Boolean);
 }
 
 function cloneRows(rows) {
