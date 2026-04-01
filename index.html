@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Trading Desk Dashboard v5.1 (Fixed Layout)</title>
+  <title>Trading Desk Dashboard v5.2 (Ultimate Layout)</title>
   <link rel="stylesheet" href="./css/styles.css" />
 </head>
 <body>
@@ -44,8 +44,8 @@
 
       <div class="section-head section-head-large overview-hero">
         <div>
-          <h3>Overview & Dashboard</h3>
-          <p>오늘의 매매 환경과 핵심 트레이딩 성과입니다.</p>
+          <h3>Overview</h3>
+          <p>매매 환경 및 핵심 트레이딩 성과</p>
         </div>
         <div class="date-filter-box">
           <span class="filter-label">📊 통계 기간</span>
@@ -110,7 +110,7 @@
 
             <article class="phase-card phase-blue">
               <div class="phase-header">
-                <h3>PHASE 1. PRE-TRADE CONTEXT</h3>
+                <h3>Pre-Trade Context</h3>
                 <p>거래 기본 정보와 진입 근거</p>
               </div>
 
@@ -144,23 +144,24 @@
                 </label>
               </div>
 
-              <div class="field-grid cols-1" style="margin-top: 24px;">
+              <div class="field-grid cols-1" style="margin-top: 32px;">
                 <label><span>✅ 원칙 점검 (Checklist)</span></label>
                 <div id="trade-checklist-container" class="trade-checklist-grid"></div>
               </div>
 
-              <div class="field-grid cols-1 journal-context-grid" style="margin-top: 24px;">
-                <div class="grid-2" style="margin-top:0;">
-                  <label><span>시장 컨텍스트</span><textarea id="context" class="auto-resize" placeholder="진입 전 시장 흐름, 유동성, 구조"></textarea></label>
-                  <label><span>진입 논리 및 무효화 기준</span><textarea id="thesis" class="auto-resize" placeholder="왜 여기서 진입하는지, 어디서 틀렸다고 볼지"></textarea></label>
-                </div>
+              <div class="field-grid cols-2 journal-context-grid" style="margin-top: 32px;">
+                <label><span>시장 컨텍스트</span><textarea id="context" class="auto-resize" placeholder="진입 전 시장 흐름, 유동성, 구조" style="min-height: 100px;"></textarea></label>
+                <label><span>진입 논리 및 무효화 기준</span><textarea id="thesis" class="auto-resize" placeholder="왜 여기서 진입하는지, 어디서 틀렸다고 볼지" style="min-height: 100px;"></textarea></label>
+              </div>
+              
+              <div class="field-grid cols-1" style="margin-top: 20px;">
                 <label><span>진입 차트 (Entry Chart)</span><input id="chart-entry" placeholder="https://www.tradingview.com/x/... 등 링크 입력" /></label>
               </div>
             </article>
 
             <article class="phase-card phase-yellow">
               <div class="phase-header">
-                <h3>PHASE 2. RISK & EXECUTION</h3>
+                <h3>Risk & Execution</h3>
                 <p>리스크 및 포지션 사이즈 설계</p>
               </div>
 
@@ -191,7 +192,7 @@
 
             <article class="phase-card phase-green">
               <div class="phase-header">
-                <h3>PHASE 3. LIVE MANAGEMENT</h3>
+                <h3>Live Management</h3>
                 <p>홀딩 중 발생한 대응과 심리 로그</p>
               </div>
               <div class="live-panel">
@@ -215,51 +216,49 @@
 
             <article class="phase-card phase-purple">
               <div class="phase-header">
-                <h3>PHASE 4. POST-TRADE REVIEW</h3>
+                <h3>Post-Trade Review</h3>
                 <p>핵심 복기와 평가 점수</p>
               </div>
 
-              <div class="field-grid cols-1" style="margin-bottom: 24px;">
-                 <label><span>종료 차트 (Exit Chart)</span><input id="chart-exit" placeholder="https://www.tradingview.com/x/... 등 링크 입력" /></label>
+              <div class="field-grid cols-3" style="margin-bottom: 24px; align-items: end;">
+                <label>
+                  <span>Grade (S~D)</span>
+                  <select id="grade" style="font-size:15px; font-weight:800;">
+                    <option value="S">S (완벽한 원칙, 최고의 셋업)</option>
+                    <option value="A">A (원칙 준수, 우량 셋업)</option>
+                    <option value="B" selected>B (보통, 일반적 셋업)</option>
+                    <option value="C">C (원칙 이탈, 아쉬운 셋업)</option>
+                    <option value="D">D (뇌동 매매, 원칙 위반)</option>
+                  </select>
+                </label>
+                <label>
+                  <span>종료 차트 (Exit Chart)</span>
+                  <input id="chart-exit" placeholder="https://www.tradingview.com/x/..." />
+                </label>
+                <div class="review-kpi">
+                  <div class="review-kpi-label">Total R-Multiple</div>
+                  <div id="deep-review-r" class="review-kpi-value">0.00R</div>
+                </div>
               </div>
 
-              <div class="field-grid cols-2">
-                <label style="height: 100%;">
-                  <span>Review</span>
-                  <textarea id="review" class="auto-resize" placeholder="잘한 점, 실수, 재현 가능성" style="height: 100%; min-height: 180px;"></textarea>
+              <div class="field-grid cols-1" style="margin-bottom: 24px;">
+                <label>
+                  <span>Review & Lessons</span>
+                  <textarea id="review" class="auto-resize" placeholder="잘한 점, 실수, 다음 매매를 위한 피드백..." style="min-height: 120px;"></textarea>
                 </label>
-                
-                <div class="stack" style="gap: 20px;">
-                  <div class="field-grid cols-2" style="align-items: end;">
-                    <label>
-                      <span>Grade (S~D)</span>
-                      <select id="grade" style="font-size:15px; font-weight:800;">
-                        <option value="S">S (완벽한 원칙, 최고의 셋업)</option>
-                        <option value="A">A (원칙 준수, 우량 셋업)</option>
-                        <option value="B" selected>B (보통, 일반적 셋업)</option>
-                        <option value="C">C (원칙 이탈, 아쉬운 셋업)</option>
-                        <option value="D">D (뇌동 매매, 원칙 위반)</option>
-                      </select>
-                    </label>
-                    <div class="review-kpi">
-                      <div class="review-kpi-label">Total R-Multiple</div>
-                      <div id="deep-review-r" class="review-kpi-value">0.00R</div>
-                    </div>
-                  </div>
-                  
-                  <div style="background: #f8fafc; padding: 20px; border-radius: 16px; border: 1px solid var(--line);">
-                    <label>
-                      <span>태그</span>
-                      <input id="tags" placeholder="trend, ny-open, sweep" />
-                      <div id="quick-tags" class="chips" style="margin-bottom: 16px;"></div>
-                    </label>
-                    <label>
-                      <span>실수 태그</span>
-                      <input id="mistakes" placeholder="fomo, early exit, oversize" />
-                      <div id="quick-mistakes" class="chips"></div>
-                    </label>
-                  </div>
-                </div>
+              </div>
+              
+              <div class="field-grid cols-2" style="background: #f8fafc; padding: 24px; border-radius: 16px; border: 1px solid var(--line);">
+                <label>
+                  <span>태그</span>
+                  <input id="tags" placeholder="trend, ny-open, sweep" />
+                  <div id="quick-tags" class="chips" style="margin-top: 12px;"></div>
+                </label>
+                <label>
+                  <span>실수 태그</span>
+                  <input id="mistakes" placeholder="fomo, early exit, oversize" />
+                  <div id="quick-mistakes" class="chips" style="margin-top: 12px;"></div>
+                </label>
               </div>
             </article>
 
@@ -424,13 +423,13 @@
   </div>
 
   <div id="list-manage-modal" class="modal-overlay">
-    <div class="modal-card" style="width: 480px;">
+    <div class="modal-card" style="width: 600px; max-width: 95vw;">
       <div id="list-manage-title" class="modal-title">항목 관리</div>
-      <div class="input-group flex-group" style="margin-bottom: 20px;">
+      <div class="input-group flex-group" style="margin-bottom: 24px;">
         <input type="text" id="list-manage-input" placeholder="새 항목 추가..." />
         <button type="button" id="list-manage-add" class="tool-btn primary-btn">추가</button>
       </div>
-      <div id="list-manage-items" class="stack" style="max-height: 340px; overflow-y: auto; padding-right:4px;"></div>
+      <div id="list-manage-items" class="stack" style="max-height: 380px; overflow-y: auto; padding-right:4px;"></div>
       <div class="modal-actions" style="margin-top: 24px;">
         <button id="list-manage-close" class="tool-btn">닫기</button>
       </div>
@@ -438,9 +437,9 @@
   </div>
 
   <div id="ql-modal" class="modal-overlay">
-    <div class="modal-card" style="width: 540px;">
+    <div class="modal-card" style="width: 640px; max-width: 95vw;">
       <div class="modal-title">Quick Launch 관리</div>
-      <div class="field-grid cols-3" style="gap:12px; margin-bottom: 20px; align-items:end;">
+      <div class="field-grid cols-3" style="gap:16px; margin-bottom: 24px; align-items:end;">
          <label><span>이름</span><input type="text" id="ql-name" placeholder="예: 바이낸스" /></label>
          <label><span>URL</span><input type="text" id="ql-url" placeholder="https://..." /></label>
          <label><span>아이콘(이모지)</span>
@@ -450,7 +449,7 @@
            </div>
          </label>
       </div>
-      <div id="ql-items" class="stack" style="max-height: 340px; overflow-y: auto; padding-right:4px;"></div>
+      <div id="ql-items" class="stack" style="max-height: 380px; overflow-y: auto; padding-right:4px;"></div>
       <div class="modal-actions" style="margin-top: 24px;">
         <button id="ql-close" class="tool-btn">닫기</button>
       </div>
