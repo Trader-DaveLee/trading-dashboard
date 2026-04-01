@@ -6,7 +6,6 @@ export const LEGACY_STORAGE_KEYS = [
   'btc_trading_research_dashboard_v2'
 ];
 export const DRAFT_KEY = 'trading_desk_dashboard_v3_draft';
-export const PREFS_KEY = 'trading_desk_dashboard_v3_prefs';
 
 export const DEFAULT_DB = {
   schemaVersion: 3,
@@ -76,6 +75,14 @@ export function migrateDB(input) {
     };
   }
 
+  if (Array.isArray(input.trades)) {
+    return {
+      schemaVersion: 3,
+      meta: normalizeMeta(input.meta),
+      trades: input.trades.map(fromV2Trade).map(normalizeTrade),
+    };
+  }
+
   return structuredClone(DEFAULT_DB);
 }
 
@@ -107,6 +114,21 @@ function normalizeBalancePoint(row) {
     stock: Number(row.stock || 0),
     type: String(row.type || 'PNL').toUpperCase(),
     memo: String(row.memo || '').trim(),
+  };
+}
+
+function fromV2Trade(t) {
+  const artifacts = Array.isArray(t.artifacts) ? t.artifacts : [];
+  return {
+    ...t,
+    grade: t.grade || 'B',
+    markPrice: Number(t.markPrice || 0),
+    liveNotes: t.liveNotes || '',
+    evidence: t.evidence || {
+      entryChart: artifacts[0] || '',
+      exitChart: artifacts[1] || '',
+      liveCharts: artifacts.slice(2),
+    },
   };
 }
 
@@ -239,17 +261,4 @@ export function saveDraft(draft) {
 
 export function clearDraft() {
   localStorage.removeItem(DRAFT_KEY);
-}
-
-export function loadPrefs() {
-  try {
-    const raw = localStorage.getItem(PREFS_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
-}
-
-export function savePrefs(prefs) {
-  localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
 }
