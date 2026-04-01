@@ -77,7 +77,7 @@ export function tagStats(trades, selector) {
   })).sort((a, b) => a.totalPnl - b.totalPnl);
 }
 
-// ✨ 로컬 타임존 기반으로 정확한 날짜를 비교하는 로직
+// ✨ 타임존 오차 없이 로컬(한국시간) 날짜를 안전하게 문자열로 비교
 export function filterTradesByDate(trades, from, to) {
   return trades.filter(trade => {
     const tradeLocal = new Date(trade.date);
