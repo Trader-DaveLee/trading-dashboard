@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Trading Desk Dashboard v7.0 (Core Engine Optimized)</title>
+  <title>Trading Desk Dashboard v6.5 (Risk Engine)</title>
   <link rel="stylesheet" href="./css/styles.css" />
 </head>
 <body>
@@ -38,7 +38,7 @@
         <div class="realtime-clock" id="realtime-clock"></div>
         <div class="quick-launch-links">
           <div id="quick-launch-grid" class="quick-launch-grid"></div>
-          <button type="button" id="btn-manage-quick-links" class="tool-btn icon-btn" title="빠른 링크 관리">⚙️</button>
+          <button type="button" id="btn-manage-quick-links" class="gear-btn fixed-btn" title="빠른 링크 관리">⚙️</button>
         </div>
       </div>
 
@@ -166,7 +166,7 @@
             <article class="phase-card phase-yellow">
               <div class="phase-header">
                 <h3>Risk & Execution</h3>
-                <p>리스크 및 포지션 사이즈 설계</p>
+                <p>리스크 및 포지션 사이즈 자동 설계</p>
               </div>
 
               <div class="field-grid cols-4 compact-panel execution-grid">
@@ -174,21 +174,22 @@
                 <label><span>리스크 (%)</span><input id="risk-pct" type="number" step="0.01" value="0.5" /></label>
                 <label><span>레버리지</span><input id="leverage" type="number" step="0.1" value="5" /></label>
                 <label><span>손절가 (SL)</span><input id="stop-price" type="number" step="0.01" /></label>
+                <label><span>목표가 (TP)</span><input id="target-price" type="number" step="0.01" placeholder="예상 목표가" /></label>
                 <label><span>Mark Price</span><input id="mark-price" type="number" step="0.01" /></label>
-                <label><span>손절 체결 방식</span><select id="stop-type"><option value="M">Maker</option><option value="T">Taker</option></select></label>
                 <label><span>Maker Fee (%)</span><input id="maker-fee" type="number" step="0.001" value="0.02" /></label>
                 <label><span>Taker Fee (%)</span><input id="taker-fee" type="number" step="0.001" value="0.05" /></label>
                 <label><span>미세 보정 (+/- $)</span><input id="adjustment" type="number" step="0.01" value="0" /></label>
+                <label><span>손절 체결 방식</span><select id="stop-type"><option value="M">Maker</option><option value="T">Taker</option></select></label>
               </div>
 
-              <div class="field-grid cols-1" style="margin-top: 32px; gap: 24px;">
+              <div class="field-grid cols-1" style="margin-top: 32px; gap: 32px;">
                 <div>
                   <div class="mini-head"><h4>SCALING-IN (진입 합계 100%)</h4><button type="button" id="add-entry" class="tool-btn btn-sm">＋ 추가</button></div>
-                  <div id="entries"></div>
+                  <div id="entries" class="stack" style="gap:8px;"></div>
                 </div>
                 <div>
                   <div class="mini-head"><h4>SCALING-OUT (청산 합계 최대 100%)</h4><button type="button" id="add-exit" class="tool-btn btn-sm">＋ 추가</button></div>
-                  <div id="exits"></div>
+                  <div id="exits" class="stack" style="gap:8px;"></div>
                 </div>
               </div>
               <div id="calc-summary" class="summary-box" style="margin-top: 16px;">유효한 입력값이 필요합니다.</div>
@@ -315,19 +316,18 @@
           </article>
 
           <article class="card compact-card risk-summary-card">
-            <div class="section-head"><div><h3>Risk Planner</h3><p>사이즈, 리스크, 잔여 익스포저</p></div></div>
+            <div class="section-head"><div><h3>Risk Planner</h3><p>자동 주문 설계 엔진</p></div></div>
             <div class="detail-box risk-box">
               <div class="kv">
-                <div>허용 손실</div><div id="risk-risk-dollar" class="mono negative">$0</div>
-                <div>진입 수량</div><div id="risk-qty" class="mono">0.00000</div>
-                <div>요구 증거금</div><div id="risk-margin" class="mono">$0</div>
-                <div>포지션 사용률</div><div id="risk-slider" class="mono positive">0.0%</div>
-                <div>본절가 (BEP)</div><div id="risk-bep" class="mono">0.00</div>
-                <div>명목 노출</div><div id="risk-notional" class="mono">$0</div>
-                <div>손절 거리</div><div id="risk-stop-distance" class="mono">0.00%</div>
-                <div>예상 수수료</div><div id="risk-fees" class="mono">$0</div>
-                <div>실현 손익</div><div id="risk-realized" class="mono">$0</div>
-                <div>잔여 리스크</div><div id="risk-residual" class="mono">$0</div>
+                <div>허용 손실 (Risk)</div><div id="risk-risk-dollar" class="mono negative">$0</div>
+                <div>예상 수익 (Reward)</div><div id="risk-projected-pnl" class="mono positive">$0</div>
+                <div>예상 R-Multiple</div><div id="risk-projected-r" class="mono">0.00R</div>
+                
+                <div style="grid-column: 1 / -1; height: 1px; background: var(--line); margin: 8px 0;"></div>
+                
+                <div>추천 진입 수량</div><div id="risk-qty" class="mono" style="font-size:16px; color:var(--accent); font-weight:900;">0.00000</div>
+                <div>필요 증거금</div><div id="risk-margin" class="mono">$0</div>
+                <div>포지션 사용률</div><div id="risk-slider" class="mono">0.0%</div>
               </div>
             </div>
           </article>
