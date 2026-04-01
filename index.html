@@ -135,15 +135,14 @@
                     <button type="button" id="btn-now" class="tool-btn fixed-btn">지금</button>
                   </div>
                 </label>
+                <label><span>세션</span><select id="session"><option>ASIA</option><option>LONDON</option><option>NEW YORK</option><option>OVERLAP</option></select></label>
                 <label><span>티커</span>
                   <div class="input-group flex-group">
                     <select id="ticker" required></select>
                     <button type="button" id="btn-manage-ticker" class="gear-btn fixed-btn">⚙️</button>
                   </div>
                 </label>
-                <label><span>상태</span><select id="status"><option value="OPEN">OPEN</option><option value="CLOSED">CLOSED</option></select></label>
                 <label><span>방향</span><select id="side"><option value="LONG">LONG</option><option value="SHORT">SHORT</option></select></label>
-                <label><span>세션</span><select id="session"><option>ASIA</option><option>LONDON</option><option>NEW YORK</option><option>OVERLAP</option></select></label>
                 <label><span>Entry Setup</span>
                   <div class="input-group flex-group">
                     <select id="setup-entry"></select>
@@ -203,27 +202,32 @@
               <details class="details-guide" style="margin-top:8px;">
                 <summary>사용 가이드 보기</summary>
                 <div class="details-guide-body">
-                  <p><strong>입력 순서</strong>: 현재가 → 손절가 → 목표가 → 리스크(%) → 진입 전략 → 추천안 생성/조정 → 실제 체결 반영.</p>
+                  <p><strong>입력 순서</strong>: 현재가(= 미실현 손익 계산 기준) → 손절가 → 목표가 → 리스크(%) → 진입 전략 → 추천안 생성/조정 → 실제 체결 반영.</p>
                   <ul>
-                    <li><strong>단일 진입</strong>: 한 번에 진입할 때 적합합니다.</li>
+                    <li><strong>단일 진입</strong>: 한 번에 진입할 때 적합합니다. 변동성이 낮고 손절이 명확할 때 유리합니다.</li>
                     <li><strong>균형 분할</strong>: 현재가와 손절 사이를 무난하게 나눠 들어가는 기본형입니다.</li>
-                    <li><strong>눌림 분할 (Cost Averaging)</strong>: 더 좋은 가격을 기다리며 손절 쪽으로 분할 진입합니다.</li>
+                    <li><strong>눌림 분할 (Cost Averaging)</strong>: 더 좋은 가격을 기다리며 손절 쪽으로 분할 진입합니다. 박스권 재진입, 지지 확인형 전략에 유효합니다.</li>
                     <li><strong>피라미딩</strong>: 진입가보다 높은 가격에서 추세 확인 후 추가 진입하는 전략입니다. 강한 추세/브레이크아웃 환경에서 더 유효합니다.</li>
-                    <li><strong>Step/Leg</strong>: 분할 진입의 각 단계를 뜻합니다.</li>
-                    <li><strong>비중 스타일</strong>: 각 단계에 리스크를 어떻게 나눌지 정합니다. 균등 배분은 고르게, 초기 진입 비중↑은 첫 진입을 크게, 확인 후 비중↑은 뒤쪽 단계를 더 크게 둡니다.</li>
+                    <li><strong>Step / Leg</strong>: 분할 진입의 각 단계를 뜻합니다. 한 번에 전부 들어가지 않고 계획된 순서대로 진입하는 단위입니다.</li>
+                    <li><strong>비중 스타일 (Risk Share Mode)</strong>: 각 단계에 허용 리스크를 어떻게 배분할지 정합니다. 균등 배분은 고르게, 초기 진입 비중↑은 첫 진입을 크게, 확인 후 비중↑은 뒤쪽 단계를 더 크게 둡니다.</li>
                   </ul>
+                  <p><strong>현재가와 Mark Price</strong>: 이 화면에서는 현재가 입력값을 주문 설계와 미실현 손익 계산에 함께 사용합니다. 즉, 따로 Mark Price를 넣지 않아도 현재가 하나로 충분합니다.</p>
                   <p><strong>과신하면 안 되는 경우</strong>: 손절 기준이 불명확하거나, 변동성 이벤트 직전/직후이거나, 목표가가 비현실적일 때 계산값은 참고치일 뿐입니다.</p>
                 </div>
               </details>
 
               <div class="execution-section-group" style="margin-top:24px;">
-                <div class="mini-head"><h4>PRICE MAP</h4><span class="muted-caption">가격 기준과 현재 추적 가격</span></div>
-                <div class="field-grid cols-4 compact-panel execution-grid">
-                  <label><span>현재가 (Now)</span><input id="current-price" type="number" step="0.01" /></label>
+                <div class="mini-head"><h4>PRICE MAP</h4><span class="muted-caption">주문 설계와 미실현 손익 계산에 함께 쓰는 기준 가격</span></div>
+                <div class="field-grid cols-3 compact-panel execution-grid">
+                  <label>
+                    <span>현재가 (Now / Mark)</span>
+                    <input id="current-price" type="number" step="0.01" />
+                    <small class="input-help">오픈 포지션의 미실현 손익 계산에도 이 값을 사용합니다.</small>
+                  </label>
                   <label><span>손절가 (SL)</span><input id="stop-price" type="number" step="0.01" /></label>
                   <label><span>목표가 (TP)</span><input id="target-price" type="number" step="0.01" placeholder="예상 목표가" /></label>
-                  <label><span>Mark Price</span><input id="mark-price" type="number" step="0.01" /></label>
                 </div>
+                <input id="mark-price" type="hidden" />
               </div>
 
               <div class="execution-section-group" style="margin-top:18px;">
@@ -388,6 +392,11 @@
             </article>
 
             <div class="journal-actions-sticky">
+              <div class="trade-status-dock" id="status-toggle" aria-label="트레이드 상태 선택">
+                <button type="button" class="status-chip" data-value="OPEN">OPEN</button>
+                <button type="button" class="status-chip" data-value="CLOSED">CLOSED</button>
+                <select id="status" hidden><option value="OPEN">OPEN</option><option value="CLOSED">CLOSED</option></select>
+              </div>
               <button type="submit" class="tool-btn primary-btn">💾 Save & Update Trade</button>
               <button type="button" id="reset-form" class="tool-btn">초기화</button>
               <button type="button" id="duplicate-trade" class="tool-btn">복제</button>

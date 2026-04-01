@@ -30,7 +30,7 @@ const ID_LIST = [
   'nav','force-save-draft','export-json','import-json-btn','import-json','journal-status','draft-saved-at',
   'view-overview','metrics','overview-from','overview-to','overview-clear','overview-search','prev-month','calendar-title','next-month','calendar','equity-chart','balance-chart','setup-chart','mistake-list','research-notes','overview-portfolio',
   'realtime-clock','quick-launch-grid','btn-manage-quick-links','journal-sidebar','journal-pretrade-phase','journal-risk-phase','risk-planner-card','pretrade-brief','btn-context-structure','btn-context-catalyst','btn-thesis-trigger','btn-thesis-invalidation','planner-mode-note',
-  'view-journal','trade-form','trade-id','trade-date','btn-now','ticker','btn-manage-ticker','status','session','side','setup-entry','btn-manage-setup-entry','setup-exit','btn-manage-setup-exit',
+  'view-journal','trade-form','trade-id','trade-date','btn-now','ticker','btn-manage-ticker','status','status-toggle','session','side','setup-entry','btn-manage-setup-entry','setup-exit','btn-manage-setup-exit',
   'account-size','risk-pct','leverage','current-price','planner-mode','planner-legs','planner-weight-mode','btn-generate-plan','btn-apply-plan','planner-summary','maker-fee','taker-fee','stop-price','target-price','mark-price','stop-type','adjustment',
   'context','thesis','review','tags','mistakes',
   'add-entry','entries','add-exit','exits','calc-summary','quick-tags','quick-mistakes','live-notes','btn-insert-time','add-live-chart','live-charts-container',
@@ -311,8 +311,14 @@ function bindEvents() {
   if(els['btn-thesis-invalidation']) els['btn-thesis-invalidation'].onclick = () => appendTemplateToField('thesis', '무효화 기준: \n청산 계획: ');
 
   initJournalSidebarSync();
+  initStatusToggle();
 
   if(els['btn-now']) els['btn-now'].onclick = () => { setVal('trade-date', inputDate(nowIso())); markDirty(); updatePreview(); };
+  if (els['current-price']) {
+    const syncCurrentToMark = () => { if (els['mark-price']) els['mark-price'].value = els['current-price'].value; };
+    els['current-price'].addEventListener('input', syncCurrentToMark);
+    els['current-price'].addEventListener('change', syncCurrentToMark);
+  }
   if(els['prev-month']) els['prev-month'].onclick = () => { state.month.setMonth(state.month.getMonth() - 1); renderCalendar(); };
   if(els['next-month']) els['next-month'].onclick = () => { state.month.setMonth(state.month.getMonth() + 1); renderCalendar(); };
 
@@ -567,28 +573,51 @@ function renderChartInputs(type) {
   if(type === 'entry') { arr = state.draftEntryCharts; containerId = 'entry-charts-container'; }
   else if(type === 'exit') { arr = state.draftExitCharts; containerId = 'exit-charts-container'; }
   else { arr = state.draftLiveCharts; containerId = 'live-charts-container'; }
-  
+
   const container = els[containerId];
   if (!container) return;
+  if (!arr.length) arr.push('');
 
-  container.innerHTML = arr.map((url, idx) => `
-    <div class="input-group flex-group" style="margin-bottom:8px;">
-      <input type="text" class="${type}-chart-input" value="${escapeAttr(url)}" placeholder="https://www.tradingview.com/x/... 링크 입력" data-index="${idx}" style="flex:1;" />
-      <button type="button" class="tool-btn btn-del-${type}-chart danger-text fixed-btn" data-index="${idx}">✕</button>
-    </div>
-  `).join('');
+  container.innerHTML = arr.map((rawUrl, idx) => {
+    const safeUrl = sanitizeUrl(rawUrl || '');
+    const host = safeUrl ? (() => { try { return new URL(safeUrl).hostname.replace('www.', ''); } catch { return 'link'; } })() : '';
+    return `
+      <div class="chart-link-row">
+        <div class="input-group flex-group chart-link-input-group">
+          <input type="text" class="${type}-chart-input" value="${escapeAttr(rawUrl || '')}" placeholder="https://www.tradingview.com/x/... 링크 입력" data-index="${idx}" />
+          ${safeUrl ? `<a href="${escapeAttr(safeUrl)}" target="_blank" rel="noopener noreferrer" class="chart-link-btn">🔗 ${escapeHtml(host)} 열기</a>` : '<span class="chart-link-btn disabled">링크 대기</span>'}
+          <button type="button" class="tool-btn btn-del-${type}-chart danger-text fixed-btn" data-index="${idx}">✕</button>
+        </div>
+      </div>
+    `;
+  }).join('');
 
   container.querySelectorAll(`.${type}-chart-input`).forEach(input => {
     input.oninput = (e) => {
-      arr[e.target.dataset.index] = e.target.value;
+      arr[Number(e.target.dataset.index)] = e.target.value;
       markDirty(); persistDraft();
     };
+    input.onkeydown = (e) => {
+      if (e.key !== 'Enter') return;
+      e.preventDefault();
+      const idx = Number(e.target.dataset.index);
+      arr[idx] = sanitizeUrl(e.target.value) || e.target.value.trim();
+      if (idx === arr.length - 1 && arr[idx]) arr.push('');
+      markDirty(); persistDraft(); renderChartInputs(type); updatePreview();
+    };
+    input.onblur = (e) => {
+      const idx = Number(e.target.dataset.index);
+      arr[idx] = sanitizeUrl(e.target.value) || e.target.value.trim();
+      markDirty(); persistDraft(); renderChartInputs(type);
+    };
   });
+
   container.querySelectorAll(`.btn-del-${type}-chart`).forEach(btn => {
     btn.onclick = (e) => {
-      arr.splice(e.target.dataset.index, 1);
+      arr.splice(Number(e.target.dataset.index), 1);
+      if (!arr.length) arr.push('');
       renderChartInputs(type);
-      markDirty(); persistDraft();
+      markDirty(); persistDraft(); updatePreview();
     };
   });
 }
@@ -813,7 +842,7 @@ function readForm() {
     accountSize: Number(getVal('account-size') || 0),
     riskPct: Number(getVal('risk-pct') || 0),
     leverage: Number(getVal('leverage') || 0),
-    currentPrice: Number(getVal('current-price') || 0),
+    currentPrice: Number(getVal('current-price') || getVal('mark-price') || 0),
     plannerMode: getVal('planner-mode') || 'BALANCED',
     plannerLegs: Number(getVal('planner-legs') || 3),
     plannerWeightMode: getVal('planner-weight-mode') || 'BACKLOADED',
@@ -821,7 +850,7 @@ function readForm() {
     takerFee: Number(getVal('taker-fee') || 0),
     stopPrice: Number(getVal('stop-price') || 0),
     targetPrice: Number(getVal('target-price') || 0),
-    markPrice: Number(getVal('mark-price') || 0),
+    markPrice: Number(getVal('current-price') || getVal('mark-price') || 0),
     stopType: getVal('stop-type'),
     adjustment: Number(getVal('adjustment') || 0),
     context: getVal('context'),
@@ -937,7 +966,7 @@ function applyTradeToForm(trade, options = {}) {
   setVal('account-size', trade.accountSize);
   setVal('risk-pct', trade.riskPct);
   setVal('leverage', trade.leverage);
-  setVal('current-price', trade.currentPrice || '');
+  setVal('current-price', trade.currentPrice || trade.markPrice || '');
   setVal('planner-mode', trade.plannerMode || 'BALANCED');
   setVal('planner-legs', trade.plannerLegs || 3);
   setVal('planner-weight-mode', trade.plannerWeightMode || 'BACKLOADED');
@@ -945,7 +974,8 @@ function applyTradeToForm(trade, options = {}) {
   setVal('taker-fee', trade.takerFee);
   setVal('stop-price', trade.stopPrice || '');
   setVal('target-price', trade.targetPrice || '');
-  setVal('mark-price', trade.markPrice || '');
+  setVal('mark-price', trade.currentPrice || trade.markPrice || '');
+  if (typeof initStatusToggle === 'function') initStatusToggle();
   setVal('stop-type', trade.stopType);
   setVal('adjustment', trade.adjustment || 0);
   setVal('context', trade.context || '');
@@ -988,6 +1018,7 @@ function updatePreview() {
   renderPlannerSummary(trade);
   renderScaleInSummary(trade);
   renderTargetLadderSummary(metrics, trade);
+  if (typeof initStatusToggle === 'function') initStatusToggle();
 
   if(els['risk-bep']) els['risk-bep'].textContent = metrics.breakEvenPrice > 0 ? safeNumber(metrics.breakEvenPrice.toFixed(4)) : '0.00';
 }
@@ -1030,6 +1061,25 @@ ${template}` : template;
   setVal(id, next);
   if (els[id]) autoResize(els[id]);
   handleFormMutation();
+}
+
+function initStatusToggle() {
+  const wrap = els['status-toggle'];
+  const select = els['status'];
+  if (!wrap || !select) return;
+  const sync = () => {
+    wrap.querySelectorAll('.status-chip').forEach(btn => btn.classList.toggle('active', btn.dataset.value === select.value));
+  };
+  wrap.querySelectorAll('.status-chip').forEach(btn => {
+    btn.onclick = () => {
+      if (select.value === btn.dataset.value) return;
+      select.value = btn.dataset.value;
+      sync();
+      handleFormMutation();
+    };
+  });
+  select.onchange = () => sync();
+  sync();
 }
 
 function initJournalSidebarSync() {
@@ -1103,7 +1153,7 @@ function renderTradeEvaluation(metrics, trade) {
     : `현재 OPEN 상태이며 실제 청산 ${metrics.actualExitPct.toFixed(1)}%, 계획 청산 ${metrics.plannedExitPct.toFixed(1)}%가 설정되어 있습니다.`;
 
   let nextFocus = '다음 복기 포인트: 진입 논리와 무효화 기준이 실제 집행 과정에서도 유지됐는지 확인하세요.';
-  if (metrics.missingMarkPrice) nextFocus = '다음 복기 포인트: Mark Price를 넣어 미실현 손익과 잔여 리스크를 실제 운영값으로 추적하세요.';
+  if (metrics.missingMarkPrice) nextFocus = '다음 복기 포인트: 현재가(Now / Mark)를 넣어 미실현 손익과 잔여 리스크를 실제 운영값으로 추적하세요.';
   else if (metrics.residualRisk > riskBudget * 0.5 && trade.status === 'OPEN') nextFocus = '다음 복기 포인트: 부분청산 또는 손절 상향 전환이 가능한 구간인지 재검토하세요.';
   else if ((trade.mistakes || []).length) nextFocus = `다음 복기 포인트: 기록된 실수(${trade.mistakes.join(', ')})가 계획 단계에서 예방 가능했는지 점검하세요.`;
   else if (isClosed && finalR > 0) nextFocus = '다음 복기 포인트: 수익이 난 이유가 계획의 우위 때문인지, 운 좋게 흘러간 거래인지 구분해 보세요.';
@@ -1119,7 +1169,7 @@ function renderCalcSummary(metrics, trade) {
   let warnHtml = '';
   if (metrics.directionError) warnHtml += '<div class="warn-text">⚠️ 방향과 손절 위치가 충돌합니다.</div>';
   if (metrics.exitExceeds100) warnHtml += `<div class="warn-text" style="color:var(--red);">⚠️ 실제 청산(FILLED) 비중 합계가 100%를 초과합니다. (${metrics.actualExitPct.toFixed(1)}%)</div>`;
-  if (trade.status === 'OPEN' && metrics.missingMarkPrice) warnHtml += '<div class="warn-text">⚠️ 현재가(Mark Price)가 없어 미실현 손익이 0으로 처리됩니다.</div>';
+  if (trade.status === 'OPEN' && metrics.missingMarkPrice) warnHtml += '<div class="warn-text">⚠️ 현재가(Now / Mark)가 없어 미실현 손익이 0으로 처리됩니다.</div>';
   if (metrics.actualRiskPctOfBudget > 100) warnHtml += `<div class="warn-text" style="color:var(--red);">⚠️ 허용 리스크를 ${metrics.actualRiskPctOfBudget.toFixed(1)}% 사용 중입니다. (초과 ${moneyAbs(metrics.overRiskDollar)})</div>`;
 
   if (!metrics.valid && !metrics.exitExceeds100) {
@@ -1744,9 +1794,9 @@ function renderTradeDetail(trade) {
     <div style="margin-top:24px;">
       <h4 style="margin:0 0 8px; font-size:14px; font-weight:800;">Evidence (Charts)</h4>
       <div style="display:flex; gap:8px; flex-wrap:wrap;">
-        ${(trade.evidence?.entryCharts || []).map((url, idx) => `<a href="${escapeAttr(url)}" target="_blank" style="padding:8px 16px; background:#e0e7ff; color:var(--accent); border-radius:8px; text-decoration:none; font-weight:700; font-size:12px;">Entry Chart ${idx+1} 📈</a>`).join('')}
-        ${(trade.evidence?.exitCharts || []).map((url, idx) => `<a href="${escapeAttr(url)}" target="_blank" style="padding:8px 16px; background:#e0e7ff; color:var(--accent); border-radius:8px; text-decoration:none; font-weight:700; font-size:12px;">Exit Chart ${idx+1} 📈</a>`).join('')}
-        ${(trade.evidence?.liveCharts || []).map((url, idx) => `<a href="${escapeAttr(url)}" target="_blank" style="padding:8px 16px; background:#f1f5f9; color:var(--muted); border:1px solid var(--line); border-radius:8px; text-decoration:none; font-weight:700; font-size:12px;">Live Chart ${idx + 1} 🔍</a>`).join('')}
+        ${(trade.evidence?.entryCharts || []).map((url, idx) => `<a href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer" class="evidence-link-chip">Entry Chart ${idx+1} 📈</a>`).join('')}
+        ${(trade.evidence?.exitCharts || []).map((url, idx) => `<a href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer" class="evidence-link-chip">Exit Chart ${idx+1} 📈</a>`).join('')}
+        ${(trade.evidence?.liveCharts || []).map((url, idx) => `<a href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer" class="evidence-link-chip muted">Live Chart ${idx + 1} 🔍</a>`).join('')}
       </div>
     </div>
   `);
@@ -1808,33 +1858,28 @@ function renderPlaybook() {
     .filter(trade => (trade.grade === 'S' || trade.grade === 'A') && !(trade.mistakes || []).length)
     .sort((a, b) => b.metrics.r - a.metrics.r);
 
+  const buildPlaybookLinks = (trade) => {
+    const items = [
+      ...(Array.isArray(trade.evidence?.entryCharts) ? trade.evidence.entryCharts.map((url, idx) => ({ label: `Entry ${idx + 1}`, url })) : []),
+      ...(Array.isArray(trade.evidence?.exitCharts) ? trade.evidence.exitCharts.map((url, idx) => ({ label: `Exit ${idx + 1}`, url })) : []),
+      ...(Array.isArray(trade.evidence?.liveCharts) ? trade.evidence.liveCharts.map((url, idx) => ({ label: `Live ${idx + 1}`, url })) : []),
+    ].filter(item => sanitizeUrl(item.url));
+
+    if (!items.length) return '<div class="playbook-link-row"><span class="chip">차트 링크 없음</span></div>';
+    return `<div class="playbook-link-row">${items.map(item => `<a href="${escapeAttr(sanitizeUrl(item.url))}" target="_blank" rel="noopener noreferrer" class="playbook-link-btn">📈 ${escapeHtml(item.label)}</a>`).join('')}</div>`;
+  };
+
   let html = '';
   rows.forEach(trade => {
-    const exitC = Array.isArray(trade.evidence?.exitCharts) ? trade.evidence.exitCharts[0] : null;
-    const entryC = Array.isArray(trade.evidence?.entryCharts) ? trade.evidence.entryCharts[0] : null;
-    const chartUrl = exitC || entryC;
-    
-    let imgHtml = '';
-    if (chartUrl) {
-      if (chartUrl.match(/\.(jpeg|jpg|gif|png|webp)$/i)) {
-        imgHtml = `<img class="playbook-img" src="${escapeAttr(chartUrl)}" alt="chart" onerror="this.style.display='none'">`;
-      } else if (chartUrl.includes('tradingview.com/x/')) {
-        const tvId = chartUrl.split('/x/')[1]?.replace('/', '');
-        if (tvId) {
-          imgHtml = `<img class="playbook-img" src="https://s3.tradingview.com/x/${tvId}.png" alt="chart" onerror="this.style.display='none'">`;
-        } else {
-          imgHtml = `<div class="playbook-img-fallback"><a href="${escapeAttr(chartUrl)}" target="_blank" class="btn-view-chart">📈 View Chart</a></div>`;
-        }
-      } else {
-        imgHtml = `<div class="playbook-img-fallback"><a href="${escapeAttr(chartUrl)}" target="_blank" class="btn-view-chart">🔗 View Evidence</a></div>`;
-      }
-    } else {
-      imgHtml = `<div class="playbook-img placeholder">No Evidence</div>`;
-    }
+    const entryC = Array.isArray(trade.evidence?.entryCharts) ? trade.evidence.entryCharts[0] : '';
+    const hasDirectImage = Boolean(entryC && entryC.match(/\.(jpeg|jpg|gif|png|webp)$/i));
+    const heroHtml = hasDirectImage
+      ? `<img class="playbook-img" src="${escapeAttr(entryC)}" alt="chart" onerror="this.style.display='none'">`
+      : `<div class="playbook-img placeholder">Chart Links Ready</div>`;
 
     html += `
     <article class="playbook-card" data-id="${trade.id}">
-      ${imgHtml}
+      ${heroHtml}
       <div class="playbook-info" style="padding: 16px; display:flex; flex-direction:column; flex:1;">
         <div class="playbook-header" style="display:flex; justify-content:space-between; align-items:center;">
           <strong style="font-size:16px; color:#0f172a; font-weight:900;">${escapeHtml(trade.ticker)}</strong>
@@ -1844,7 +1889,8 @@ function renderPlaybook() {
         <div style="font-size:11px; color:var(--muted); font-weight:600; margin-top:2px;">${formatDateTime(trade.date)} · ${trade.session}</div>
         <div class="mono ${trade.metrics.r > 0 ? 'positive' : 'negative'}" style="font-size:14px; font-weight:800; margin-top:8px;">${trade.metrics.r.toFixed(2)}R (${money(trade.metrics.pnl)})</div>
         <p style="font-size:12px; color:#334155; font-weight:500; margin:8px 0; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">${escapeHtml(trade.thesis || trade.review || '설명 없음')}</p>
-        <div class="chips" style="margin-top:auto;">${(trade.tags || []).slice(0, 3).map(item => `<span class="chip">#${escapeHtml(item)}</span>`).join('') || '<span class="chip">태그 없음</span>'}</div>
+        ${buildPlaybookLinks(trade)}
+        <div class="chips" style="margin-top:12px;">${(trade.tags || []).slice(0, 3).map(item => `<span class="chip">#${escapeHtml(item)}</span>`).join('') || '<span class="chip">태그 없음</span>'}</div>
       </div>
     </article>`;
   });
@@ -1853,7 +1899,7 @@ function renderPlaybook() {
 
   els['playbook-gallery'].querySelectorAll('.playbook-card').forEach(card => {
     card.onclick = (e) => {
-      if (e.target.tagName === 'A') return;
+      if (e.target.closest('a')) return;
       selectTrade(card.dataset.id);
       state.view = 'library';
       renderViews();
