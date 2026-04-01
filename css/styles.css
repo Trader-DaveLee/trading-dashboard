@@ -260,7 +260,7 @@ tbody tr:hover { background: #f1f5f9; cursor: pointer; }
 .check-inline { display: flex; align-items: flex-start; gap: 8px; cursor: pointer; font-weight: 600; color: #0f172a; }
 .check-inline input[type="checkbox"] { margin-top: 2px; width: auto; height: 16px; border-radius: 4px;}
 
-/* ✨ Phase 3: Playbook Card Styles */
+/* Playbook Card Styles */
 .playbook-card { background: #ffffff; border: 1px solid var(--line); border-radius: 24px; overflow: hidden; transition: all 0.3s ease; cursor: pointer; display: flex; flex-direction: column; box-shadow: var(--shadow-subtle); }
 .playbook-card:hover { transform: translateY(-6px); box-shadow: var(--shadow-hover); border-color: #cbd5e1; }
 .playbook-img { width: 100%; height: 200px; object-fit: cover; border-bottom: 1px solid var(--line); background: #f1f5f9; }
@@ -269,9 +269,105 @@ tbody tr:hover { background: #f1f5f9; cursor: pointer; }
 .btn-view-chart { padding: 10px 20px; background: #fff; color: var(--accent); font-weight: 800; font-size: 13px; border-radius: 999px; text-decoration: none; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.15); transition: 0.2s; z-index: 10;}
 .btn-view-chart:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(37, 99, 235, 0.25); color: var(--accent-hover);}
 
-@media (max-width: 1280px) {
-  .overview-top-row { grid-template-columns: 1fr; }
-  .metrics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .grid-2, .grid-journal, .filter-grid-extended { grid-template-columns: 1fr; }
-  .journal-sidebar { position: static; }
+
+/* ==========================================================================
+   📱 Mobile Optimization (Responsive UI)
+   PC 모드에 전혀 영향을 주지 않도록 화면 너비 768px 이하에서만 작동합니다.
+   ========================================================================== */
+@media (max-width: 768px) {
+  /* 컨테이너 및 카드 여백 축소로 화면 공간 확보 */
+  .container { padding: 12px; }
+  .card { padding: 16px; border-radius: 16px; }
+
+  /* 상단 바 높이 및 로고 크기 축소 */
+  .topbar { padding: 12px; gap: 12px; flex-wrap: wrap; }
+  .brand h1 { font-size: 16px; }
+  .brand-mark { width: 36px; height: 36px; font-size: 16px; }
+  .topbar-status { text-align: left; }
+  
+  /* 버튼 그룹을 별도의 줄로 배치 */
+  .backup-actions { width: 100%; justify-content: space-between; order: 3; margin-top: 8px; }
+  .backup-actions button { flex: 1; text-align: center; padding: 10px; font-size: 11px;}
+  .divider { display: none; }
+
+  /* ✨ 앱 스타일의 하단 네비게이션 탭 바 (Bottom Tab Bar) */
+  #nav {
+    position: fixed;
+    bottom: 0; left: 0; width: 100%;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    z-index: 100;
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 12px;
+    padding-bottom: env(safe-area-inset-bottom, 12px); /* 아이폰 하단 홈 바 대응 */
+    border-top: 1px solid var(--line);
+    border-radius: 0;
+    margin: 0;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.05);
+  }
+  #nav button {
+    flex: 1; text-align: center; padding: 12px 4px;
+    font-size: 12px; border-radius: 8px; background: transparent;
+  }
+  #nav button.active {
+    background: var(--accent-soft); color: var(--accent); box-shadow: none;
+  }
+  /* 하단 네비게이션에 콘텐츠가 가려지지 않도록 body 하단 여백 추가 */
+  body { padding-bottom: 80px; } 
+
+  /* 텍스트 크기 조정 */
+  .section-head-large h3 { font-size: 22px; }
+  .section-head h3 { font-size: 16px; }
+  .metric strong { font-size: 24px; }
+  .review-kpi-value { font-size: 24px; }
+
+  /* 1단(1 Column) 세로 정렬 레이아웃 강제 전환 */
+  .overview-top-row, .grid-2, .grid-journal, .detail-grid,
+  .responsive-cols, .cols-2, .cols-4, .execution-grid {
+    grid-template-columns: 1fr !important;
+    gap: 16px;
+  }
+  .journal-sidebar { margin-top: 16px; }
+
+  /* Overview 지표 박스는 모바일에서 2열로 배치 */
+  .metrics-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 12px; }
+  .metric { padding: 16px; }
+
+  /* Journal 폼 입력창 및 버튼 최적화 */
+  .input-group.flex-group { flex-wrap: nowrap; } /* 톱니바퀴 버튼과 나란히 유지 */
+  .form-actions { display: flex; flex-direction: column; gap: 10px;}
+  .wide-btn, .btn-save-trade { width: 100%; padding: 14px; }
+
+  /* SCALING 분할 입력창(Leg row) 터치 친화적 디자인 */
+  .leg-row { 
+    grid-template-columns: 1fr 1fr; 
+    position: relative; 
+    padding: 16px 12px 12px; 
+    border: 1px solid var(--accent-soft); 
+    border-radius: 12px; 
+    background: #fff;
+    margin-bottom: 16px;
+  }
+  .leg-row > :nth-child(1) { grid-column: span 2; } /* 가격 창 가로 꽉 차게 */
+  .leg-delete { 
+    position: absolute; top: -12px; right: -8px; 
+    width: 28px; height: 28px; padding: 0; 
+    border-radius: 50%; background: #fff; border: 1px solid var(--line); 
+    color: var(--red) !important; box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
+
+  /* 라이브러리 및 캘린더 최적화 */
+  .filter-grid-extended, .filter-grid { grid-template-columns: repeat(2, 1fr) !important; }
+  .align-end { grid-column: span 2; width: 100%; }
+  
+  .calendar-head span { font-size: 10px; }
+  .day { min-height: 80px; padding: 8px; }
+  .day .num { font-size: 12px; }
+  .day .pnl { font-size: 11px; word-break: break-all; line-height: 1.2;}
+
+  /* 폼 요소 터치 타겟(Touch Target) 확대 (접근성 향상) */
+  input, select, textarea, .tool-btn, .btn-save-balance { font-size: 14px; padding: 14px; }
+  .check-inline { padding: 8px 0; }
+  .check-inline input[type="checkbox"] { width: 22px; height: 22px; }
 }
