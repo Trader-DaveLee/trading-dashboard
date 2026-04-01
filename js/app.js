@@ -26,7 +26,7 @@ let draftTimer = null;
 const ID_LIST = [
   'nav','force-save-draft','export-json','import-json-btn','import-json','journal-status','draft-saved-at',
   'view-overview','metrics','overview-from','overview-to','overview-clear','overview-search','prev-month','calendar-title','next-month','calendar','equity-chart','balance-chart','setup-chart','mistake-list','research-notes','overview-portfolio',
-  'realtime-clock','quick-launch-grid','btn-manage-quick-links',
+  'realtime-clock','quick-launch-grid','btn-manage-quick-links','today-console','eod-memo',
   'view-journal','trade-form','trade-id','trade-date','btn-now','ticker','btn-manage-ticker','status','session','side','setup-entry','btn-manage-setup-entry','setup-exit','btn-manage-setup-exit',
   'account-size','risk-pct','leverage','maker-fee','taker-fee','stop-price','mark-price','stop-type','adjustment',
   'context','thesis','review','chart-entry','chart-exit','tags','mistakes',
@@ -174,7 +174,7 @@ function openListManager(key, title, casing) {
     const arr = state.db.meta[key] || [];
     els['list-manage-items'].innerHTML = arr.length ? arr.map((item, idx) => `
       <div class="list-manage-row">
-        <span style="font-weight:700;">${escapeHtml(item)}</span>
+        <span style="font-weight:800;">${escapeHtml(item)}</span>
         <div class="row-actions">
           <button type="button" class="btn-icon-sm btn-up" data-idx="${idx}" title="위로">↑</button>
           <button type="button" class="btn-icon-sm btn-down" data-idx="${idx}" title="아래로">↓</button>
@@ -225,10 +225,10 @@ function openQuickLinkManager() {
     const arr = state.db.meta.quickLinks || [];
     els['ql-items'].innerHTML = arr.length ? arr.map((item, idx) => `
       <div class="list-manage-row">
-        <div style="display:flex; align-items:center; gap:8px;">
-          <span>${escapeHtml(item.icon || '🔗')}</span>
-          <strong>${escapeHtml(item.name)}</strong>
-          <span style="color:var(--muted); font-size:11px;">${escapeHtml(item.url)}</span>
+        <div style="display:flex; align-items:center; gap:12px; flex:1; min-width:0;">
+          <span style="font-size:16px;">${escapeHtml(item.icon || '🔗')}</span>
+          <strong style="font-weight:800; white-space:nowrap;">${escapeHtml(item.name)}</strong>
+          <span style="color:var(--muted); font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(item.url)}</span>
         </div>
         <div class="row-actions">
           <button type="button" class="btn-icon-sm btn-up" data-idx="${idx}">↑</button>
@@ -360,9 +360,14 @@ function bindEvents() {
 
   if(els['btn-update-balance']) els['btn-update-balance'].onclick = updateBalance;
   
+  document.querySelectorAll('textarea.auto-resize').forEach(ta => {
+    ta.addEventListener('input', function() {
+      autoResize(this);
+    });
+  });
+
   if(els['desk-rules']) {
     els['desk-rules'].addEventListener('input', function() {
-      autoResize(this);
       state.db.meta.rules = this.value;
       saveDB(state.db);
     });
@@ -490,8 +495,8 @@ function renderMasterChecklist() {
   if(!els['master-checklist-list']) return;
   const list = state.db.meta.checklists || [];
   els['master-checklist-list'].innerHTML = list.length ? list.map((item, idx) => `
-    <div class="list-manage-row" style="background:#fff; border:1px solid var(--line); padding:6px 12px; border-radius:8px; margin-bottom:6px;">
-      <span style="font-size:12px; font-weight:700; flex:1;">${escapeHtml(item)}</span>
+    <div class="list-manage-row" style="background:#fff; border:1px solid var(--line); padding:10px 12px; border-radius:12px; margin-bottom:8px;">
+      <span style="font-size:12px; font-weight:800; flex:1;">${escapeHtml(item)}</span>
       <div class="row-actions">
         <button type="button" class="btn-icon-sm" onclick="window.__desk_move_check(${idx}, -1)">↑</button>
         <button type="button" class="btn-icon-sm" onclick="window.__desk_move_check(${idx}, 1)">↓</button>
@@ -505,7 +510,7 @@ function renderTradeChecklist(checkedValues = []) {
   if(!els['trade-checklist-container']) return;
   const list = state.db.meta.checklists || [];
   if(!list.length) {
-    els['trade-checklist-container'].innerHTML = '<span style="color:var(--muted); font-size:12px; font-weight:600;">사이드바 Desk Rules에서 체크리스트를 먼저 추가해주세요.</span>';
+    els['trade-checklist-container'].innerHTML = '<span style="color:var(--muted); font-size:12px; font-weight:700;">사이드바 Desk Rules에서 체크리스트를 먼저 추가해주세요.</span>';
     return;
   }
   els['trade-checklist-container'].innerHTML = list.map(item => `
@@ -560,7 +565,6 @@ function hydrateInitialForm() {
   setVal('taker-fee', tpl.takerFee || 0.05);
   
   setVal('desk-rules', state.db.meta.rules || '');
-  setTimeout(() => autoResize(els['desk-rules']), 0);
   
   state.draftEntries = [{ price: 0, type: 'M', weight: 100 }];
   state.draftExits = [];
@@ -995,6 +999,36 @@ function renderOverview() {
   renderEquityChart(stats.closed);
   renderBalanceChart(); 
   renderOverviewPortfolio();
+  
+  if (!els['today-console']) return;
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const todays = state.db.trades.filter(t => t.date.slice(0,10) === todayStr);
+  const s = summarize(todays);
+  
+  if(!state.db.meta.dailyMemos) state.db.meta.dailyMemos = {};
+  setVal('eod-memo', state.db.meta.dailyMemos[todayStr] || '');
+  setTimeout(() => autoResize(els['eod-memo']), 0);
+
+  if (!todays.length) {
+    setHtml('today-console', emptyState('오늘 기록된 매매가 없습니다.'));
+  } else {
+    setHtml('today-console', `
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <div style="font-size:24px; font-weight:900; color:${s.net >= 0 ? 'var(--green)' : 'var(--red)'};">${money(s.net)}</div>
+        <div style="font-size:18px; font-weight:800; color:var(--text);">${s.avgR.toFixed(2)}R</div>
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+        <div style="background:#f1f5f9; padding:10px; border-radius:8px; text-align:center;">
+          <span style="display:block; font-size:11px; color:var(--muted); font-weight:800;">WINS / LOSSES</span>
+          <strong style="font-size:14px;">${s.wins.length}W / ${s.losses.length}L</strong>
+        </div>
+        <div style="background:#f1f5f9; padding:10px; border-radius:8px; text-align:center;">
+          <span style="display:block; font-size:11px; color:var(--muted); font-weight:800;">FEES PAID</span>
+          <strong style="font-size:14px; color:var(--red);">${moneyAbs(s.fees)}</strong>
+        </div>
+      </div>
+    `);
+  }
 }
 
 function renderStackStats(id, rows, formatter) {
@@ -1640,10 +1674,6 @@ function emptyState(text) {
 
 function splitCsv(value) {
   return String(value || '').split(',').map(v => v.trim()).filter(Boolean);
-}
-
-function splitLines(value) {
-  return String(value || '').split('\n').map(v => v.trim()).filter(Boolean);
 }
 
 function cloneRows(rows) {
