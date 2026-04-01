@@ -267,22 +267,43 @@ label span { display: block; margin-bottom: 10px; color: var(--muted); font-size
 .quick-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
 .live-notes { min-height: 180px; margin-top: 16px; background: #ffffff; }
 
-/* ✨ Post-Trade 요약 평가 패널 (Dark Receipt Style) - Grade Select 통합 */
-.post-trade-eval-box { display: block; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: #f8fafc; padding: 32px; border-radius: 24px; margin-bottom: 32px; box-shadow: 0 10px 40px rgba(15, 23, 42, 0.2); border: 1px solid #334155; }
-.eval-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed #334155; padding-bottom: 24px; margin-bottom: 24px; }
-.eval-status-badge { font-size: 16px; font-weight: 900; letter-spacing: 0.5px; }
-.eval-grade-wrapper { display: flex; align-items: center; gap: 12px; }
-.eval-grade-wrapper label { color: #94a3b8; font-size: 13px; font-weight: 800; text-transform: uppercase; margin:0;}
-.eval-grade-select { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #fff; border-radius: 8px; padding: 8px 16px; font-weight: 800; font-size: 14px; outline: none; width: auto; transition: 0.2s;}
-.eval-grade-select:focus { background: rgba(255,255,255,0.15); border-color: var(--accent); }
-.eval-grade-select option { background: #1e293b; color: #fff; }
+/* Risk & Execution Guide */
+.risk-help-card { margin-top: 16px; border: 1px solid var(--line); border-radius: 18px; background: #ffffff; box-shadow: var(--shadow-subtle); overflow: hidden; }
+.risk-help-card summary { cursor: pointer; list-style: none; padding: 16px 20px; font-weight: 800; color: #0f172a; display: flex; align-items: center; justify-content: space-between; }
+.risk-help-card summary::-webkit-details-marker { display: none; }
+.risk-help-card summary::after { content: '⌄'; color: var(--muted); font-weight: 900; }
+.risk-help-card[open] summary::after { transform: rotate(180deg); }
+.risk-help-body { padding: 0 20px 18px; border-top: 1px solid var(--line); background: #f8fafc; }
+.risk-help-grid { display: grid; grid-template-columns: 1.1fr 1fr; gap: 18px; }
+.risk-help-grid h5 { margin: 16px 0 10px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.4px; color: var(--accent); }
+.risk-help-grid p, .risk-help-grid li { font-size: 13px; line-height: 1.7; color: #334155; }
+.risk-help-grid ol { margin: 0; padding-left: 18px; }
 
-.eval-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
-.eval-item { display: flex; flex-direction: column; gap: 8px; }
-.eval-item label { color: #94a3b8; font-size: 12px; font-weight: 800; text-transform: uppercase; margin:0;}
-.eval-value { font-size: 24px; font-weight: 900; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: -0.5px;}
-.eval-item .positive { color: #34d399; }
-.eval-item .negative { color: #f87171; }
+/* Post-Trade Assessment */
+.post-trade-eval-box.simplified { display: grid; gap: 18px; background: #f8fafc; color: #0f172a; padding: 24px; border-radius: 22px; margin-bottom: 24px; box-shadow: var(--shadow-subtle); border: 1px solid var(--line); }
+.post-assessment-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+.eval-status-badge { font-size: 16px; font-weight: 900; letter-spacing: 0.3px; color: #0f172a; }
+.post-assessment-caption { margin: 8px 0 0; color: var(--muted); font-size: 13px; line-height: 1.6; max-width: 720px; }
+.eval-grade-wrapper { display: flex; align-items: center; gap: 12px; }
+.eval-grade-wrapper.compact { background: #ffffff; border: 1px solid var(--line); border-radius: 14px; padding: 10px 14px; }
+.eval-grade-wrapper label { color: var(--muted); font-size: 12px; font-weight: 800; text-transform: uppercase; margin:0;}
+.eval-grade-select { background: #ffffff; border: 1px solid var(--line); color: #0f172a; border-radius: 10px; padding: 8px 12px; font-weight: 800; font-size: 14px; outline: none; width: auto; transition: 0.2s;}
+.eval-grade-select:focus { border-color: var(--accent); box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.08); }
+.eval-grade-select option { background: #ffffff; color: #0f172a; }
+.eval-grid.compact { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.eval-item.compact { display: flex; flex-direction: column; gap: 8px; padding: 16px; background: #ffffff; border: 1px solid var(--line); border-radius: 16px; min-height: 110px; }
+.eval-item.compact label { color: var(--muted); font-size: 11px; font-weight: 800; text-transform: uppercase; margin:0; line-height: 1.4; }
+.eval-value { font-size: 22px; font-weight: 900; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: -0.4px; color: #0f172a; }
+.eval-item .positive { color: var(--green); }
+.eval-item .negative { color: var(--red); }
+.post-assessment-copy { display: grid; gap: 10px; }
+.post-assessment-line { padding: 14px 16px; border-radius: 14px; background: #ffffff; border: 1px dashed #cbd5e1; color: #334155; font-size: 13px; line-height: 1.7; font-weight: 600; }
+.review-annotation-shell { display: grid; gap: 18px; margin-bottom: 24px; }
+.review-tag-grid { background: #f8fafc; padding: 20px; border-radius: 18px; border: 1px solid var(--line); }
+.review-guidance-box { padding: 18px 20px; border-radius: 18px; border: 1px solid var(--line); background: #ffffff; box-shadow: var(--shadow-subtle); }
+.review-guidance-title { font-size: 12px; color: var(--accent); font-weight: 900; text-transform: uppercase; margin-bottom: 8px; }
+.review-guidance-box ul { margin: 0; padding-left: 18px; }
+.review-guidance-box li { font-size: 13px; line-height: 1.7; color: #334155; }
 
 /* Total R-Multiple 디자인 가운데 정렬 */
 .review-kpi { background: #ffffff; border: 1px solid var(--line); border-radius: 16px; padding: 16px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.02); height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center;}
@@ -366,7 +387,9 @@ tbody tr:hover { background: #f1f5f9; cursor: pointer; }
 .review-bar { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 20px; padding: 16px 20px; border: 1px solid var(--line); background: #ffffff; border-radius: 20px; box-shadow: var(--shadow-subtle); }
 
 /* Sidebar Account Status */
-.journal-sidebar { position: sticky; top: 100px; align-content: start; }
+.journal-sidebar { position: sticky; top: 100px; align-content: start; max-height: calc(100vh - 120px); overflow-y: auto; overscroll-behavior: contain; padding-right: 6px; scrollbar-gutter: stable; }
+.journal-sidebar::-webkit-scrollbar { width: 8px; }
+.journal-sidebar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
 .bank-balance-shell { border-radius: 16px; overflow: hidden; border: 1px solid var(--line); background: #ffffff; margin-bottom: 12px; box-shadow: var(--shadow-subtle); }
 .bank-balance-head { display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; background: #f8fafc; border-bottom: 1px solid var(--line); }
 .bank-balance-head span { color: var(--muted); font-weight: 800; font-size: 12px; text-transform: uppercase; }
@@ -447,7 +470,7 @@ tbody tr:hover { background: #f1f5f9; cursor: pointer; }
   .review-kpi-value { font-size: 24px; }
   .overview-top-row, .grid-2, .grid-journal, .detail-grid,
   .responsive-cols, .cols-2, .cols-3, .cols-4, .execution-grid { grid-template-columns: 1fr !important; gap: 16px; }
-  .journal-sidebar { margin-top: 16px; }
+  .journal-sidebar { margin-top: 16px; max-height: none; overflow: visible; padding-right: 0; }
   .metrics-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 12px; }
   .metric { padding: 16px; }
   .input-group.flex-group { flex-wrap: nowrap; } 

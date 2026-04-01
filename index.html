@@ -163,7 +163,7 @@
               </div>
             </article>
 
-            <article class="phase-card phase-yellow">
+            <article id="journal-risk-phase" class="phase-card phase-yellow">
               <div class="phase-header">
                 <h3>Risk & Execution</h3>
                 <p>리스크 및 포지션 사이즈 자동 설계</p>
@@ -218,6 +218,29 @@
               </div>
               <div id="planner-summary" class="summary-box">현재가, 손절가, 리스크를 입력하면 추천 진입 구조가 표시됩니다.</div>
 
+              <details class="risk-help-card" open>
+                <summary>Risk &amp; Execution 사용 가이드</summary>
+                <div class="risk-help-body">
+                  <div class="risk-help-grid">
+                    <div>
+                      <h5>입력 순서</h5>
+                      <ol>
+                        <li>현재가(Now), 손절가(SL), 목표가(TP)를 먼저 입력합니다.</li>
+                        <li>계좌 시드와 리스크(%)를 정해 허용 손실을 확정합니다.</li>
+                        <li>Planner Mode / Legs를 고른 뒤 추천안을 생성하고, 실제 체결 레그만 Execution Entries에 남깁니다.</li>
+                        <li>보유 중 추가 진입이 필요하면 Scale-In Simulator로 먼저 평균단가와 리스크 변화를 확인합니다.</li>
+                      </ol>
+                    </div>
+                    <div>
+                      <h5>왜 필요한가</h5>
+                      <p>실전 매매에서는 진입 전부터 손절 기준과 허용 손실이 먼저 정해져야 합니다. 이 섹션은 “얼마나 사느냐/파느냐”를 감으로 결정하지 않고, 계좌 대비 위험을 수치로 고정하기 위한 주문 설계 구간입니다.</p>
+                      <h5>유효한 환경</h5>
+                      <p>브레이크아웃, 리클레임, 눌림목 추가진입, 스윕 후 복귀처럼 손절 기준이 명확한 구조에서 가장 유용합니다. 반대로 뉴스 급등락이나 손절이 모호한 장세에서는 과신하지 말고 보수적으로 사용해야 합니다.</p>
+                    </div>
+                  </div>
+                </div>
+              </details>
+
               <div class="field-grid cols-1" style="margin-top: 32px; gap: 32px;">
                 <div>
                   <div class="mini-head"><h4>EXECUTION ENTRIES (실제 체결 / Risk Share %)</h4><button type="button" id="add-entry" class="tool-btn btn-sm">＋ 추가</button></div>
@@ -257,14 +280,17 @@
 
             <article class="phase-card phase-purple">
               <div class="phase-header" style="margin-bottom: 24px;">
-                <h3>Post-Trade Review</h3>
-                <p>핵심 복기와 평가 점수</p>
+                <h3>Post-Trade Assessment</h3>
+                <p>종료 후 결과, 리스크 사용, 실행 품질을 한 번에 점검합니다.</p>
               </div>
 
-              <div class="post-trade-eval-box">
-                <div class="eval-header">
-                  <div class="eval-status-badge" id="eval-status-badge">OPEN (Projected)</div>
-                  <div class="eval-grade-wrapper">
+              <div class="post-trade-eval-box simplified">
+                <div class="post-assessment-head">
+                  <div>
+                    <div class="eval-status-badge" id="eval-status-badge">OPEN (Projected)</div>
+                    <p class="post-assessment-caption">Risk &amp; Execution에서 계산된 결과를 바탕으로 현재 포지션 또는 종료된 거래를 사후 평가합니다.</p>
+                  </div>
+                  <div class="eval-grade-wrapper compact">
                     <label>Grade</label>
                     <select id="grade" class="eval-grade-select">
                       <option value="S">S (완벽 원칙)</option>
@@ -275,33 +301,49 @@
                     </select>
                   </div>
                 </div>
-                <div class="eval-grid">
-                  <div class="eval-item"><label>투입 마진 (Risked)</label><span id="eval-margin" class="eval-value">0</span></div>
-                  <div class="eval-item"><label title="수수료를 포함하여 손실이 0이 되는 가격">본절가 (BEP)</label><span id="eval-bep" class="eval-value">0</span></div>
-                  <div class="eval-item"><label>수수료 합계</label><span id="eval-fees" class="eval-value negative">0</span></div>
-                  <div class="eval-item"><label id="label-pnl">예상 PnL</label><span id="eval-pnl" class="eval-value">0</span></div>
-                  <div class="eval-item"><label id="label-r">예상 R</label><span id="eval-r" class="eval-value">0</span></div>
-                  <div class="eval-item"><label>계좌 수익률 (ROI)</label><span id="eval-roi" class="eval-value">0</span></div>
+
+                <div class="eval-grid compact">
+                  <div class="eval-item compact"><label>사용 리스크</label><span id="eval-margin" class="eval-value">0</span></div>
+                  <div class="eval-item compact"><label id="label-pnl">예상 PnL</label><span id="eval-pnl" class="eval-value">0</span></div>
+                  <div class="eval-item compact"><label id="label-r">예상 R</label><span id="eval-r" class="eval-value">0</span></div>
+                  <div class="eval-item compact"><label>잔여 리스크 / BEP</label><span id="eval-bep" class="eval-value">0</span></div>
+                  <div class="eval-item compact"><label>누적 수수료</label><span id="eval-fees" class="eval-value negative">0</span></div>
+                  <div class="eval-item compact"><label>계좌 영향</label><span id="eval-roi" class="eval-value">0</span></div>
+                </div>
+
+                <div id="post-assessment-copy" class="post-assessment-copy">
+                  <div class="post-assessment-line">거래 상태와 리스크 계산 결과를 기반으로 평가 요약이 표시됩니다.</div>
                 </div>
               </div>
 
-              <div class="field-grid cols-2" style="background: #f8fafc; padding: 24px; border-radius: 16px; border: 1px solid var(--line); margin-bottom: 24px; margin-top: 8px;">
-                <label>
-                  <span>태그</span>
-                  <input id="tags" placeholder="trend, ny-open, sweep" />
-                  <div id="quick-tags" class="chips" style="margin-top: 12px;"></div>
-                </label>
-                <label>
-                  <span>실수 태그</span>
-                  <input id="mistakes" placeholder="fomo, early exit, oversize" />
-                  <div id="quick-mistakes" class="chips" style="margin-top: 12px;"></div>
-                </label>
+              <div class="review-annotation-shell">
+                <div class="field-grid cols-2 review-tag-grid">
+                  <label>
+                    <span>태그</span>
+                    <input id="tags" placeholder="trend, ny-open, sweep" />
+                    <div id="quick-tags" class="chips" style="margin-top: 12px;"></div>
+                  </label>
+                  <label>
+                    <span>실수 태그</span>
+                    <input id="mistakes" placeholder="fomo, early exit, oversize" />
+                    <div id="quick-mistakes" class="chips" style="margin-top: 12px;"></div>
+                  </label>
+                </div>
+
+                <div class="review-guidance-box">
+                  <div class="review-guidance-title">사후 평가 체크포인트</div>
+                  <ul>
+                    <li>실제 사용 리스크가 계획한 허용 범위 안에 있었는지 확인합니다.</li>
+                    <li>추가 진입과 청산이 계획된 구조를 개선했는지, 악화시켰는지 적습니다.</li>
+                    <li>다음에도 반복 가능한 거래인지, 아니면 일회성 행운인지 분리해서 기록합니다.</li>
+                  </ul>
+                </div>
               </div>
 
-              <div class="field-grid cols-1" style="margin-bottom: 32px;">
+              <div class="field-grid cols-1" style="margin-bottom: 28px;">
                 <label>
-                  <span>Review & Lessons (복기)</span>
-                  <textarea id="review" class="auto-resize" placeholder="잘한 점, 실수, 다음 매매를 위한 피드백..." style="min-height: 120px;"></textarea>
+                  <span>Review &amp; Lessons (복기)</span>
+                  <textarea id="review" class="auto-resize" placeholder="실행 품질, 추가 진입 적절성, 청산 전략, 다음 매매를 위한 교정 포인트를 적으세요." style="min-height: 140px;"></textarea>
                 </label>
               </div>
 
@@ -320,38 +362,8 @@
           </form>
         </div>
 
-        <aside class="journal-sidebar stack">
-          <article class="card premium-balance-card">
-            <div class="section-head no-bottom">
-              <div><h3>💳 Account Status</h3><p>포트폴리오 자산 스냅샷</p></div>
-              <span class="subtle-pill accent">Local</span>
-            </div>
-            <div class="bank-balance-shell">
-              <div class="bank-balance-head">
-                <span>총 자산</span>
-                <strong id="bal-total">$0</strong>
-              </div>
-              <div class="bank-grid cols-2">
-                <label class="bank-asset-card"><span>💵 현금</span><input type="number" id="bal-cash" value="0"></label>
-                <label class="bank-asset-card"><span>🪙 코인</span><input type="number" id="bal-crypto" value="0"></label>
-                <label class="bank-asset-card"><span>₮ USDT</span><input type="number" id="bal-usdt" value="0"></label>
-                <label class="bank-asset-card"><span>📈 주식</span><input type="number" id="bal-stock" value="0"></label>
-              </div>
-              <div class="bank-action-row" style="display:flex; gap:8px; align-items:center; padding: 0 16px 16px; border-bottom: 1px solid var(--line); margin-bottom:16px;">
-                <select id="balance-type" style="width: 100px; padding: 10px; font-weight:800; border-radius: 8px;">
-                  <option value="PNL">매매손익</option>
-                  <option value="DEPOSIT">입금(+)</option>
-                  <option value="WITHDRAWAL">출금(-)</option>
-                  <option value="MANUAL">단순조정</option>
-                </select>
-                <input type="text" id="balance-memo" placeholder="메모 (선택)" style="flex:1;" />
-                <button type="button" id="btn-update-balance" class="tool-btn primary-btn">기록</button>
-              </div>
-              <div id="balance-history" class="balance-history-container"></div>
-            </div>
-          </article>
-
-          <article class="card compact-card risk-summary-card">
+        <aside id="journal-sidebar" class="journal-sidebar stack">
+          <article id="risk-summary-card" class="card compact-card risk-summary-card">
             <div class="section-head"><div><h3>Risk Planner</h3><p>자동 주문 설계 · 포지션 상태 · Scale-In 시뮬레이터</p></div></div>
             <div class="detail-box risk-box">
               <div class="kv">
@@ -387,6 +399,36 @@
             <div id="scalein-summary" class="summary-box" style="margin-top:12px;">추가 진입가와 리스크 비중을 입력하면 평균단가/리스크/목표 수익 변화가 즉시 표시됩니다.</div>
             <div class="mini-head" style="margin-top:16px;"><h4>TARGET PROJECTION</h4></div>
             <div id="target-ladder-summary" class="summary-box" style="margin-top:12px;">목표가 또는 Target / Filled Exit 레그를 입력하면 단계별 프로젝션이 표시됩니다.</div>
+          </article>
+
+          <article class="card premium-balance-card">
+            <div class="section-head no-bottom">
+              <div><h3>💳 Account Status</h3><p>포트폴리오 자산 스냅샷</p></div>
+              <span class="subtle-pill accent">Local</span>
+            </div>
+            <div class="bank-balance-shell">
+              <div class="bank-balance-head">
+                <span>총 자산</span>
+                <strong id="bal-total">$0</strong>
+              </div>
+              <div class="bank-grid cols-2">
+                <label class="bank-asset-card"><span>💵 현금</span><input type="number" id="bal-cash" value="0"></label>
+                <label class="bank-asset-card"><span>🪙 코인</span><input type="number" id="bal-crypto" value="0"></label>
+                <label class="bank-asset-card"><span>₮ USDT</span><input type="number" id="bal-usdt" value="0"></label>
+                <label class="bank-asset-card"><span>📈 주식</span><input type="number" id="bal-stock" value="0"></label>
+              </div>
+              <div class="bank-action-row" style="display:flex; gap:8px; align-items:center; padding: 0 16px 16px; border-bottom: 1px solid var(--line); margin-bottom:16px;">
+                <select id="balance-type" style="width: 100px; padding: 10px; font-weight:800; border-radius: 8px;">
+                  <option value="PNL">매매손익</option>
+                  <option value="DEPOSIT">입금(+)</option>
+                  <option value="WITHDRAWAL">출금(-)</option>
+                  <option value="MANUAL">단순조정</option>
+                </select>
+                <input type="text" id="balance-memo" placeholder="메모 (선택)" style="flex:1;" />
+                <button type="button" id="btn-update-balance" class="tool-btn primary-btn">기록</button>
+              </div>
+              <div id="balance-history" class="balance-history-container"></div>
+            </div>
           </article>
 
           <article class="card compact-card">

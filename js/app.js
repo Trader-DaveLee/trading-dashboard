@@ -30,7 +30,7 @@ const ID_LIST = [
   'nav','force-save-draft','export-json','import-json-btn','import-json','journal-status','draft-saved-at',
   'view-overview','metrics','overview-from','overview-to','overview-clear','overview-search','prev-month','calendar-title','next-month','calendar','equity-chart','balance-chart','setup-chart','mistake-list','research-notes','overview-portfolio',
   'realtime-clock','quick-launch-grid','btn-manage-quick-links',
-  'view-journal','trade-form','trade-id','trade-date','btn-now','ticker','btn-manage-ticker','status','session','side','setup-entry','btn-manage-setup-entry','setup-exit','btn-manage-setup-exit',
+  'view-journal','journal-sidebar','journal-risk-phase','post-assessment-copy','trade-form','trade-id','trade-date','btn-now','ticker','btn-manage-ticker','status','session','side','setup-entry','btn-manage-setup-entry','setup-exit','btn-manage-setup-exit',
   'account-size','risk-pct','leverage','current-price','planner-mode','planner-legs','planner-weight-mode','btn-generate-plan','btn-apply-plan','planner-summary','maker-fee','taker-fee','stop-price','target-price','mark-price','stop-type','adjustment',
   'context','thesis','review','tags','mistakes',
   'add-entry','entries','add-exit','exits','calc-summary','quick-tags','quick-mistakes','live-notes','btn-insert-time','add-live-chart','live-charts-container',
@@ -91,6 +91,7 @@ bootstrap();
 function bootstrap() {
   cacheEls();
   bindEvents();
+  bindSidebarRiskSync();
   initMeta();
   renderNav();
   hydrateInitialForm();
@@ -103,6 +104,18 @@ function cacheEls() {
   ID_LIST.forEach(id => {
     els[id] = document.getElementById(id);
   });
+}
+
+function bindSidebarRiskSync() {
+  const riskPhase = els['journal-risk-phase'];
+  const sidebar = els['journal-sidebar'];
+  if (!riskPhase || !sidebar) return;
+  const syncToRiskPlanner = () => {
+    if (window.innerWidth <= 768) return;
+    sidebar.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+  riskPhase.addEventListener('focusin', syncToRiskPlanner);
+  riskPhase.addEventListener('mouseenter', syncToRiskPlanner);
 }
 
 function startClock() {
@@ -968,33 +981,56 @@ function updatePreview() {
   if(els['risk-bep']) els['risk-bep'].textContent = metrics.breakEvenPrice > 0 ? safeNumber(metrics.breakEvenPrice.toFixed(4)) : '0.00';
 }
 
+
 function renderTradeEvaluation(metrics, trade) {
   if (!els['eval-status-badge']) return;
 
   const isClosed = trade.status === 'CLOSED';
-  
-  els['eval-status-badge'].innerHTML = isClosed 
-    ? '<span style="color:#94a3b8;">FINAL (CLOSED)</span>' 
-    : '<span style="color:#60a5fa;">PROJECTED (OPEN)</span>';
+  const pnlValue = isClosed ? metrics.netPnl : (metrics.hasProjection ? metrics.projectedPnl : metrics.unrealizedPnl);
+  const rValue = isClosed ? metrics.r : (metrics.hasProjection ? metrics.projectedR : metrics.unrealizedR);
+  const mistakes = Array.isArray(trade.mistakes) ? trade.mistakes : [];
+  const riskUsage = metrics.actualRiskPctOfBudget || 0;
+  const riskLabel = riskUsage > 100 ? `허용 리스크를 ${riskUsage.toFixed(1)}% 사용했습니다.` : `허용 리스크의 ${riskUsage.toFixed(1)}%를 사용했습니다.`;
+  const exitLabel = isClosed
+    ? `실제 청산 ${metrics.actualExitPct.toFixed(1)}% 기준으로 최종 결과가 확정되었습니다.`
+    : `실제 청산 ${metrics.actualExitPct.toFixed(1)}% · 계획 청산 ${metrics.plannedExitPct.toFixed(1)}% 상태입니다.`;
 
-  els['eval-margin'].textContent = moneyAbs(metrics.margin);
-  els['eval-bep'].textContent = metrics.breakEvenPrice > 0 ? safeNumber(metrics.breakEvenPrice.toFixed(4)) : '0.00';
-  els['eval-fees'].textContent = `-${moneyAbs(metrics.totalFees)}`;
-  
-  const displayPnl = isClosed ? metrics.netPnl : (metrics.hasProjection ? metrics.projectedPnl : metrics.unrealizedPnl);
-  const displayR = isClosed ? metrics.r : (metrics.hasProjection ? metrics.projectedR : metrics.unrealizedR);
-  
-  els['eval-pnl'].textContent = money(displayPnl);
-  els['eval-pnl'].className = `eval-value ${displayPnl > 0 ? 'positive' : displayPnl < 0 ? 'negative' : ''}`;
-  
-  els['eval-r'].textContent = `${displayR.toFixed(2)}R`;
-  els['eval-r'].className = `eval-value ${displayR > 0 ? 'positive' : displayR < 0 ? 'negative' : ''}`;
-  
+  els['eval-status-badge'].textContent = isClosed ? 'FINAL (CLOSED)' : 'PROJECTED (OPEN)';
+
+  els['eval-margin'].textContent = `${moneyAbs(metrics.actualRiskUsed)} / ${moneyAbs(metrics.riskDollar)}`;
+  els['eval-bep'].textContent = `${moneyAbs(metrics.residualRisk)} · ${metrics.breakEvenPrice > 0 ? safeNumber(metrics.breakEvenPrice.toFixed(4)) : '0.00'}`;
+  els['eval-fees'].textContent = moneyAbs(metrics.totalFees);
+
+  els['eval-pnl'].textContent = money(pnlValue);
+  els['eval-pnl'].className = `eval-value ${pnlValue > 0 ? 'positive' : pnlValue < 0 ? 'negative' : ''}`;
+
+  els['eval-r'].textContent = `${rValue.toFixed(2)}R`;
+  els['eval-r'].className = `eval-value ${rValue > 0 ? 'positive' : rValue < 0 ? 'negative' : ''}`;
+
   els['eval-roi'].textContent = `${metrics.accountImpact > 0 ? '+' : ''}${metrics.accountImpact.toFixed(2)}%`;
   els['eval-roi'].className = `eval-value ${metrics.accountImpact > 0 ? 'positive' : metrics.accountImpact < 0 ? 'negative' : ''}`;
 
-  if(els['label-pnl']) els['label-pnl'].textContent = isClosed ? '최종 PnL' : '예상 PnL';
-  if(els['label-r']) els['label-r'].textContent = isClosed ? '최종 R' : '예상 R';
+  if (els['label-pnl']) els['label-pnl'].textContent = isClosed ? '최종 PnL' : '예상 PnL';
+  if (els['label-r']) els['label-r'].textContent = isClosed ? '최종 R' : '예상 R';
+
+  if (els['post-assessment-copy']) {
+    const lines = [];
+    lines.push(`<div class="post-assessment-line"><strong>Risk Discipline.</strong> ${escapeHtml(riskLabel)} ${riskUsage > 100 ? '추가 진입/과대 레버리지 여부를 먼저 점검하세요.' : '리스크 관리 측면에서는 구조가 유지되고 있습니다.'}</div>`);
+    lines.push(`<div class="post-assessment-line"><strong>Execution / Exit.</strong> ${escapeHtml(exitLabel)} ${isClosed ? '청산 과정이 계획과 얼마나 일치했는지 Review에 남기세요.' : 'OPEN 상태라면 계획 청산과 실제 체결을 분리해서 기록하세요.'}</div>`);
+
+    let focus = '다음 거래에서도 반복 가능한 구조인지, 아니면 운 좋게 마감된 결과인지 구분해서 적어두는 것이 좋습니다.';
+    if (mistakes.length) {
+      focus = `실수 태그(${mistakes.slice(0, 3).join(', ')})가 남아 있습니다. 동일한 상황이 다시 나왔을 때 무엇을 먼저 고칠지 한 줄로 정리하세요.`;
+    } else if (isClosed && rValue < 0 && riskUsage <= 100) {
+      focus = '손실이더라도 리스크 범위 안에서 계획을 지켰다면 “좋은 손실”일 수 있습니다. 실행 품질과 청산 구조를 분리해서 복기하세요.';
+    } else if (!isClosed && metrics.missingMarkPrice) {
+      focus = '현재가(Mark Price)가 없어서 OPEN 상태 해석이 흐려집니다. 보유 중이라면 현재가를 넣고 projected 결과를 확인하세요.';
+    } else if (isClosed && rValue > 0 && mistakes.length === 0) {
+      focus = '이번 거래는 Playbook 후보로 남길 가치가 있습니다. 진입 근거와 무효화 기준을 더 짧고 재사용 가능하게 요약해 두세요.';
+    }
+    lines.push(`<div class="post-assessment-line"><strong>Next Review Focus.</strong> ${escapeHtml(focus)}</div>`);
+    setHtml('post-assessment-copy', lines.join(''));
+  }
 }
 
 function renderCalcSummary(metrics, trade) {
