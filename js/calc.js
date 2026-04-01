@@ -17,7 +17,6 @@ export function recalcTrade(trade) {
   const entryTotal = sumWeights(entries);
   const exitTotalRaw = sumWeights(exits);
   
-  // ✨ Phase 1: 청산 비중 합계 100% 초과 시 유효성 검사 실패 반환
   if (exitTotalRaw > 100) {
     const base = baseMetrics(riskDollar);
     base.exitExceeds100 = true;
@@ -99,20 +98,40 @@ export function recalcTrade(trade) {
     ? (totalFees / Math.max(1e-9, Math.abs(grossRealized + grossUnrealized))) * 100
     : 0;
 
-  // ✨ Phase 1: R 지표 세분화
   const realizedR = riskDollar ? realizedPnl / riskDollar : 0;
   const unrealizedR = riskDollar ? unrealizedPnl / riskDollar : 0;
   const r = riskDollar ? netPnl / riskDollar : 0;
 
+  // ✨ 신규: 정확한 본절가(Break-Even Price) 및 계좌 수익률(ROI)
+  const breakEvenPrice = qty > 0 ? avgEntry + (side * (entryFees / qty)) : 0;
+  const accountImpact = accountSize > 0 ? (netPnl / accountSize) * 100 : 0;
+
+  // ✨ 신규: 타겟 도달 시 예상 성과 (Projected PnL & R)
+  let projectedPnl = 0;
+  let projectedR = 0;
+  if (exits.length > 0 && trade.status === 'OPEN') {
+    let projectedGross = 0;
+    let projectedExitFees = 0;
+    let exitWeightSum = sumWeights(exits);
+    if (exitWeightSum > 0) {
+      for (const leg of exits) {
+         const price = Number(leg.price);
+         const w = (Number(leg.weight) / exitWeightSum); // 비중 100%로 환산
+         projectedGross += (price - avgEntry) * side * (qty * w);
+         projectedExitFees += price * (qty * w) * (leg.type === 'M' ? maker : taker);
+      }
+    }
+    projectedPnl = projectedGross - entryFees - projectedExitFees;
+    projectedR = riskDollar ? projectedPnl / riskDollar : 0;
+  }
+
   return {
-    valid: true,
-    directionError: false,
-    exitExceeds100: false,
-    missingMarkPrice,
+    valid: true, directionError: false, exitExceeds100: false, missingMarkPrice,
     riskDollar, avgEntry, avgExit, qty, margin, sliderPct, notional, stopDistancePct,
     exitPct, remainingPct, remainingQty, remainingExposure, residualRisk,
     grossRealized, realizedPnl, grossUnrealized, unrealizedPnl, pnl: netPnl, netPnl,
     realizedR, unrealizedR, r, totalFees, entryFees, exitFees, feePctOfGross,
+    breakEvenPrice, accountImpact, projectedPnl, projectedR,
     scaleInCount: entries.length, scaleOutCount: exits.length,
   };
 }
@@ -124,6 +143,7 @@ function baseMetrics(riskDollar = 0, avgEntry = 0, directionError = false) {
     remainingPct: 0, remainingQty: 0, remainingExposure: 0, residualRisk: 0,
     grossRealized: 0, realizedPnl: 0, grossUnrealized: 0, unrealizedPnl: 0,
     pnl: 0, netPnl: 0, realizedR: 0, unrealizedR: 0, r: 0,
-    totalFees: 0, entryFees: 0, exitFees: 0, feePctOfGross: 0, scaleInCount: 0, scaleOutCount: 0,
+    totalFees: 0, entryFees: 0, exitFees: 0, feePctOfGross: 0, breakEvenPrice: 0, accountImpact: 0, projectedPnl: 0, projectedR: 0,
+    scaleInCount: 0, scaleOutCount: 0,
   };
 }
