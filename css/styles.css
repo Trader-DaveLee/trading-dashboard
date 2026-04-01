@@ -94,26 +94,24 @@ input:focus, select:focus, textarea:focus {
 #nav button:hover { color: var(--text); }
 #nav button.active { background: #ffffff; color: var(--accent); box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
 
-/* 범용 버튼 디자인 */
+/* 범용 버튼 디자인 고급화 */
 .tool-btn, .backup-actions button { 
   border: 1px solid #e2e8f0; background: #ffffff; color: #475569; padding: 12px 18px; 
   border-radius: var(--radius-sm); font-weight: 700; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); 
 }
 .tool-btn:hover, .backup-actions button:hover { background: #f8fafc; border-color: #cbd5e1; color: #0f172a; box-shadow: 0 2px 6px rgba(0,0,0,0.03); transform: translateY(-1px); }
-.tool-btn:active { transform: translateY(0); }
+.tool-btn:active { transform: translateY(0) scale(0.97); } /* ✨ 클릭 시 부드럽게 눌리는 애니메이션 */
 .btn-sm { padding: 8px 14px; font-size: 12px; border-radius: 10px; }
 
-/* ✨ 원래의 앙증맞은 톱니바퀴 버튼 클래스 */
+/* 원래의 앙증맞은 톱니바퀴 버튼 복구 */
 .gear-btn {
   border: 1px solid var(--line); background: #f8fafc; color: var(--muted);
   padding: 12px; border-radius: var(--radius-sm); font-size: 14px; cursor: pointer; transition: 0.2s;
   display: flex; align-items: center; justify-content: center;
 }
 .gear-btn:hover { background: #e2e8f0; color: #0f172a; border-color: #cbd5e1; }
-
 .icon-btn { border-radius: 50%; width: 46px; height: 46px; padding: 0; display: grid; place-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.02);}
 
-/* 항목 관리 리스트 버튼 및 "추가" 버튼 줄바꿈 방지 */
 .fixed-btn { flex-shrink: 0 !important; min-width: 80px; white-space: nowrap !important;}
 .btn-icon-sm { background: #f1f5f9; border: 1px solid transparent; color: var(--muted); border-radius: 8px; width: 30px; height: 30px; display: grid; place-items: center; font-size: 12px; font-weight: 800; transition: 0.2s; cursor: pointer; padding:0; flex-shrink: 0;}
 .btn-icon-sm:hover { background: #e2e8f0; color: #0f172a; }
@@ -157,7 +155,6 @@ input:focus, select:focus, textarea:focus {
 .quick-link-card:hover { background: #ffffff; border-color: var(--accent); box-shadow: 0 6px 16px rgba(37,99,235,0.12); transform: translateY(-2px); color: var(--accent); }
 .quick-link-icon { font-size: 16px; }
 
-/* 리스트 관리 모달 UI */
 .list-manage-row { display: flex; justify-content: space-between; align-items: center; background: #f8fafc; border: 1px solid var(--line); padding: 12px 16px; border-radius: 12px; margin-bottom: 8px; transition: 0.2s;}
 .list-manage-row:hover { border-color: #cbd5e1; background: #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.02);}
 .list-manage-row > span, .list-manage-row > strong { flex: 1; word-break: break-all; padding-right: 12px; }
@@ -180,7 +177,6 @@ input:focus, select:focus, textarea:focus {
 .filter-label, .filter-sep { color: var(--muted); font-weight: 800; font-size: 12px; }
 .calendar-title { font-size: 18px; font-weight: 800; color: var(--text); }
 
-/* Overview Metric 6대 박스 럭셔리 그라데이션 적용 */
 .overview-top-row { display: grid; grid-template-columns: 2.5fr 1fr; gap: 24px; margin-bottom: 24px; }
 .metrics-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
 .metric {
@@ -252,7 +248,6 @@ label span { display: block; margin-bottom: 10px; color: var(--muted); font-size
 .input-with-unit .unit.left { border-right: 1px solid var(--line); }
 .input-with-unit .unit.right { border-left: 1px solid var(--line); }
 
-
 .compact-panel { background: #f8fafc; border: 1px solid var(--line); border-radius: 20px; padding: 24px; }
 .mini-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .mini-head h4 { margin: 0; color: var(--muted); font-size: 13px; font-weight: 800; text-transform: uppercase; }
@@ -269,22 +264,24 @@ label span { display: block; margin-bottom: 10px; color: var(--muted); font-size
 .quick-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
 .live-notes { min-height: 180px; margin-top: 16px; background: #ffffff; }
 
-/* ✨ Post-Trade 요약 평가 패널 (Dark Receipt Style) */
-.post-trade-eval-box { display: block; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: #f8fafc; padding: 24px; border-radius: 16px; margin-bottom: 32px; box-shadow: 0 10px 30px rgba(15, 23, 42, 0.15); border: 1px solid #334155; }
-.eval-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; }
-.eval-item { display: flex; flex-direction: column; gap: 8px; border-right: 1px solid #334155; padding-right: 16px; }
-.eval-item:last-child { border-right: none; padding-right: 0; }
-.eval-label { color: #94a3b8; font-size: 11px; font-weight: 800; text-transform: uppercase; }
-.eval-value { font-size: 20px; font-weight: 900; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: -0.5px;}
+/* ✨ Post-Trade 요약 평가 패널 (Dark Receipt Style) - Grade Select 통합 */
+.post-trade-eval-box { display: block; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: #f8fafc; padding: 32px; border-radius: 24px; margin-bottom: 32px; box-shadow: 0 10px 40px rgba(15, 23, 42, 0.2); border: 1px solid #334155; }
+.eval-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed #334155; padding-bottom: 24px; margin-bottom: 24px; }
+.eval-status-badge { font-size: 16px; font-weight: 900; letter-spacing: 0.5px; }
+.eval-grade-wrapper { display: flex; align-items: center; gap: 12px; }
+.eval-grade-wrapper label { color: #94a3b8; font-size: 13px; font-weight: 800; text-transform: uppercase; margin:0;}
+.eval-grade-select { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #fff; border-radius: 8px; padding: 8px 16px; font-weight: 800; font-size: 14px; outline: none; width: auto; transition: 0.2s;}
+.eval-grade-select:focus { background: rgba(255,255,255,0.15); border-color: var(--accent); }
+.eval-grade-select option { background: #1e293b; color: #fff; }
+
+.eval-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+.eval-item { display: flex; flex-direction: column; gap: 8px; }
+.eval-item label { color: #94a3b8; font-size: 12px; font-weight: 800; text-transform: uppercase; margin:0;}
+.eval-value { font-size: 24px; font-weight: 900; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: -0.5px;}
 .eval-item .positive { color: #34d399; }
 .eval-item .negative { color: #f87171; }
 
-/* ✨ Total R-Multiple 디자인 가운데 정렬 */
-.review-kpi { background: #ffffff; border: 1px solid var(--line); border-radius: 16px; padding: 16px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.02); height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center;}
-.review-kpi-label { font-size: 11px; color: var(--muted); font-weight: 800; text-transform: uppercase; }
-.review-kpi-value { font-size: 32px; font-weight: 900; letter-spacing: -1px; color: var(--accent); margin-top: 8px; width: 100%; display: flex; justify-content: center;}
-
-/* ✨ 플로팅 액션 바 (화면 하단에 항상 떠있음) - 둥근 애니메이션 버튼 적용 */
+/* ✨ 플로팅 액션 바 (화면 하단에 항상 떠있음) - 순서 원복 & 애니메이션 적용 */
 .journal-actions-sticky {
   position: sticky; bottom: 32px; z-index: 40;
   display: flex; gap: 12px; align-items: center; justify-content: center;
@@ -294,7 +291,7 @@ label span { display: block; margin-bottom: 10px; color: var(--muted); font-size
   width: max-content; margin-left: auto; margin-right: auto;
 }
 .journal-actions-sticky .tool-btn { border-radius: 999px; padding: 14px 24px; font-size: 14px; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
-.journal-actions-sticky .tool-btn:active { transform: scale(0.96); }
+.journal-actions-sticky .tool-btn:active { transform: scale(0.95); }
 .journal-actions-sticky .primary-btn { padding: 14px 32px; font-size: 15px; }
 
 .stack { display: grid; gap: 16px; }
@@ -374,8 +371,6 @@ tbody tr:hover { background: #f1f5f9; cursor: pointer; }
 .bank-asset-card input { border: none; padding: 0; font-size: 18px; font-weight: 900; background: transparent; box-shadow: none; color: #0f172a; }
 .bank-action-row { display: flex; gap: 8px; padding: 0 16px 16px; border-bottom: 1px solid var(--line); margin-bottom: 16px;}
 .bank-action-row input { flex: 1; padding: 10px 14px; font-size: 13px; font-weight: 600;}
-.btn-save-balance { padding: 10px 16px; border: none; background: var(--accent); color: #fff; font-weight: 800; border-radius: var(--radius-sm); font-size: 13px; cursor: pointer; transition: 0.2s;}
-.btn-save-balance:hover { background: var(--accent-hover); }
 .balance-history-container { padding: 0 16px 16px 16px; max-height: 160px; overflow-y: auto;}
 
 /* ✨ Checklist Styles (고급 카드형 박스 디자인 적용) */
@@ -472,11 +467,10 @@ tbody tr:hover { background: #f1f5f9; cursor: pointer; }
   .check-inline { padding: 8px 12px; }
   .check-inline input[type="checkbox"] { width: 22px; height: 22px; }
 
-  .post-trade-eval-box { padding: 16px; }
-  .eval-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
-  .eval-item { border-right: none; padding-right: 0; border-bottom: 1px solid #334155; padding-bottom: 12px; }
-  .eval-item:last-child { border-bottom: none; padding-bottom: 0; }
-
+  .post-trade-eval-box { padding: 24px; }
+  .eval-header { flex-direction: column; align-items: flex-start; gap: 16px;}
+  .eval-grid { grid-template-columns: repeat(2, 1fr); gap: 16px; }
+  
   .table-wrap { background: transparent; border: none; box-shadow: none; overflow: visible; }
   .table-wrap table, .table-wrap thead, .table-wrap tbody, .table-wrap th, .table-wrap td, .table-wrap tr { display: block; width: 100%; }
   .table-wrap thead { display: none; } 
