@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Trading Desk Dashboard v6.1 (Luxury UI)</title>
+  <title>Trading Desk Dashboard v6.2 (Ultimate Detail)</title>
   <link rel="stylesheet" href="./css/styles.css" />
 </head>
 <body>
@@ -42,10 +42,10 @@
         </div>
       </div>
 
-      <div class="section-head section-head-large overview-hero">
+      <div class="section-head overview-hero">
         <div>
-          <h3 style="font-size: 40px; font-weight: 900; letter-spacing: -1.5px;">Overview</h3>
-          <p style="font-size: 15px; font-weight: 700; color: var(--muted); margin-top: 8px;">트레이딩 성과 요약</p>
+          <h3 class="overview-title">Overview</h3>
+          <p class="overview-subtitle">트레이딩 성과 요약</p>
         </div>
         <div class="date-filter-box">
           <span class="filter-label">📊 통계 기간</span>
@@ -224,12 +224,14 @@
                 <p>핵심 복기와 평가 점수</p>
               </div>
 
-              <div id="post-trade-eval" class="post-trade-eval-box hidden"></div>
+              <div id="post-trade-eval" class="post-trade-eval-box">
+                <div class="muted-caption" style="text-align:center; padding: 20px;">유효한 트레이드 데이터가 입력되지 않았습니다.</div>
+              </div>
 
-              <div class="field-grid cols-3" style="margin-bottom: 24px; align-items: stretch;">
+              <div class="field-grid cols-2" style="margin-top: 24px; margin-bottom: 24px; align-items: start;">
                 <label>
                   <span>Grade (S~D)</span>
-                  <select id="grade" style="font-size:15px; font-weight:800; height: 100%;">
+                  <select id="grade" style="font-size:15px; font-weight:800;">
                     <option value="S">S (완벽한 원칙, 최고의 셋업)</option>
                     <option value="A">A (원칙 준수, 우량 셋업)</option>
                     <option value="B" selected>B (보통, 일반적 셋업)</option>
@@ -237,9 +239,18 @@
                     <option value="D">D (뇌동 매매, 원칙 위반)</option>
                   </select>
                 </label>
-                <div class="review-kpi" style="grid-column: span 2; text-align: center; justify-content: center;">
-                  <div class="review-kpi-label">Total R-Multiple</div>
-                  <div id="deep-review-r" class="review-kpi-value" style="display:flex; justify-content:center;">0.00R</div>
+                
+                <div style="background: #f8fafc; padding: 20px; border-radius: 16px; border: 1px solid var(--line);">
+                  <label>
+                    <span>태그</span>
+                    <input id="tags" placeholder="trend, ny-open, sweep" />
+                    <div id="quick-tags" class="chips" style="margin-top: 12px; margin-bottom: 16px;"></div>
+                  </label>
+                  <label>
+                    <span>실수 태그</span>
+                    <input id="mistakes" placeholder="fomo, early exit, oversize" />
+                    <div id="quick-mistakes" class="chips" style="margin-top: 12px;"></div>
+                  </label>
                 </div>
               </div>
 
@@ -250,30 +261,17 @@
                 </label>
               </div>
 
-              <div style="margin-bottom: 32px;">
+              <div>
                 <div class="mini-head"><h4>종료 차트 증거 (Exit Charts)</h4><button type="button" id="add-exit-chart" class="tool-btn btn-sm">＋ 차트 추가</button></div>
                 <div id="exit-charts-container" class="stack"></div>
-              </div>
-              
-              <div class="field-grid cols-2" style="background: #f8fafc; padding: 24px; border-radius: 16px; border: 1px solid var(--line);">
-                <label>
-                  <span>태그</span>
-                  <input id="tags" placeholder="trend, ny-open, sweep" />
-                  <div id="quick-tags" class="chips" style="margin-top: 12px;"></div>
-                </label>
-                <label>
-                  <span>실수 태그</span>
-                  <input id="mistakes" placeholder="fomo, early exit, oversize" />
-                  <div id="quick-mistakes" class="chips" style="margin-top: 12px;"></div>
-                </label>
               </div>
             </article>
 
             <div class="journal-actions-sticky">
-              <button type="button" id="delete-trade" class="tool-btn danger-btn">삭제</button>
-              <button type="button" id="reset-form" class="tool-btn">초기화</button>
-              <button type="button" id="duplicate-trade" class="tool-btn">복제</button>
-              <button type="submit" class="tool-btn primary-btn">💾 Save & Update Trade</button>
+              <button type="submit" class="btn-save-trade primary-btn">💾 Save & Update Trade</button>
+              <button type="button" id="reset-form" class="tool-btn wide-btn">초기화</button>
+              <button type="button" id="duplicate-trade" class="tool-btn wide-btn">복제</button>
+              <button type="button" id="delete-trade" class="tool-btn wide-btn danger-btn">삭제</button>
             </div>
           </form>
         </div>
@@ -303,7 +301,7 @@
                   <option value="MANUAL">단순조정</option>
                 </select>
                 <input type="text" id="balance-memo" placeholder="메모 (선택)" style="flex:1;" />
-                <button type="button" id="btn-update-balance" class="tool-btn">기록</button>
+                <button type="button" id="btn-update-balance" class="tool-btn primary-btn">기록</button>
               </div>
               <div id="balance-history" class="balance-history-container"></div>
             </div>
@@ -332,7 +330,7 @@
             <div class="stack">
               <div class="premium-label-wrapper" style="margin-bottom: 0px;">
                 <span class="premium-label-line"></span>
-                <label>📝 규칙 메모</label>
+                <label>규칙 메모</label>
               </div>
               <textarea id="desk-rules" class="auto-resize rules-box" placeholder="항상 되새길 일반 원칙들..."></textarea>
               
@@ -344,7 +342,7 @@
                 <div id="master-checklist-list" class="stack" style="margin-bottom:12px;"></div>
                 <div class="input-group flex-group">
                   <input type="text" id="new-check-input" placeholder="새 항목...">
-                  <button type="button" id="btn-add-check" class="tool-btn fixed-btn">추가</button>
+                  <button type="button" id="btn-add-check" class="tool-btn primary-btn fixed-btn">추가</button>
                 </div>
               </div>
             </div>
@@ -441,8 +439,8 @@
     <div class="modal-card" style="width: 600px; max-width: 95vw;">
       <div id="list-manage-title" class="modal-title">항목 관리</div>
       <div class="input-group flex-group" style="margin-bottom: 24px;">
-        <input type="text" id="list-manage-input" placeholder="새 항목 추가..." />
-        <button type="button" id="list-manage-add" class="tool-btn">추가</button>
+        <input type="text" id="list-manage-input" placeholder="새 항목 추가..." style="flex:1;" />
+        <button type="button" id="list-manage-add" class="tool-btn primary-btn fixed-btn">추가</button>
       </div>
       <div id="list-manage-items" class="stack" style="max-height: 380px; overflow-y: auto; padding-right:4px;"></div>
       <div class="modal-actions" style="margin-top: 24px;">
@@ -460,7 +458,7 @@
          <label><span>아이콘(이모지)</span>
            <div class="input-group flex-group">
              <input type="text" id="ql-icon" placeholder="🔗" style="width:100%;" />
-             <button type="button" id="ql-add" class="tool-btn fixed-btn">추가</button>
+             <button type="button" id="ql-add" class="tool-btn primary-btn fixed-btn">추가</button>
            </div>
          </label>
       </div>
