@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Trading Desk Dashboard v5.0 (Ultimate UI)</title>
+  <title>Trading Desk Dashboard v5.1 (Fixed Layout)</title>
   <link rel="stylesheet" href="./css/styles.css" />
 </head>
 <body>
@@ -67,22 +67,7 @@
         </article>
       </div>
 
-      <div class="grid grid-2" style="margin-bottom:24px;">
-        <article class="card compact-section">
-          <div class="section-head">
-            <div><h3 style="color:var(--accent);">Today's Console</h3><p>오늘 하루의 매매 요약</p></div>
-          </div>
-          <div id="today-console" class="stack"></div>
-        </article>
-        <article class="card compact-section">
-          <div class="section-head">
-            <div><h3>EOD Memo (마감 일기)</h3><p>오늘 시장의 흐름과 내일의 대응</p></div>
-          </div>
-          <textarea id="eod-memo" class="rules-box auto-resize" placeholder="오늘 시장은 어땠고, 내일은 어떻게 매매할 것인가..."></textarea>
-        </article>
-      </div>
-
-      <article class="card overview-calendar-card">
+      <article class="card overview-calendar-card" style="margin-bottom: 24px;">
         <div class="section-head">
           <div><h3>월간 캘린더 (Heatmap)</h3><p>일별 순손익 및 클릭하여 해당 일자 복기</p></div>
           <div class="inline-actions">
@@ -94,7 +79,7 @@
         <div id="calendar" class="calendar calendar-large"></div>
       </article>
 
-      <div class="grid grid-2" style="margin-top:24px; margin-bottom:24px;">
+      <div class="grid grid-2" style="margin-bottom:24px;">
         <article class="card chart-card">
           <div class="section-head"><div><h3>Equity Curve (매매 손익)</h3><p>순수 매매 성과 누적 곡선</p></div></div>
           <div id="equity-chart" class="chart-box"></div>
@@ -119,7 +104,6 @@
 
     <section id="view-journal" class="view">
       <div class="grid grid-journal">
-        
         <div class="journal-form-wrapper">
           <form id="trade-form" class="form-stack">
             <input type="hidden" id="trade-id" />
@@ -292,6 +276,7 @@
           <article class="card premium-balance-card">
             <div class="section-head no-bottom">
               <div><h3>💳 Account Status</h3><p>포트폴리오 자산 스냅샷</p></div>
+              <span class="subtle-pill accent">Local</span>
             </div>
             <div class="bank-balance-shell">
               <div class="bank-balance-head">
