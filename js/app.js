@@ -37,7 +37,9 @@ const ID_LIST = [
   'risk-risk-dollar','risk-qty','risk-margin','risk-slider','risk-notional','risk-stop-distance','risk-fees','risk-realized','risk-unrealized','risk-residual',
   'view-library','q','f-from','f-to','f-status','f-side','f-session','f-setup','f-tag','f-mistake','f-grade','sort','clear-filters','library-result-count','review-position','review-breadcrumb','prev-trade','next-trade','filter-same-setup','filter-same-ticker','clear-quick-filter','trade-table','detail','detail-insights',
   'view-playbook','playbook-gallery',
-  'app-modal','modal-title','modal-desc','modal-input','modal-btn-cancel','modal-btn-confirm'
+  'app-modal','modal-title','modal-desc','modal-input','modal-btn-cancel','modal-btn-confirm',
+  'list-manage-modal','list-manage-title','list-manage-input','list-manage-add','list-manage-items','list-manage-close',
+  'ql-modal','ql-name','ql-url','ql-icon','ql-add','ql-items','ql-close'
 ];
 
 window.__desk = {
@@ -97,7 +99,6 @@ function cacheEls() {
   });
 }
 
-// ✨ 실시간 시계 포맷팅
 function startClock() {
   const updateClock = () => {
     const now = new Date();
@@ -138,7 +139,6 @@ function hideModal() {
   if(els['app-modal']) els['app-modal'].classList.remove('show');
 }
 
-// ✨ 내용에 맞춰 박스 높이를 자동으로 늘려주는 함수
 function autoResize(el) {
   if (!el) return;
   el.style.height = 'auto';
@@ -157,6 +157,108 @@ function initMeta() {
   renderQuickLaunch();
 }
 
+// ✨ 리스트 전용 매니저 모달
+function openListManager(key, title, casing) {
+  if(!els['list-manage-modal']) return;
+  els['list-manage-modal'].classList.add('show');
+  setText('list-manage-title', title + ' 관리');
+  els['list-manage-input'].value = '';
+
+  const renderItems = () => {
+    const arr = state.db.meta[key] || [];
+    els['list-manage-items'].innerHTML = arr.length ? arr.map((item, idx) => `
+      <div class="list-manage-row">
+        <span>${escapeHtml(item)}</span>
+        <button type="button" class="btn-del-item" data-idx="${idx}">✕</button>
+      </div>
+    `).join('') : emptyState('등록된 항목이 없습니다.');
+
+    els['list-manage-items'].querySelectorAll('.btn-del-item').forEach(btn => {
+      btn.onclick = (e) => {
+        arr.splice(e.target.dataset.idx, 1);
+        saveDB(state.db);
+        renderItems();
+        renderDropdowns();
+        renderQuickChips();
+      };
+    });
+  };
+
+  els['list-manage-add'].onclick = () => {
+    let val = els['list-manage-input'].value.trim();
+    if (!val) return;
+    val = casing === 'upper' ? val.toUpperCase() : val.toLowerCase();
+    
+    if (!state.db.meta[key]) state.db.meta[key] = [];
+    const arr = state.db.meta[key];
+    
+    if (!arr.includes(val)) {
+      arr.push(val);
+      saveDB(state.db);
+      els['list-manage-input'].value = '';
+      renderItems();
+      renderDropdowns();
+      renderQuickChips();
+    } else {
+      showModal({ type: 'ALERT', title: '오류', desc: '이미 존재하는 항목입니다.' });
+    }
+  };
+
+  renderItems();
+}
+
+// ✨ Quick Launch 매니저 모달
+function openQuickLinkManager() {
+  if(!els['ql-modal']) return;
+  els['ql-modal'].classList.add('show');
+  setVal('ql-name', ''); setVal('ql-url', ''); setVal('ql-icon', '');
+
+  const renderItems = () => {
+    const arr = state.db.meta.quickLinks || [];
+    els['ql-items'].innerHTML = arr.length ? arr.map((item, idx) => `
+      <div class="list-manage-row">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span>${escapeHtml(item.icon || '🔗')}</span>
+          <strong>${escapeHtml(item.name)}</strong>
+          <span style="color:var(--muted); font-size:11px;">${escapeHtml(item.url)}</span>
+        </div>
+        <button type="button" class="btn-del-item" data-idx="${idx}">✕</button>
+      </div>
+    `).join('') : emptyState('등록된 링크가 없습니다.');
+
+    els['ql-items'].querySelectorAll('.btn-del-item').forEach(btn => {
+      btn.onclick = (e) => {
+        arr.splice(e.target.dataset.idx, 1);
+        saveDB(state.db);
+        renderItems();
+        renderQuickLaunch();
+      };
+    });
+  };
+
+  els['ql-add'].onclick = () => {
+    const name = getVal('ql-name').trim();
+    const url = getVal('ql-url').trim();
+    const icon = getVal('ql-icon').trim();
+    
+    if (!name || !url) {
+      showModal({ type: 'ALERT', title: '입력 오류', desc: '이름과 URL은 필수입니다.' });
+      return;
+    }
+    
+    if (!state.db.meta.quickLinks) state.db.meta.quickLinks = [];
+    state.db.meta.quickLinks.push({ name, url: sanitizeUrl(url), icon: icon || '🔗' });
+    saveDB(state.db);
+    
+    setVal('ql-name', ''); setVal('ql-url', ''); setVal('ql-icon', '');
+    renderItems();
+    renderQuickLaunch();
+  };
+
+  renderItems();
+}
+
+
 function bindEvents() {
   if(els['modal-btn-cancel']) {
     els['modal-btn-cancel'].onclick = () => { hideModal(); if (modalCallback) modalCallback(null); };
@@ -170,10 +272,14 @@ function bindEvents() {
       }
     };
   }
+  
+  if(els['list-manage-close']) els['list-manage-close'].onclick = () => els['list-manage-modal'].classList.remove('show');
+  if(els['ql-close']) els['ql-close'].onclick = () => els['ql-modal'].classList.remove('show');
 
-  els['btn-manage-ticker'].onclick = () => manageList('tickers', 'Ticker', 'upper');
-  els['btn-manage-setup-entry'].onclick = () => manageList('entrySetups', 'Entry Setup', 'upper');
-  els['btn-manage-setup-exit'].onclick = () => manageList('exitSetups', 'Exit Setup', 'upper');
+  els['btn-manage-ticker'].onclick = () => openListManager('tickers', '티커', 'upper');
+  els['btn-manage-setup-entry'].onclick = () => openListManager('entrySetups', 'Entry Setup', 'upper');
+  els['btn-manage-setup-exit'].onclick = () => openListManager('exitSetups', 'Exit Setup', 'upper');
+  if(els['btn-manage-quick-links']) els['btn-manage-quick-links'].onclick = () => openQuickLinkManager();
 
   els['btn-now'].onclick = () => {
     setVal('trade-date', inputDate(new Date().toISOString()));
@@ -255,15 +361,9 @@ function bindEvents() {
 
   if(els['btn-update-balance']) els['btn-update-balance'].onclick = updateBalance;
   
-  // ✨ 모든 textarea에 자동 높이 조절 이벤트 연결
-  document.querySelectorAll('textarea.auto-resize').forEach(ta => {
-    ta.addEventListener('input', function() {
-      autoResize(this);
-    });
-  });
-
   if(els['desk-rules']) {
     els['desk-rules'].addEventListener('input', function() {
+      autoResize(this);
       state.db.meta.rules = this.value;
       saveDB(state.db);
     });
@@ -279,32 +379,6 @@ function bindEvents() {
         renderMasterChecklist();
         renderTradeChecklist(); 
       }
-    };
-  }
-
-  if(els['btn-manage-quick-links']) {
-    els['btn-manage-quick-links'].onclick = () => {
-      showModal({ type: 'PROMPT', title: `바로가기 링크 추가`, desc: `새로 추가할 링크를 쉼표로 구분하여 입력하세요.<br>형식: <b>이름, URL, 아이콘(선택)</b><br>(예: 바이낸스, https://binance.com, 💱)<br><br>※ 삭제하려면 이름 앞에 '-'를 붙이세요. (예: -바이낸스)` }, (val) => {
-        if (!val) return;
-        const isDel = val.startsWith('-');
-        const cleanVal = (isDel ? val.slice(1) : val).trim();
-        
-        if (!state.db.meta.quickLinks) state.db.meta.quickLinks = [];
-        
-        if (isDel) {
-          state.db.meta.quickLinks = state.db.meta.quickLinks.filter(l => l.name !== cleanVal);
-        } else {
-          const parts = cleanVal.split(',').map(s => s.trim());
-          if (parts.length >= 2) {
-            state.db.meta.quickLinks.push({ name: parts[0], url: sanitizeUrl(parts[1]), icon: parts[2] || '🔗' });
-          } else {
-            showModal({type: 'ALERT', title: '입력 오류', desc: '이름과 URL을 쉼표(,)로 구분하여 정확히 입력해주세요.'});
-            return;
-          }
-        }
-        saveDB(state.db);
-        renderQuickLaunch();
-      });
     };
   }
 
@@ -366,7 +440,6 @@ function renderNav() {
   });
 }
 
-// ✨ 탭 이동 시 텍스트 박스 자동 리사이징 버그 해결
 function renderViews() {
   views.forEach(view => {
     els[`view-${view}`].classList.toggle('active', state.view === view);
@@ -469,27 +542,6 @@ function renderQuickChips() {
   });
   els['quick-mistakes'].querySelectorAll('button').forEach(btn => {
     btn.onclick = () => appendCsvValue('mistakes', btn.dataset.mistake);
-  });
-}
-
-function manageList(key, label, casing = 'upper') {
-  showModal({ type: 'PROMPT', title: `${label} 관리`, desc: `새로 추가할 항목을 입력하세요.<br>(삭제하려면 이름 앞에 '-'를 붙이세요. 예: -FOMO)` }, (val) => {
-    if (!val) return;
-    const isDel = val.startsWith('-');
-    const cleanVal = (isDel ? val.slice(1) : val).trim();
-    const finalVal = casing === 'upper' ? cleanVal.toUpperCase() : cleanVal.toLowerCase();
-    if (!finalVal) return;
-    
-    const arr = state.db.meta[key];
-    if (isDel) {
-      const idx = arr.indexOf(finalVal);
-      if (idx >= 0) arr.splice(idx, 1);
-    } else {
-      if (!arr.includes(finalVal)) arr.push(finalVal);
-    }
-    saveDB(state.db);
-    renderDropdowns();
-    renderQuickChips();
   });
 }
 
@@ -1026,7 +1078,6 @@ function renderBalanceChart() {
   setHtml('balance-chart', lineSvg(points, true));
 }
 
-// ✨ SVG 차트 렌더링 복구
 function lineSvg(points, isBalance = false) {
   if (points.length === 0) return '';
   const width = 780, height = 280, pad = 32;
