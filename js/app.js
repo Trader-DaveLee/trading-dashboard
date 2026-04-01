@@ -26,10 +26,10 @@ let draftTimer = null;
 const ID_LIST = [
   'nav','force-save-draft','export-json','import-json-btn','import-json','journal-status','draft-saved-at',
   'view-overview','metrics','overview-from','overview-to','overview-clear','prev-month','calendar-title','next-month','calendar','equity-chart','balance-chart','setup-chart','mistake-list','research-notes','overview-portfolio',
-  'today-console','eod-memo',
-  'view-journal','trade-form','trade-id','trade-date','btn-now','ticker','btn-manage-ticker','status','session','side','setup-entry','btn-manage-setup-entry','setup-exit','btn-manage-setup-exit',
+  'today-console','quick-links-container','btn-add-quick-link','morning-routine-container','btn-reset-routine','scratchpad-input',
+  'view-journal','trade-form','trade-id','trade-date','btn-now','ticker','btn-manage-ticker','status','session','side','setup-entry','btn-manage-setup-entry','setup-exit','btn-manage-setup-exit','btn-save-template',
   'account-size','risk-pct','leverage','maker-fee','taker-fee','stop-price','mark-price','stop-type','adjustment',
-  'context','thesis','review','chart-entry','chart-exit','tags','mistakes',
+  'context','thesis','invalidation-note','repeatable-trade','review','chart-entry','chart-exit','tags','mistakes',
   'add-entry','entries','add-exit','exits','calc-summary','quick-tags','quick-mistakes','live-notes','btn-insert-time','add-live-chart','live-charts-container',
   'bal-cash','bal-crypto','bal-usdt','bal-stock','bal-total','balance-type','balance-memo','btn-update-balance','balance-history',
   'duplicate-trade','reset-form','delete-trade','grade','deep-review-r',
@@ -37,7 +37,8 @@ const ID_LIST = [
   'risk-risk-dollar','risk-qty','risk-margin','risk-slider','risk-notional','risk-stop-distance','risk-fees','risk-realized','risk-unrealized','risk-residual',
   'view-library','q','f-from','f-to','f-status','f-side','f-session','f-setup','f-tag','f-mistake','f-grade','sort','clear-filters','library-result-count','review-position','review-breadcrumb','prev-trade','next-trade','filter-same-setup','filter-same-ticker','clear-quick-filter','trade-table','detail','detail-insights',
   'view-playbook','playbook-gallery',
-  'app-modal','modal-title','modal-desc','modal-input','modal-btn-cancel','modal-btn-confirm'
+  'app-modal','modal-title','modal-desc','modal-input','modal-btn-cancel','modal-btn-confirm',
+  'cmd-palette','palette-input','palette-list'
 ];
 
 window.__desk = {
@@ -89,7 +90,23 @@ function cacheEls() {
   });
 }
 
-// ✨ 커스텀 모달 기능
+// ✨ 공통 로컬 날짜 (KST 표준화)
+function getLocalDateKey(dObj = new Date()) {
+  const d = new Date(dObj);
+  if (isNaN(d.getTime())) return '';
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+// ✨ 링크 보안 처리
+function safeUrl(url) {
+  if (!url) return '';
+  const u = String(url).trim();
+  if (/^https?:\/\//i.test(u)) return escapeAttr(u);
+  return '#';
+}
+
+// ✨ 커스텀 모달
 let modalCallback = null;
 function showModal({ type, title, desc, placeholder, val }, callback) {
   modalCallback = callback;
@@ -113,6 +130,54 @@ function hideModal() {
   if(els['app-modal']) els['app-modal'].classList.remove('show');
 }
 
+// ✨ Command Palette 로직
+let paletteVisible = false;
+function showPalette() {
+  paletteVisible = true;
+  if(els['cmd-palette']) els['cmd-palette'].classList.add('show');
+  if(els['palette-input']) {
+    els['palette-input'].value = '';
+    renderPalette('');
+    setTimeout(() => els['palette-input'].focus(), 50);
+  }
+}
+
+function hidePalette() {
+  paletteVisible = false;
+  if(els['cmd-palette']) els['cmd-palette'].classList.remove('show');
+}
+
+function renderPalette(query) {
+  const q = query.toLowerCase();
+  let actions = [
+    { icon: '📝', label: '새 트레이드 작성', action: () => { resetFormForce(); switchView('journal'); } },
+    { icon: '📊', label: 'Overview 대시보드', action: () => switchView('overview') },
+    { icon: '📚', label: 'Trade Library 아카이브', action: () => switchView('library') },
+    { icon: '🏆', label: 'A+ Playbook 갤러리', action: () => switchView('playbook') },
+    { icon: '💾', label: '데이터 백업 다운로드 (Export)', action: () => exportDB(state.db) }
+  ];
+  const links = state.db.meta.quickLinks || [];
+  links.forEach(link => {
+    actions.push({ icon: '🔗', label: `바로가기: ${link.title}`, action: () => window.open(safeUrl(link.url), '_blank') });
+  });
+
+  const filtered = actions.filter(a => a.label.toLowerCase().includes(q));
+  if(els['palette-list']) {
+    els['palette-list'].innerHTML = filtered.map((a, i) => `
+      <div class="palette-item" data-idx="${i}">
+        <span style="font-size:16px; margin-right:8px;">${a.icon || '⚡'}</span> ${escapeHtml(a.label)}
+      </div>
+    `).join('');
+
+    els['palette-list'].querySelectorAll('.palette-item').forEach(el => {
+      el.onclick = () => {
+        filtered[el.dataset.idx].action();
+        hidePalette();
+      };
+    });
+  }
+}
+
 function autoResize(el) {
   if (!el) return;
   el.style.height = 'auto';
@@ -124,6 +189,11 @@ function initMeta() {
   state.db.meta.mistakePresets = state.db.meta.mistakePresets || ['fomo', 'early exit'];
   state.db.meta.balanceHistory = Array.isArray(state.db.meta.balanceHistory) ? state.db.meta.balanceHistory : [];
   state.db.meta.checklists = Array.isArray(state.db.meta.checklists) ? state.db.meta.checklists : [];
+  
+  if(!state.db.meta.quickLinks) state.db.meta.quickLinks = [{ title: 'TradingView', url: 'https://tradingview.com' }];
+  if(!state.db.meta.morningRoutine) state.db.meta.morningRoutine = [{ task: '주요 레벨 확인', done: false }];
+  if(typeof state.db.meta.scratchpad !== 'string') state.db.meta.scratchpad = '';
+
   renderDropdowns();
   renderQuickChips();
   renderAccountBalance();
@@ -142,6 +212,35 @@ function bindEvents() {
         modalCallback(inp.style.display === 'block' ? inp.value : true);
       }
     };
+  }
+
+  if(els['btn-add-quick-link']) {
+    els['btn-add-quick-link'].onclick = () => {
+      showModal({ type: 'PROMPT', title: 'Quick Launch 추가', desc: '이름, URL을 쉼표(,)로 구분해 입력하세요.<br>예: TradingView, https://tradingview.com' }, (res) => {
+        if (!res) return;
+        const [title, url] = res.split(',');
+        if (title && url) {
+          state.db.meta.quickLinks.push({ title: title.trim(), url: url.trim() });
+          saveDB(state.db);
+          renderQuickLinks();
+        }
+      });
+    };
+  }
+
+  if(els['btn-reset-routine']) {
+    els['btn-reset-routine'].onclick = () => {
+      state.db.meta.morningRoutine.forEach(r => r.done = false);
+      saveDB(state.db);
+      renderMorningRoutine();
+    };
+  }
+
+  if(els['scratchpad-input']) {
+    els['scratchpad-input'].addEventListener('input', function() {
+      state.db.meta.scratchpad = this.value;
+      saveDB(state.db);
+    });
   }
 
   els['btn-manage-ticker'].onclick = () => manageList('tickers', 'Ticker', 'upper');
@@ -247,14 +346,41 @@ function bindEvents() {
       }
     };
   }
-  
-  if (els['eod-memo']) {
-    els['eod-memo'].addEventListener('input', function() {
-      autoResize(this);
-      const todayStr = new Date().toISOString().slice(0, 10);
-      if (!state.db.meta.dailyMemos) state.db.meta.dailyMemos = {};
-      state.db.meta.dailyMemos[todayStr] = this.value;
+
+  // ✨ Setup 템플릿 저장 및 로드 로직
+  if(els['btn-save-template']) {
+    els['btn-save-template'].onclick = () => {
+      const setup = getVal('setup-entry');
+      if (!setup) return showModal({ type: 'ALERT', desc: 'Entry Setup을 먼저 선택하세요.' });
+      state.db.meta.setupTemplates = state.db.meta.setupTemplates || {};
+      state.db.meta.setupTemplates[setup] = {
+        riskPct: getVal('risk-pct'),
+        leverage: getVal('leverage'),
+        stopType: getVal('stop-type'),
+        makerFee: getVal('maker-fee'),
+        takerFee: getVal('taker-fee'),
+        thesis: getVal('thesis'),
+        invalidationNote: getVal('invalidation-note'),
+      };
       saveDB(state.db);
+      showModal({ type: 'ALERT', title: '템플릿 저장', desc: `[${setup}] 셋업의 기본 사이즈 및 문구가 저장되었습니다.<br>다음부터 이 셋업 선택 시 자동 입력됩니다.` });
+    };
+  }
+
+  if(els['setup-entry']) {
+    els['setup-entry'].addEventListener('change', (e) => {
+      const tpl = (state.db.meta.setupTemplates || {})[e.target.value];
+      if (tpl) {
+        setVal('risk-pct', tpl.riskPct);
+        setVal('leverage', tpl.leverage);
+        setVal('stop-type', tpl.stopType);
+        setVal('maker-fee', tpl.makerFee);
+        setVal('taker-fee', tpl.takerFee);
+        if(tpl.thesis) setVal('thesis', tpl.thesis);
+        if(tpl.invalidationNote) setVal('invalidation-note', tpl.invalidationNote);
+        updatePreview();
+        markDirty();
+      }
     });
   }
 
@@ -263,8 +389,8 @@ function bindEvents() {
   [
     'trade-date','ticker','status','session','side','setup-entry','setup-exit',
     'account-size','risk-pct','leverage','maker-fee','taker-fee','stop-price','mark-price','stop-type','adjustment',
-    'context','thesis','review','chart-entry','chart-exit',
-    'tags','mistakes','grade','live-notes'
+    'context','thesis','invalidation-note','review','chart-entry','chart-exit',
+    'tags','mistakes','grade','live-notes','repeatable-trade'
   ].forEach(id => {
     if (!els[id]) return;
     els[id].addEventListener('input', handleFormMutation);
@@ -288,8 +414,18 @@ function bindKeyboardShortcuts() {
       event.preventDefault();
       if (typing) persistDraft(true); else handleSubmit(event);
     }
+    
+    // ✨ Cmd+K Command Palette 바인딩
+    if ((event.metaKey || event.ctrlKey) && key === 'k') {
+      event.preventDefault();
+      showPalette();
+      return;
+    }
+    if (key === 'escape' && paletteVisible) {
+      hidePalette();
+    }
 
-    if (state.view === 'library' && !typing) {
+    if (state.view === 'library' && !typing && !paletteVisible) {
       if (key === 'j') { event.preventDefault(); stepSelectedTrade(1); }
       if (key === 'k') { event.preventDefault(); stepSelectedTrade(-1); }
     }
@@ -299,6 +435,10 @@ function bindKeyboardShortcuts() {
       duplicateTrade();
     }
   });
+
+  if(els['palette-input']) {
+    els['palette-input'].addEventListener('input', e => renderPalette(e.target.value));
+  }
 }
 
 function renderNav() {
@@ -392,15 +532,18 @@ function populateSelect(id, rows) {
 }
 
 function renderQuickChips() {
-  els['quick-tags'].innerHTML = state.db.meta.tagPresets.map(tag => `<button type="button" class="chip-btn" data-tag="${escapeHtml(tag)}">#${escapeHtml(tag)}</button>`).join('');
-  els['quick-mistakes'].innerHTML = state.db.meta.mistakePresets.map(tag => `<button type="button" class="chip-btn" data-mistake="${escapeHtml(tag)}">${escapeHtml(tag)}</button>`).join('');
-
-  els['quick-tags'].querySelectorAll('button').forEach(btn => {
-    btn.onclick = () => appendCsvValue('tags', btn.dataset.tag);
-  });
-  els['quick-mistakes'].querySelectorAll('button').forEach(btn => {
-    btn.onclick = () => appendCsvValue('mistakes', btn.dataset.mistake);
-  });
+  if(els['quick-tags']) {
+    els['quick-tags'].innerHTML = state.db.meta.tagPresets.map(tag => `<button type="button" class="chip-btn" data-tag="${escapeHtml(tag)}">#${escapeHtml(tag)}</button>`).join('');
+    els['quick-tags'].querySelectorAll('button').forEach(btn => {
+      btn.onclick = () => appendCsvValue('tags', btn.dataset.tag);
+    });
+  }
+  if(els['quick-mistakes']) {
+    els['quick-mistakes'].innerHTML = state.db.meta.mistakePresets.map(tag => `<button type="button" class="chip-btn" data-mistake="${escapeHtml(tag)}">${escapeHtml(tag)}</button>`).join('');
+    els['quick-mistakes'].querySelectorAll('button').forEach(btn => {
+      btn.onclick = () => appendCsvValue('mistakes', btn.dataset.mistake);
+    });
+  }
 }
 
 function manageList(key, label, casing = 'upper') {
@@ -435,6 +578,8 @@ function hydrateInitialForm() {
   
   setVal('desk-rules', state.db.meta.rules || '');
   setTimeout(() => autoResize(els['desk-rules']), 0);
+  
+  if(els['scratchpad-input']) setVal('scratchpad-input', state.db.meta.scratchpad || '');
   
   state.draftEntries = [{ price: 0, type: 'M', weight: 100 }];
   state.draftExits = [];
@@ -483,6 +628,7 @@ function renderLiveCharts() {
 function renderLegs(kind) {
   const key = kind === 'entry' ? 'draftEntries' : 'draftExits';
   const target = els[kind === 'entry' ? 'entries' : 'exits'];
+  if(!target) return;
   target.innerHTML = state[key].map((leg, index) => `
     <div class="leg-row" data-kind="${kind}" data-index="${index}">
       <div class="input-with-unit">
@@ -534,9 +680,11 @@ function resetFormForce() {
   state.dirty = false;
 
   [
-    'trade-id','context','thesis','review','chart-entry','chart-exit','tags','mistakes','live-notes',
+    'trade-id','context','thesis','invalidation-note','review','chart-entry','chart-exit','tags','mistakes','live-notes',
     'mark-price','adjustment','stop-price'
   ].forEach(id => setVal(id, ''));
+
+  if(els['repeatable-trade']) els['repeatable-trade'].checked = false;
 
   setVal('trade-date', inputDate(new Date().toISOString()));
   setVal('status', 'OPEN');
@@ -616,6 +764,8 @@ function readForm() {
     adjustment: Number(getVal('adjustment') || 0),
     context: getVal('context'),
     thesis: getVal('thesis'),
+    invalidationNote: getVal('invalidation-note'),
+    repeatable: els['repeatable-trade'] ? els['repeatable-trade'].checked : false,
     review: getVal('review'),
     liveNotes: getVal('live-notes'),
     tags: splitCsv(getVal('tags')),
@@ -653,6 +803,7 @@ function handleSubmit(event) {
     return;
   }
   
+  // ✨ Phase 1: 원칙 (Grade S) 강제 검증
   if (trade.grade === 'S' && trade.checkedRules.length < state.db.meta.checklists.length) {
     showModal({ type: 'ALERT', title: '원칙 위반 경고', desc: 'S등급은 설정한 원칙(체크리스트)을 100% 완벽히 지켰을 때만 부여할 수 있습니다.<br>체크리스트를 확인하거나 등급을 하향 조정하세요.' });
     return;
@@ -732,6 +883,8 @@ function applyTradeToForm(trade, options = {}) {
   setVal('adjustment', trade.adjustment || 0);
   setVal('context', trade.context || '');
   setVal('thesis', trade.thesis || '');
+  setVal('invalidation-note', trade.invalidationNote || '');
+  if(els['repeatable-trade']) els['repeatable-trade'].checked = Boolean(trade.repeatable);
   setVal('review', trade.review || '');
   setVal('live-notes', trade.liveNotes || '');
   setVal('tags', (trade.tags || []).join(', '));
@@ -823,11 +976,53 @@ function metricCard(label, value, colorClass) {
   `;
 }
 
-// ✨ Today Console 추가
+function renderQuickLinks() {
+  const container = els['quick-links-container'];
+  if (!container) return;
+  const links = state.db.meta.quickLinks || [];
+  container.innerHTML = links.length ? links.map((link, idx) => `
+    <a href="${safeUrl(link.url)}" target="_blank" class="quick-link-pill">
+      ${escapeHtml(link.title)}
+      <button type="button" class="btn-del-link" data-idx="${idx}">✕</button>
+    </a>
+  `).join('') : emptyState('추가된 바로가기가 없습니다.');
+
+  container.querySelectorAll('.btn-del-link').forEach(btn => {
+    btn.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      state.db.meta.quickLinks.splice(btn.dataset.idx, 1);
+      saveDB(state.db);
+      renderQuickLinks();
+    };
+  });
+}
+
+function renderMorningRoutine() {
+  const container = els['morning-routine-container'];
+  if (!container) return;
+  const routines = state.db.meta.morningRoutine || [];
+  container.innerHTML = routines.length ? routines.map((r, idx) => `
+    <label class="check-inline" style="padding: 10px 14px; background: ${r.done ? 'var(--green-soft)' : '#fff'}; border: 1px solid ${r.done ? 'var(--green)' : 'var(--line)'}; border-radius: 12px; margin-bottom:4px;">
+      <input type="checkbox" data-idx="${idx}" ${r.done ? 'checked' : ''} />
+      <span style="color: ${r.done ? 'var(--green)' : 'inherit'}; text-decoration: ${r.done ? 'line-through' : 'none'}; font-size:13px;">${escapeHtml(r.task)}</span>
+    </label>
+  `).join('') : emptyState('루틴 항목이 없습니다.');
+
+  container.querySelectorAll('input[type="checkbox"]').forEach(chk => {
+    chk.onchange = (e) => {
+      state.db.meta.morningRoutine[e.target.dataset.idx].done = e.target.checked;
+      saveDB(state.db);
+      renderMorningRoutine();
+    };
+  });
+}
+
+// ✨ Today Console 렌더링
 function renderTodayConsole() {
   if (!els['today-console']) return;
-  const todayStr = new Date().toISOString().slice(0, 10);
-  const todays = state.db.trades.filter(t => t.date.slice(0,10) === todayStr);
+  const todayStr = getLocalDateKey(new Date());
+  const todays = state.db.trades.filter(t => getLocalDateKey(new Date(t.date)) === todayStr);
   const s = summarize(todays);
   
   if(!state.db.meta.dailyMemos) state.db.meta.dailyMemos = {};
@@ -839,19 +1034,28 @@ function renderTodayConsole() {
     return;
   }
 
+  // ✨ Daily Stop 가드레일 경고
+  let warningHtml = '';
+  if (s.net < 0 && s.avgR <= -2) {
+    warningHtml = `<div style="background:var(--red-soft); color:var(--red); padding:10px; border-radius:8px; border:1px solid #fecaca; margin-bottom:12px; font-weight:800; font-size:12px; text-align:center;">⚠️ 오늘 손실이 큽니다. 매매 중단을 검토하세요.</div>`;
+  } else if (s.losses.length >= 3) {
+    warningHtml = `<div style="background:var(--yellow-soft); color:#d97706; padding:10px; border-radius:8px; border:1px solid #fde68a; margin-bottom:12px; font-weight:800; font-size:12px; text-align:center;">⚠️ 3연속 이상 손실 중입니다. 한 템포 쉬어가세요.</div>`;
+  }
+
   setHtml('today-console', `
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-      <div style="font-size:24px; font-weight:900; color:${s.net >= 0 ? 'var(--green)' : 'var(--red)'};">${money(s.net)}</div>
+    ${warningHtml}
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; padding: 0 10px;">
+      <div style="font-size:26px; font-weight:900; letter-spacing:-1px; color:${s.net >= 0 ? 'var(--green)' : 'var(--red)'};">${money(s.net)}</div>
       <div style="font-size:18px; font-weight:800; color:var(--text);">${s.avgR.toFixed(2)}R</div>
     </div>
-    <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
-      <div style="background:#f1f5f9; padding:10px; border-radius:8px; text-align:center;">
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+      <div style="background:#f1f5f9; padding:12px; border-radius:10px; text-align:center;">
         <span style="display:block; font-size:11px; color:var(--muted); font-weight:800;">WINS / LOSSES</span>
-        <strong style="font-size:14px;">${s.wins.length}W / ${s.losses.length}L</strong>
+        <strong style="font-size:15px; margin-top:4px; display:block;">${s.wins.length}W / ${s.losses.length}L</strong>
       </div>
-      <div style="background:#f1f5f9; padding:10px; border-radius:8px; text-align:center;">
+      <div style="background:#f1f5f9; padding:12px; border-radius:10px; text-align:center;">
         <span style="display:block; font-size:11px; color:var(--muted); font-weight:800;">FEES PAID</span>
-        <strong style="font-size:14px; color:var(--red);">${moneyAbs(s.fees)}</strong>
+        <strong style="font-size:15px; color:var(--red); margin-top:4px; display:block;">${moneyAbs(s.fees)}</strong>
       </div>
     </div>
   `);
@@ -859,6 +1063,8 @@ function renderTodayConsole() {
 
 function renderOverview() {
   renderTodayConsole();
+  renderQuickLinks();
+  renderMorningRoutine();
 
   const trades = getOverviewTrades();
   const stats = summarize(trades);
@@ -919,11 +1125,11 @@ function renderCalendar() {
 
   const map = new Map();
   trades.forEach(trade => {
-    const date = new Date(trade.date);
-    if (date.getFullYear() !== year || date.getMonth() !== month) return;
+    const dKey = getLocalDateKey(new Date(trade.date));
     const pad = n => String(n).padStart(2, '0');
-    const key = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-    map.set(key, (map.get(key) || 0) + trade.metrics.pnl);
+    const yStr = `${year}-${pad(month + 1)}`;
+    if (!dKey.startsWith(yStr)) return;
+    map.set(dKey, (map.get(dKey) || 0) + trade.metrics.pnl);
   });
 
   const firstDay = new Date(year, month, 1);
@@ -984,7 +1190,6 @@ function renderBalanceChart() {
   setHtml('balance-chart', lineSvg(points, true));
 }
 
-// ✨ 완벽히 복원된 SVG 차트 그리기 함수
 function lineSvg(points, isBalance = false) {
   if (points.length === 0) return '';
   const width = 780, height = 280, pad = 32;
@@ -1082,9 +1287,6 @@ function renderAccountBalance() {
   setVal('bal-stock', latest.stock || 0);
   calcTotalBalance();
   
-  setVal('desk-rules', state.db.meta.rules || '');
-  setTimeout(() => autoResize(els['desk-rules']), 0);
-
   const typeColors = { PNL: 'var(--accent)', DEPOSIT: 'var(--green)', WITHDRAWAL: 'var(--red)', MANUAL: 'var(--muted)' };
   const typeLabels = { PNL: '매매', DEPOSIT: '입금', WITHDRAWAL: '출금', MANUAL: '조정' };
 
@@ -1297,9 +1499,9 @@ function renderTradeDetail(trade) {
     <div style="margin-top:24px;">
       <h4 style="margin:0 0 8px; font-size:14px; font-weight:800;">Evidence (Charts)</h4>
       <div style="display:flex; gap:8px; flex-wrap:wrap;">
-        ${trade.evidence?.entryChart ? `<a href="${escapeAttr(trade.evidence.entryChart)}" target="_blank" style="padding:8px 16px; background:#e0e7ff; color:var(--accent); border-radius:8px; text-decoration:none; font-weight:700; font-size:12px;">Entry Chart 📈</a>` : ''}
-        ${trade.evidence?.exitChart ? `<a href="${escapeAttr(trade.evidence.exitChart)}" target="_blank" style="padding:8px 16px; background:#e0e7ff; color:var(--accent); border-radius:8px; text-decoration:none; font-weight:700; font-size:12px;">Exit Chart 📈</a>` : ''}
-        ${(trade.evidence?.liveCharts || []).map((url, idx) => `<a href="${escapeAttr(url)}" target="_blank" style="padding:8px 16px; background:#f1f5f9; color:var(--muted); border:1px solid var(--line); border-radius:8px; text-decoration:none; font-weight:700; font-size:12px;">Live Chart ${idx + 1} 🔍</a>`).join('')}
+        ${trade.evidence?.entryChart ? `<a href="${escapeAttr(trade.evidence.entryChart)}" target="_blank" class="quick-link-pill" style="font-size:11px; padding:6px 12px;">Entry Chart 📈</a>` : ''}
+        ${trade.evidence?.exitChart ? `<a href="${escapeAttr(trade.evidence.exitChart)}" target="_blank" class="quick-link-pill" style="font-size:11px; padding:6px 12px;">Exit Chart 📈</a>` : ''}
+        ${(trade.evidence?.liveCharts || []).map((url, idx) => `<a href="${escapeAttr(url)}" target="_blank" class="quick-link-pill" style="font-size:11px; padding:6px 12px; background:#f1f5f9;">Live Chart ${idx + 1} 🔍</a>`).join('')}
       </div>
     </div>
   `);
@@ -1358,7 +1560,7 @@ function renderDetailInsights(trade, rows) {
 
 function renderPlaybook() {
   const rows = [...state.db.trades]
-    .filter(trade => (trade.grade === 'S' || trade.grade === 'A') && !(trade.mistakes || []).length)
+    .filter(trade => (trade.grade === 'S' || trade.grade === 'A') && trade.repeatable)
     .sort((a, b) => b.metrics.r - a.metrics.r);
 
   let html = '';
@@ -1393,8 +1595,16 @@ function renderPlaybook() {
         <div style="font-size:12px; color:var(--accent); font-weight:800; margin-top:4px;">${escapeHtml(trade.setupEntry || 'NA')}</div>
         <div style="font-size:11px; color:var(--muted); font-weight:600; margin-top:2px;">${formatDateTime(trade.date)} · ${trade.session}</div>
         <div class="mono ${trade.metrics.r > 0 ? 'positive' : 'negative'}" style="font-size:14px; font-weight:800; margin-top:8px;">${trade.metrics.r.toFixed(2)}R (${money(trade.metrics.pnl)})</div>
-        <p style="font-size:12px; color:#334155; font-weight:500; margin:8px 0; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">${escapeHtml(trade.thesis || trade.review || '설명 없음')}</p>
-        <div class="chips" style="margin-top:auto;">${(trade.tags || []).slice(0, 3).map(item => `<span class="chip">#${escapeHtml(item)}</span>`).join('') || '<span class="chip">태그 없음</span>'}</div>
+        
+        <div style="margin-top:12px; padding-top:12px; border-top:1px dashed var(--line);">
+          <strong style="font-size:11px; color:var(--muted);">THESIS</strong>
+          <p style="font-size:12px; color:#334155; font-weight:600; margin:4px 0 8px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">${escapeHtml(trade.thesis || '설명 없음')}</p>
+          
+          <strong style="font-size:11px; color:var(--red);">INVALIDATION</strong>
+          <p style="font-size:12px; color:#334155; font-weight:600; margin:4px 0 0; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">${escapeHtml(trade.invalidationNote || '설명 없음')}</p>
+        </div>
+
+        <div class="chips" style="margin-top:auto; padding-top:12px;">${(trade.tags || []).slice(0, 3).map(item => `<span class="chip">#${escapeHtml(item)}</span>`).join('') || '<span class="chip">태그 없음</span>'}</div>
       </div>
     </article>`;
   });
