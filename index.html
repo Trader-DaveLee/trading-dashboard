@@ -57,6 +57,17 @@
         </article>
       </div>
 
+      <div class="grid grid-2" style="margin-bottom:24px;">
+        <article class="card chart-card hover-lift">
+          <div class="section-head"><div><h3>Equity Curve (매매 손익)</h3><p>순수 매매 성과 누적 곡선</p></div></div>
+          <div id="equity-chart" class="chart-box"></div>
+        </article>
+        <article class="card chart-card hover-lift">
+          <div class="section-head"><div><h3>Balance Curve (총 자산 흐름)</h3><p>입출금이 반영된 실제 계좌 잔고 추이</p></div></div>
+          <div id="balance-chart" class="chart-box"></div>
+        </article>
+      </div>
+
       <article class="card overview-calendar-card hover-lift">
         <div class="section-head">
           <div><h3>월간 캘린더 (Heatmap)</h3><p>일별 순손익 및 클릭하여 해당 일자 복기</p></div>
@@ -69,25 +80,15 @@
         <div id="calendar" class="calendar calendar-large"></div>
       </article>
 
-      <div class="grid grid-2">
-        <article class="card chart-card hover-lift">
-          <div class="section-head"><div><h3>Equity Curve</h3><p>누적 자산 성장 곡선</p></div></div>
-          <div id="equity-chart" class="chart-box"></div>
-        </article>
+      <div class="grid grid-2" style="margin-top:24px;">
         <article class="card chart-card hover-lift">
           <div class="section-head"><div><h3>셋업 성과</h3><p>Entry setup 평균 R</p></div></div>
           <div id="setup-chart" class="chart-box"></div>
         </article>
-      </div>
-
-      <div class="grid grid-2">
-        <article class="card compact-section hover-lift"><div class="section-head"><div><h3>최근 20회 매매 (Short-term)</h3><p>단기 모멘텀 및 성과 지표</p></div></div><div id="recent-window-stats" class="stack"></div></article>
-        <article class="card compact-section hover-lift"><div class="section-head"><div><h3>세션별 주요 셋업</h3><p>세션과 셋업의 조합별 성과</p></div></div><div id="session-setup-stats" class="stack"></div></article>
-      </div>
-
-      <div class="grid grid-2" style="margin-top:24px;">
-        <article class="card compact-section hover-lift"><div class="section-head"><div><h3>주요 실수</h3><p>빈도 및 누적 손실</p></div></div><div id="mistake-list" class="stack"></div></article>
-        <article class="card compact-section hover-lift"><div class="section-head"><div><h3>Desk Notes</h3><p>자동 분석 인사이트</p></div></div><div id="research-notes" class="stack"></div></article>
+        <div class="stack">
+          <article class="card compact-section hover-lift"><div class="section-head"><div><h3>주요 실수</h3><p>빈도 및 누적 손실</p></div></div><div id="mistake-list" class="stack"></div></article>
+          <article class="card compact-section hover-lift"><div class="section-head"><div><h3>Desk Notes</h3><p>자동 분석 인사이트</p></div></div><div id="research-notes" class="stack"></div></article>
+        </div>
       </div>
     </section>
 
@@ -252,7 +253,7 @@
         </article>
 
         <aside class="journal-sidebar stack">
-          <article class="card premium-balance-card resizable-card">
+          <article class="card premium-balance-card">
             <div class="section-head no-bottom">
               <div><h3>💳 Account Status</h3><p>포트폴리오 자산 스냅샷</p></div>
               <span class="subtle-pill accent">Local</span>
@@ -282,7 +283,7 @@
             </div>
           </article>
 
-          <article class="card compact-card risk-summary-card resizable-card">
+          <article class="card compact-card risk-summary-card">
             <div class="section-head"><div><h3>Risk Planner</h3><p>사이즈, 리스크, 잔여 익스포저</p></div></div>
             <div class="detail-box risk-box">
               <div class="kv">
@@ -300,7 +301,7 @@
             </div>
           </article>
 
-          <article class="card compact-card resizable-card">
+          <article class="card compact-card">
             <div class="section-head"><div><h3>Desk Rules</h3><p>원칙 및 체크리스트 관리</p></div></div>
             <div class="stack">
               <label><span>📝 규칙 메모</span><textarea id="desk-rules" class="rules-box" placeholder="항상 되새길 일반 원칙들..."></textarea></label>
