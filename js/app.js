@@ -30,12 +30,13 @@ const ID_LIST = [
   'nav','force-save-draft','export-json','import-json-btn','import-json','journal-status','draft-saved-at',
   'view-overview','metrics','overview-from','overview-to','overview-clear','overview-search','prev-month','calendar-title','next-month','calendar','equity-chart','balance-chart','setup-chart','mistake-list','research-notes','overview-portfolio',
   'realtime-clock','quick-launch-grid','btn-manage-quick-links',
-  'view-journal','journal-sidebar','journal-risk-phase','post-assessment-copy','trade-form','trade-id','trade-date','btn-now','ticker','btn-manage-ticker','status','session','side','setup-entry','btn-manage-setup-entry','setup-exit','btn-manage-setup-exit',
+  'view-journal','trade-form','trade-id','trade-date','btn-now','ticker','btn-manage-ticker','status','session','side','setup-entry','btn-manage-setup-entry','setup-exit','btn-manage-setup-exit',
   'account-size','risk-pct','leverage','current-price','planner-mode','planner-legs','planner-weight-mode','btn-generate-plan','btn-apply-plan','planner-summary','maker-fee','taker-fee','stop-price','target-price','mark-price','stop-type','adjustment',
   'context','thesis','review','tags','mistakes',
   'add-entry','entries','add-exit','exits','calc-summary','quick-tags','quick-mistakes','live-notes','btn-insert-time','add-live-chart','live-charts-container',
   'add-entry-chart','entry-charts-container','add-exit-chart','exit-charts-container',
   'eval-status-badge', 'eval-margin', 'eval-bep', 'eval-fees', 'eval-pnl', 'eval-r', 'eval-roi', 'label-pnl', 'label-r',
+  'journal-sidebar','journal-pretrade-phase','journal-risk-phase','sidebar-risk-card','pretrade-brief','planner-mode-note',
   'bal-cash','bal-crypto','bal-usdt','bal-stock','bal-total','balance-type','balance-memo','btn-update-balance','balance-history',
   'duplicate-trade','reset-form','delete-trade','grade',
   'desk-rules','master-checklist-list','new-check-input','btn-add-check','trade-checklist-container',
@@ -91,7 +92,6 @@ bootstrap();
 function bootstrap() {
   cacheEls();
   bindEvents();
-  bindSidebarRiskSync();
   initMeta();
   renderNav();
   hydrateInitialForm();
@@ -104,18 +104,6 @@ function cacheEls() {
   ID_LIST.forEach(id => {
     els[id] = document.getElementById(id);
   });
-}
-
-function bindSidebarRiskSync() {
-  const riskPhase = els['journal-risk-phase'];
-  const sidebar = els['journal-sidebar'];
-  if (!riskPhase || !sidebar) return;
-  const syncToRiskPlanner = () => {
-    if (window.innerWidth <= 768) return;
-    sidebar.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-  riskPhase.addEventListener('focusin', syncToRiskPlanner);
-  riskPhase.addEventListener('mouseenter', syncToRiskPlanner);
 }
 
 function startClock() {
@@ -313,6 +301,8 @@ function bindEvents() {
   if(els['btn-generate-plan']) els['btn-generate-plan'].onclick = () => { updatePreview(); refreshJournalStatus('추천 플랜 재계산'); };
   if(els['btn-apply-plan']) els['btn-apply-plan'].onclick = applyPlannerSuggestion;
   if(els['btn-apply-scalein']) els['btn-apply-scalein'].onclick = applyScaleIn;
+  bindPromptButtons();
+  bindJournalSidebarSync();
   
   if(els['add-entry-chart']) els['add-entry-chart'].onclick = () => { state.draftEntryCharts.push(''); renderChartInputs('entry'); updatePreview(); };
   if(els['add-exit-chart']) els['add-exit-chart'].onclick = () => { state.draftExitCharts.push(''); renderChartInputs('exit'); updatePreview(); };
@@ -584,15 +574,124 @@ function renderChartInputs(type) {
   });
 }
 
+function normalizePlannerModeValue(mode = 'BALANCED') {
+  const raw = String(mode || 'BALANCED').trim().toUpperCase();
+  if (['LADDER', 'LADDER_TIGHT', 'LADDER_DEEP', 'BALANCED'].includes(raw)) return 'BALANCED';
+  if (['PULLBACK', 'AVERAGE_DOWN', 'COST_AVERAGE'].includes(raw)) return 'PULLBACK';
+  if (['PYRAMID', 'PYRAMIDING', 'MOMENTUM_ADD'].includes(raw)) return 'PYRAMID';
+  if (raw === 'SINGLE') return 'SINGLE';
+  return 'BALANCED';
+}
+
+function getPlannerModeMeta(mode = 'BALANCED') {
+  const normalized = normalizePlannerModeValue(mode);
+  const map = {
+    SINGLE: {
+      label: '단일 진입',
+      body: '현재가 기준으로 한 번에 진입하는 방식입니다. 빠른 체결과 명확한 손절이 중요한 단순 셋업에 적합합니다.'
+    },
+    BALANCED: {
+      label: '균형 분할',
+      body: '현재가와 소폭 눌림 구간을 함께 쓰는 기본형입니다. 체결 확률과 평균단가를 균형 있게 가져가고 싶을 때 적합합니다.'
+    },
+    PULLBACK: {
+      label: '눌림 분할 (Cost Averaging)',
+      body: '현재가보다 유리한 가격으로 여러 단계 진입하는 방식입니다. 되돌림을 기다리는 추세 눌림/리클레임 전략에 적합합니다.'
+    },
+    PYRAMID: {
+      label: '피라미딩',
+      body: '수익 방향으로 가격이 진행될수록 확인 후 추가하는 방식입니다. 브레이크아웃, 추세 지속, 모멘텀 확장 전략에 적합합니다.'
+    },
+  };
+  return map[normalized] || map.BALANCED;
+}
+
+function bindPromptButtons() {
+  document.querySelectorAll('.prompt-btn').forEach(btn => {
+    btn.onclick = () => {
+      const targetId = btn.dataset.target;
+      const template = btn.dataset.template || '';
+      const area = els[targetId];
+      if (!area) return;
+      const needsBreak = area.value && !area.value.endsWith('
+') ? '
+' : '';
+      area.value += `${needsBreak}${template}`;
+      autoResize(area);
+      area.focus();
+      markDirty();
+      updatePreview();
+      persistDraft();
+    };
+  });
+}
+
+function bindJournalSidebarSync() {
+  const sidebar = els['journal-sidebar'];
+  const pretradePhase = els['journal-pretrade-phase'];
+  const riskPhase = els['journal-risk-phase'];
+  const riskCard = els['sidebar-risk-card'];
+  if (!sidebar || !riskPhase || !riskCard) return;
+
+  const scrollToTop = () => sidebar.scrollTo({ top: 0, behavior: 'smooth' });
+  const scrollToRisk = () => {
+    const targetTop = Math.max(0, riskCard.offsetTop - 8);
+    sidebar.scrollTo({ top: targetTop, behavior: 'smooth' });
+  };
+
+  if (pretradePhase) {
+    pretradePhase.addEventListener('mouseenter', scrollToTop);
+    pretradePhase.addEventListener('focusin', scrollToTop);
+  }
+  riskPhase.addEventListener('mouseenter', scrollToRisk);
+  riskPhase.addEventListener('focusin', scrollToRisk);
+}
+
+function renderPreTradeBrief(trade) {
+  if (!els['pretrade-brief']) return;
+  const rows = [
+    ['Ticker', trade.ticker || '-'],
+    ['Bias', `${trade.side || '-'} · ${trade.session || '-'}`],
+    ['Setup', trade.setupEntry || '-'],
+    ['Status', trade.status || '-'],
+  ];
+  const note = trade.thesis
+    ? escapeHtml(trade.thesis.split('
+')[0].slice(0, 120))
+    : '진입 트리거와 무효화 기준을 한 줄이라도 먼저 적어두면 이후 Risk Planner 해석이 훨씬 쉬워집니다.';
+  setHtml('pretrade-brief', `
+    <div class="pretrade-brief-grid">
+      ${rows.map(([label, value]) => `
+        <div class="summary-item">
+          <div class="summary-label">${escapeHtml(label)}</div>
+          <div class="summary-value">${escapeHtml(String(value))}</div>
+        </div>
+      `).join('')}
+    </div>
+    <div style="margin-top:14px; font-size:13px; color:#1e3a8a; font-weight:700; line-height:1.6;">${note}</div>
+  `);
+}
+
+function renderPlannerModeNote(trade) {
+  if (!els['planner-mode-note']) return;
+  const meta = getPlannerModeMeta(trade.plannerMode);
+  const weightLabel = {
+    EQUAL: '균등 배분',
+    FRONTLOADED: '초기 진입 비중↑',
+    BACKLOADED: '후행 추가 비중↑',
+  }[trade.plannerWeightMode] || '균등 배분';
+  setHtml('planner-mode-note', `<strong>${escapeHtml(meta.label)}</strong> · ${escapeHtml(meta.body)}<br><span style="display:inline-block; margin-top:6px; color:#475569;">현재 배분 방식: ${escapeHtml(weightLabel)} · 진입 단계 ${escapeHtml(String(trade.plannerLegs || 1))}개</span>`);
+}
+
 function hydrateInitialForm() {
   const tpl = state.db.meta.lastTradeForm || {};
   setVal('trade-date', inputDate(new Date().toISOString()));
   setVal('account-size', tpl.accountSize || Math.round(Number(state.db.meta.accountBalance || 10000)));
   setVal('risk-pct', tpl.riskPct || 0.5);
   setVal('leverage', tpl.leverage || 5);
-  setVal('planner-mode', tpl.plannerMode || 'LADDER');
+  setVal('planner-mode', normalizePlannerModeValue(tpl.plannerMode || 'BALANCED'));
   setVal('planner-legs', tpl.plannerLegs || 3);
-  setVal('planner-weight-mode', tpl.plannerWeightMode || 'BACKLOADED');
+  setVal('planner-weight-mode', tpl.plannerWeightMode || 'EQUAL');
   setVal('maker-fee', tpl.makerFee || 0.02);
   setVal('taker-fee', tpl.takerFee || 0.05);
   setVal('target-price', ''); // 폼 초기화 시 목표가는 비움
@@ -641,7 +740,7 @@ function renderLegs(kind) {
             <option value="T" ${leg.type === 'T' ? 'selected' : ''}>Taker</option>
           </select>
           <div class="input-with-unit">
-            <input type="number" step="0.01" class="leg-weight" value="${safeNumber(leg.weight)}" placeholder="Risk Share" />
+            <input type="number" step="0.01" class="leg-weight" value="${safeNumber(leg.weight)}" placeholder="리스크 배분" />
             <span class="unit right">%</span>
           </div>
           <div class="input-with-unit">
@@ -663,7 +762,7 @@ function renderLegs(kind) {
           <option value="T" ${leg.type === 'T' ? 'selected' : ''}>Taker</option>
         </select>
         <div class="input-with-unit">
-          <input type="number" step="0.01" class="leg-weight" value="${safeNumber(leg.weight)}" placeholder="Close %" />
+          <input type="number" step="0.01" class="leg-weight" value="${safeNumber(leg.weight)}" placeholder="청산 비중" />
           <span class="unit right">%</span>
         </div>
         <select class="leg-status" style="width:100%;">
@@ -715,9 +814,9 @@ function resetFormForce() {
     'trade-id','context','thesis','review','tags','mistakes','live-notes',
     'mark-price','adjustment','stop-price','target-price','current-price','scalein-price'
   ].forEach(id => setVal(id, ''));
-  setVal('planner-mode', 'LADDER');
+  setVal('planner-mode', 'BALANCED');
   setVal('planner-legs', 3);
-  setVal('planner-weight-mode', 'BACKLOADED');
+  setVal('planner-weight-mode', 'EQUAL');
   setVal('scalein-risk-share', 10);
   setVal('scalein-type', 'T');
 
@@ -733,9 +832,9 @@ function resetFormForce() {
   setVal('account-size', tpl.accountSize || Math.round(Number(state.db.meta.accountBalance || 10000)));
   setVal('risk-pct', tpl.riskPct || 0.5);
   setVal('leverage', tpl.leverage || 5);
-  setVal('planner-mode', tpl.plannerMode || 'LADDER');
+  setVal('planner-mode', normalizePlannerModeValue(tpl.plannerMode || 'BALANCED'));
   setVal('planner-legs', tpl.plannerLegs || 3);
-  setVal('planner-weight-mode', tpl.plannerWeightMode || 'BACKLOADED');
+  setVal('planner-weight-mode', tpl.plannerWeightMode || 'EQUAL');
   setVal('maker-fee', tpl.makerFee || 0.02);
   setVal('taker-fee', tpl.takerFee || 0.05);
 
@@ -805,7 +904,7 @@ function readForm() {
     riskPct: Number(getVal('risk-pct') || 0),
     leverage: Number(getVal('leverage') || 0),
     currentPrice: Number(getVal('current-price') || 0),
-    plannerMode: getVal('planner-mode') || 'LADDER',
+    plannerMode: normalizePlannerModeValue(getVal('planner-mode') || 'BALANCED'),
     plannerLegs: Number(getVal('planner-legs') || 3),
     plannerWeightMode: getVal('planner-weight-mode') || 'BACKLOADED',
     makerFee: Number(getVal('maker-fee') || 0),
@@ -929,7 +1028,7 @@ function applyTradeToForm(trade, options = {}) {
   setVal('risk-pct', trade.riskPct);
   setVal('leverage', trade.leverage);
   setVal('current-price', trade.currentPrice || '');
-  setVal('planner-mode', trade.plannerMode || 'LADDER');
+  setVal('planner-mode', normalizePlannerModeValue(trade.plannerMode || 'BALANCED'));
   setVal('planner-legs', trade.plannerLegs || 3);
   setVal('planner-weight-mode', trade.plannerWeightMode || 'BACKLOADED');
   setVal('maker-fee', trade.makerFee);
@@ -971,6 +1070,8 @@ function updatePreview() {
   const trade = readForm();
   const metrics = trade.metrics;
 
+  renderPreTradeBrief(trade);
+  renderPlannerModeNote(trade);
   renderCalcSummary(metrics, trade);
   renderRiskPanel(metrics, trade);
   renderTradeEvaluation(metrics, trade);
@@ -981,56 +1082,33 @@ function updatePreview() {
   if(els['risk-bep']) els['risk-bep'].textContent = metrics.breakEvenPrice > 0 ? safeNumber(metrics.breakEvenPrice.toFixed(4)) : '0.00';
 }
 
-
 function renderTradeEvaluation(metrics, trade) {
   if (!els['eval-status-badge']) return;
 
   const isClosed = trade.status === 'CLOSED';
-  const pnlValue = isClosed ? metrics.netPnl : (metrics.hasProjection ? metrics.projectedPnl : metrics.unrealizedPnl);
-  const rValue = isClosed ? metrics.r : (metrics.hasProjection ? metrics.projectedR : metrics.unrealizedR);
-  const mistakes = Array.isArray(trade.mistakes) ? trade.mistakes : [];
-  const riskUsage = metrics.actualRiskPctOfBudget || 0;
-  const riskLabel = riskUsage > 100 ? `허용 리스크를 ${riskUsage.toFixed(1)}% 사용했습니다.` : `허용 리스크의 ${riskUsage.toFixed(1)}%를 사용했습니다.`;
-  const exitLabel = isClosed
-    ? `실제 청산 ${metrics.actualExitPct.toFixed(1)}% 기준으로 최종 결과가 확정되었습니다.`
-    : `실제 청산 ${metrics.actualExitPct.toFixed(1)}% · 계획 청산 ${metrics.plannedExitPct.toFixed(1)}% 상태입니다.`;
+  
+  els['eval-status-badge'].innerHTML = isClosed 
+    ? '<span style="color:#94a3b8;">FINAL (CLOSED)</span>' 
+    : '<span style="color:#60a5fa;">PROJECTED (OPEN)</span>';
 
-  els['eval-status-badge'].textContent = isClosed ? 'FINAL (CLOSED)' : 'PROJECTED (OPEN)';
-
-  els['eval-margin'].textContent = `${moneyAbs(metrics.actualRiskUsed)} / ${moneyAbs(metrics.riskDollar)}`;
-  els['eval-bep'].textContent = `${moneyAbs(metrics.residualRisk)} · ${metrics.breakEvenPrice > 0 ? safeNumber(metrics.breakEvenPrice.toFixed(4)) : '0.00'}`;
-  els['eval-fees'].textContent = moneyAbs(metrics.totalFees);
-
-  els['eval-pnl'].textContent = money(pnlValue);
-  els['eval-pnl'].className = `eval-value ${pnlValue > 0 ? 'positive' : pnlValue < 0 ? 'negative' : ''}`;
-
-  els['eval-r'].textContent = `${rValue.toFixed(2)}R`;
-  els['eval-r'].className = `eval-value ${rValue > 0 ? 'positive' : rValue < 0 ? 'negative' : ''}`;
-
+  els['eval-margin'].textContent = moneyAbs(metrics.margin);
+  els['eval-bep'].textContent = metrics.breakEvenPrice > 0 ? safeNumber(metrics.breakEvenPrice.toFixed(4)) : '0.00';
+  els['eval-fees'].textContent = `-${moneyAbs(metrics.totalFees)}`;
+  
+  const displayPnl = isClosed ? metrics.netPnl : (metrics.hasProjection ? metrics.projectedPnl : metrics.unrealizedPnl);
+  const displayR = isClosed ? metrics.r : (metrics.hasProjection ? metrics.projectedR : metrics.unrealizedR);
+  
+  els['eval-pnl'].textContent = money(displayPnl);
+  els['eval-pnl'].className = `eval-value ${displayPnl > 0 ? 'positive' : displayPnl < 0 ? 'negative' : ''}`;
+  
+  els['eval-r'].textContent = `${displayR.toFixed(2)}R`;
+  els['eval-r'].className = `eval-value ${displayR > 0 ? 'positive' : displayR < 0 ? 'negative' : ''}`;
+  
   els['eval-roi'].textContent = `${metrics.accountImpact > 0 ? '+' : ''}${metrics.accountImpact.toFixed(2)}%`;
   els['eval-roi'].className = `eval-value ${metrics.accountImpact > 0 ? 'positive' : metrics.accountImpact < 0 ? 'negative' : ''}`;
 
-  if (els['label-pnl']) els['label-pnl'].textContent = isClosed ? '최종 PnL' : '예상 PnL';
-  if (els['label-r']) els['label-r'].textContent = isClosed ? '최종 R' : '예상 R';
-
-  if (els['post-assessment-copy']) {
-    const lines = [];
-    lines.push(`<div class="post-assessment-line"><strong>Risk Discipline.</strong> ${escapeHtml(riskLabel)} ${riskUsage > 100 ? '추가 진입/과대 레버리지 여부를 먼저 점검하세요.' : '리스크 관리 측면에서는 구조가 유지되고 있습니다.'}</div>`);
-    lines.push(`<div class="post-assessment-line"><strong>Execution / Exit.</strong> ${escapeHtml(exitLabel)} ${isClosed ? '청산 과정이 계획과 얼마나 일치했는지 Review에 남기세요.' : 'OPEN 상태라면 계획 청산과 실제 체결을 분리해서 기록하세요.'}</div>`);
-
-    let focus = '다음 거래에서도 반복 가능한 구조인지, 아니면 운 좋게 마감된 결과인지 구분해서 적어두는 것이 좋습니다.';
-    if (mistakes.length) {
-      focus = `실수 태그(${mistakes.slice(0, 3).join(', ')})가 남아 있습니다. 동일한 상황이 다시 나왔을 때 무엇을 먼저 고칠지 한 줄로 정리하세요.`;
-    } else if (isClosed && rValue < 0 && riskUsage <= 100) {
-      focus = '손실이더라도 리스크 범위 안에서 계획을 지켰다면 “좋은 손실”일 수 있습니다. 실행 품질과 청산 구조를 분리해서 복기하세요.';
-    } else if (!isClosed && metrics.missingMarkPrice) {
-      focus = '현재가(Mark Price)가 없어서 OPEN 상태 해석이 흐려집니다. 보유 중이라면 현재가를 넣고 projected 결과를 확인하세요.';
-    } else if (isClosed && rValue > 0 && mistakes.length === 0) {
-      focus = '이번 거래는 Playbook 후보로 남길 가치가 있습니다. 진입 근거와 무효화 기준을 더 짧고 재사용 가능하게 요약해 두세요.';
-    }
-    lines.push(`<div class="post-assessment-line"><strong>Next Review Focus.</strong> ${escapeHtml(focus)}</div>`);
-    setHtml('post-assessment-copy', lines.join(''));
-  }
+  if(els['label-pnl']) els['label-pnl'].textContent = isClosed ? '최종 PnL' : '예상 PnL';
+  if(els['label-r']) els['label-r'].textContent = isClosed ? '최종 R' : '예상 R';
 }
 
 function renderCalcSummary(metrics, trade) {
@@ -1043,7 +1121,7 @@ function renderCalcSummary(metrics, trade) {
   if (!metrics.valid && !metrics.exitExceeds100) {
     setHtml('calc-summary', `
       <div class="summary-invalid" style="color:var(--muted); font-weight:600;">
-        손절가와 실제 진입 레그(가격 + Risk Share)를 확인해 주세요.
+        손절가와 실제 체결 진입 단계(가격 + 리스크 배분%)를 확인해 주세요.
         ${warnHtml}
       </div>
     `);
@@ -1110,7 +1188,7 @@ function renderPlannerSummary(trade) {
 
   setHtml('planner-summary', `
     <div style="display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:14px;">
-      <div style="font-weight:800; color:#0f172a;">추천 모드: ${escapeHtml(suggestion.plannerMode)} · ${escapeHtml(suggestion.plannerWeightMode)}</div>
+      <div style="font-weight:800; color:#0f172a;">추천 전략: ${escapeHtml(getPlannerModeMeta(suggestion.plannerMode).label)} · ${escapeHtml({EQUAL:'균등 배분',FRONTLOADED:'초기 비중↑',BACKLOADED:'후행 비중↑'}[suggestion.plannerWeightMode] || suggestion.plannerWeightMode)}</div>
       <div style="font-size:12px; color:var(--muted); font-weight:700;">Risk ${moneyAbs(suggestion.metrics.riskDollar)} · Margin ${moneyAbs(suggestion.metrics.margin)} · Weighted Lev ${suggestion.metrics.weightedLeverage.toFixed(2)}x</div>
     </div>
     <div class="summary-grid">
@@ -1118,9 +1196,9 @@ function renderPlannerSummary(trade) {
         const d = suggestion.metrics.entryBreakdown[idx] || {};
         return `
           <div class="summary-item">
-            <div class="summary-label">LEG ${idx + 1}</div>
+            <div class="summary-label">STEP ${idx + 1}</div>
             <div class="summary-value">${safeNumber(leg.price)}</div>
-            <div style="font-size:12px; color:var(--muted); font-weight:700; margin-top:6px;">Risk ${leg.weight.toFixed(1)}% · ${leg.leverage.toFixed(1)}x</div>
+            <div style="font-size:12px; color:var(--muted); font-weight:700; margin-top:6px;">배분 ${leg.weight.toFixed(1)}% · ${leg.leverage.toFixed(1)}x</div>
             <div style="font-size:12px; color:#334155; margin-top:4px;">Qty ${qty(d.qty)} · Margin ${moneyAbs(d.margin)}</div>
           </div>
         `;
@@ -1213,7 +1291,7 @@ function applyScaleIn() {
   markDirty();
   updatePreview();
   persistDraft(true);
-  refreshJournalStatus('추가 진입이 Execution Entries에 반영되었습니다.');
+  refreshJournalStatus('추가 진입 단계가 Execution Entries에 반영되었습니다.');
 }
 
 function metricCard(label, value, colorClass) {
