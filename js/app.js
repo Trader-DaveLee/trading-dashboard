@@ -1,7 +1,7 @@
 import { recalcTrade } from './calc.js';
 import {
   summarize, groupAverageR, tagStats,
-  gradeStats, filterTradesByDate
+  recentWindowStats, sessionSetupStats, gradeStats, filterTradesByDate
 } from './analytics.js';
 import {
   loadDB, saveDB, exportDB, parseImport, normalizeTrade,
@@ -17,6 +17,7 @@ const state = {
   filteredTrades: [],
   draftEntries: [{ price: 0, type: 'M', weight: 100 }],
   draftExits: [],
+  draftLiveCharts: [], // ✨ Live 차트 상태 관리 추가
   dirty: false,
 };
 
@@ -30,7 +31,7 @@ const ID_LIST = [
   'view-journal','trade-form','trade-id','trade-date','btn-now','ticker','btn-manage-ticker','status','session','side','setup-entry','btn-manage-setup-entry','setup-exit','btn-manage-setup-exit',
   'account-size','risk-pct','leverage','maker-fee','taker-fee','stop-price','mark-price','stop-type','adjustment',
   'context','thesis','review','chart-entry','chart-exit','tags','mistakes',
-  'add-entry','entries','add-exit','exits','calc-summary','quick-tags','quick-mistakes','live-notes','btn-insert-time',
+  'add-entry','entries','add-exit','exits','calc-summary','quick-tags','quick-mistakes','live-notes','btn-insert-time','add-live-chart','live-charts-container',
   'bal-cash','bal-crypto','bal-usdt','bal-stock','bal-total','balance-type','balance-memo','btn-update-balance','balance-history',
   'duplicate-trade','reset-form','delete-trade','grade','deep-review-r',
   'desk-rules','master-checklist-list','new-check-input','btn-add-check','trade-checklist-container',
@@ -53,6 +54,21 @@ window.__desk_jump_date = (dateString) => {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
+// ✨ 잔고 개별 삭제 전역 함수
+window.__desk_del_balance = (id) => {
+  if(!confirm("이 잔고 기록을 삭제하시겠습니까?")) return;
+  state.db.meta.balanceHistory = state.db.meta.balanceHistory.filter(h => h.id !== id);
+  if (state.db.meta.balanceHistory.length > 0) {
+    state.db.meta.accountBalance = state.db.meta.balanceHistory[0].val;
+  } else {
+    state.db.meta.accountBalance = 10000;
+  }
+  saveDB(state.db);
+  renderAccountBalance();
+  renderOverviewPortfolio();
+  updatePreview();
+};
+
 bootstrap();
 
 function bootstrap() {
@@ -69,6 +85,12 @@ function cacheEls() {
   ID_LIST.forEach(id => {
     els[id] = document.getElementById(id);
   });
+}
+
+function autoResize(el) {
+  if (!el) return;
+  el.style.height = 'auto';
+  el.style.height = (el.scrollHeight) + 'px';
 }
 
 function initMeta() {
@@ -110,6 +132,13 @@ function bindEvents() {
   els['add-exit'].onclick = () => {
     state.draftExits.push({ price: 0, type: 'M', weight: 0 });
     renderLegs('exit');
+    updatePreview();
+  };
+  
+  // ✨ 진행 중 차트(Live Chart) 추가 이벤트
+  els['add-live-chart'].onclick = () => {
+    state.draftLiveCharts.push('');
+    renderLiveCharts();
     updatePreview();
   };
 
@@ -161,8 +190,9 @@ function bindEvents() {
   if(els['btn-update-balance']) els['btn-update-balance'].onclick = updateBalance;
   
   if(els['desk-rules']) {
-    els['desk-rules'].addEventListener('input', () => {
-      state.db.meta.rules = els['desk-rules'].value;
+    els['desk-rules'].addEventListener('input', function() {
+      autoResize(this); // ✨ 입력할 때마다 자동 리사이징
+      state.db.meta.rules = this.value;
       saveDB(state.db);
     });
   }
@@ -353,10 +383,13 @@ function hydrateInitialForm() {
   setVal('trade-date', inputDate(new Date().toISOString()));
   setVal('account-size', Math.round(Number(state.db.meta.accountBalance || 10000)));
   setVal('desk-rules', state.db.meta.rules || '');
+  autoResize(els['desk-rules']); // ✨ 데스크룰 높이 자동 조정 반영
   state.draftEntries = [{ price: 0, type: 'M', weight: 100 }];
   state.draftExits = [];
+  state.draftLiveCharts = [];
   renderLegs('entry');
   renderLegs('exit');
+  renderLiveCharts();
   renderTradeChecklist([]);
   calcTotalBalance();
 }
@@ -368,6 +401,32 @@ function restoreDraftIfPresent() {
   if (draft.savedAt) {
     setText('draft-saved-at', `Draft ${formatDateTime(draft.savedAt)} 저장`);
   }
+}
+
+// ✨ 진행 중 차트 (다중) 렌더링 로직
+function renderLiveCharts() {
+  const container = els['live-charts-container'];
+  if (!container) return;
+  container.innerHTML = state.draftLiveCharts.map((url, idx) => `
+    <div style="display:flex; gap:8px;">
+      <input type="text" class="live-chart-input" value="${escapeAttr(url)}" placeholder="https://www.tradingview.com/x/... 등 링크 입력" data-index="${idx}" />
+      <button type="button" class="tool-btn btn-del-live-chart" data-index="${idx}" style="color:var(--muted); border-color:var(--line);">✕</button>
+    </div>
+  `).join('');
+
+  container.querySelectorAll('.live-chart-input').forEach(input => {
+    input.oninput = (e) => {
+      state.draftLiveCharts[e.target.dataset.index] = e.target.value;
+      markDirty(); persistDraft();
+    };
+  });
+  container.querySelectorAll('.btn-del-live-chart').forEach(btn => {
+    btn.onclick = (e) => {
+      state.draftLiveCharts.splice(e.target.dataset.index, 1);
+      renderLiveCharts();
+      markDirty(); persistDraft();
+    };
+  });
 }
 
 function renderLegs(kind) {
@@ -445,8 +504,10 @@ function resetForm() {
 
   state.draftEntries = [{ price: 0, type: 'M', weight: 100 }];
   state.draftExits = [];
+  state.draftLiveCharts = [];
   renderLegs('entry');
   renderLegs('exit');
+  renderLiveCharts();
   renderTradeChecklist([]);
   updatePreview();
   refreshJournalStatus('새 폼 준비');
@@ -500,6 +561,7 @@ function readForm() {
     evidence: {
       entryChart: getVal('chart-entry'),
       exitChart: getVal('chart-exit'),
+      liveCharts: state.draftLiveCharts.filter(Boolean),
     },
     entries: cloneRows(state.draftEntries),
     exits: cloneRows(state.draftExits),
@@ -511,7 +573,6 @@ function handleSubmit(event) {
   if (event) event.preventDefault();
   const trade = readForm();
   
-  // ✨ Phase 1: 로직 검증 및 저장을 원천 차단
   if (trade.metrics.exitExceeds100) {
     alert(`청산 비중 합계가 100%를 초과할 수 없습니다. (현재: ${trade.metrics.exitPct}%)`);
     return;
@@ -601,12 +662,15 @@ function applyTradeToForm(trade, options = {}) {
   setVal('mistakes', (trade.mistakes || []).join(', '));
   setVal('chart-entry', trade.evidence?.entryChart || '');
   setVal('chart-exit', trade.evidence?.exitChart || '');
+  
+  state.draftLiveCharts = Array.isArray(trade.evidence?.liveCharts) ? [...trade.evidence.liveCharts] : [];
   state.draftEntries = cloneRows(trade.entries || [{ price: 0, type: 'M', weight: 100 }]);
   state.draftExits = cloneRows(trade.exits || []);
   
   renderLegs('entry');
   renderLegs('exit');
-  renderTradeChecklist(trade.checkedRules || []);
+  renderLiveCharts();
+  renderTradeChecklist(trade.checkedRules || []); 
   updatePreview();
 }
 
@@ -622,7 +686,6 @@ function renderCalcSummary(metrics, trade) {
   let warnHtml = '';
   if (metrics.directionError) warnHtml += '<div class="warn-text">⚠️ 방향과 손절 위치가 충돌합니다.</div>';
   if (metrics.exitExceeds100) warnHtml += `<div class="warn-text" style="color:var(--red);">⚠️ 청산 비중 합계가 100%를 초과합니다. (${metrics.exitPct}%)</div>`;
-  // ✨ Phase 1: Mark Price 누락 경고
   if (trade.status === 'OPEN' && metrics.missingMarkPrice) warnHtml += '<div class="warn-text">⚠️ 현재가(Mark Price)가 입력되지 않아 미실현 손익이 0으로 계산됩니다.</div>';
 
   if (!metrics.valid && !metrics.exitExceeds100) {
@@ -635,7 +698,6 @@ function renderCalcSummary(metrics, trade) {
     return;
   }
 
-  // ✨ Phase 1: Realized R 및 Unrealized R 분리 반영
   const summaryRows = [
     ['Avg Entry', money(metrics.avgEntry)],
     ['Avg Exit', metrics.avgExit ? money(metrics.avgExit) : '—'],
@@ -877,12 +939,14 @@ function renderAccountBalance() {
   setVal('bal-usdt', latest.usdt || 0);
   setVal('bal-stock', latest.stock || 0);
   calcTotalBalance();
+  
   setVal('desk-rules', state.db.meta.rules || '');
+  autoResize(els['desk-rules']); // 불러올 때 자동 높이 적용
 
-  // ✨ Phase 2: 자금 흐름 타입별 색상 표시 적용
   const typeColors = { PNL: 'var(--accent)', DEPOSIT: 'var(--green)', WITHDRAWAL: 'var(--red)', MANUAL: 'var(--muted)' };
   const typeLabels = { PNL: '매매', DEPOSIT: '입금', WITHDRAWAL: '출금', MANUAL: '조정' };
 
+  // ✨ 기록 개별 삭제를 위한 X 버튼 추가 반영
   setHtml('balance-history', history.length ? history.map(row => `
     <div style="padding:12px; border:1px solid var(--line); border-radius:12px; margin-bottom:8px; background:#fff;">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
@@ -890,7 +954,10 @@ function renderAccountBalance() {
           <span style="font-size:10px; font-weight:800; color:${typeColors[row.type] || 'var(--muted)'}; border:1px solid ${typeColors[row.type] || 'var(--muted)'}; padding:2px 6px; border-radius:4px; margin-right:8px;">${typeLabels[row.type] || row.type}</span>
           <strong style="font-size:14px; color:#0f172a;">${moneyAbsNatural(row.val)}</strong>
         </div>
-        <span style="color:var(--muted); font-size:11px;">${formatDateTime(row.date)}</span>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="color:var(--muted); font-size:11px;">${formatDateTime(row.date)}</span>
+          <button type="button" class="tool-btn" style="padding:2px 6px; font-size:10px; background:transparent; border:none; color:var(--muted);" onclick="window.__desk_del_balance(${row.id})">✕</button>
+        </div>
       </div>
       ${row.memo ? `<div style="font-size:11px; color:#475569; background:#f1f5f9; padding:4px 8px; border-radius:6px; display:inline-block; margin-top:2px;">${escapeHtml(row.memo)}</div>` : ''}
     </div>
@@ -1080,10 +1147,11 @@ function renderTradeDetail(trade) {
     </div>
 
     <div style="margin-top:24px;">
-      <h4 style="margin:0 0 8px; font-size:14px; font-weight:800;">Evidence</h4>
-      <div style="display:flex; gap:8px;">
+      <h4 style="margin:0 0 8px; font-size:14px; font-weight:800;">Evidence (Charts)</h4>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
         ${trade.evidence?.entryChart ? `<a href="${escapeAttr(trade.evidence.entryChart)}" target="_blank" style="padding:8px 16px; background:#e0e7ff; color:var(--accent); border-radius:8px; text-decoration:none; font-weight:700; font-size:12px;">Entry Chart 📈</a>` : ''}
         ${trade.evidence?.exitChart ? `<a href="${escapeAttr(trade.evidence.exitChart)}" target="_blank" style="padding:8px 16px; background:#e0e7ff; color:var(--accent); border-radius:8px; text-decoration:none; font-weight:700; font-size:12px;">Exit Chart 📈</a>` : ''}
+        ${(trade.evidence?.liveCharts || []).map((url, idx) => `<a href="${escapeAttr(url)}" target="_blank" style="padding:8px 16px; background:#f1f5f9; color:var(--muted); border:1px solid var(--line); border-radius:8px; text-decoration:none; font-weight:700; font-size:12px;">Live Chart ${idx + 1} 🔍</a>`).join('')}
       </div>
     </div>
   `);
@@ -1145,18 +1213,18 @@ function renderPlaybook() {
     .filter(trade => (trade.grade === 'S' || trade.grade === 'A') && !(trade.mistakes || []).length)
     .sort((a, b) => b.metrics.r - a.metrics.r);
 
-  // ✨ Phase 3.1: 트레이딩뷰 일반 웹 링크일 경우의 대체 UI (View Chart 버튼) 처리
   let html = '';
   rows.forEach(trade => {
-    const chartUrl = trade.evidence?.entryChart;
+    // ✨ Playbook 썸네일은 '종료 차트' 우선, 없으면 '진입 차트' 사용
+    const chartUrl = trade.evidence?.exitChart || trade.evidence?.entryChart;
     let imgHtml = '';
     if (chartUrl) {
       if (chartUrl.match(/\.(jpeg|jpg|gif|png|webp)$/i)) {
-        imgHtml = `<img class="playbook-img" src="${escapeAttr(chartUrl)}" alt="entry chart" onerror="this.style.display='none'">`;
+        imgHtml = `<img class="playbook-img" src="${escapeAttr(chartUrl)}" alt="chart" onerror="this.style.display='none'">`;
       } else if (chartUrl.includes('tradingview.com/x/')) {
         const tvId = chartUrl.split('/x/')[1]?.replace('/', '');
         if (tvId) {
-          imgHtml = `<img class="playbook-img" src="https://s3.tradingview.com/x/${tvId}.png" alt="entry chart" onerror="this.style.display='none'">`;
+          imgHtml = `<img class="playbook-img" src="https://s3.tradingview.com/x/${tvId}.png" alt="chart" onerror="this.style.display='none'">`;
         } else {
           imgHtml = `<div class="playbook-img-fallback"><a href="${escapeAttr(chartUrl)}" target="_blank" class="btn-view-chart">📈 View Chart</a></div>`;
         }
@@ -1187,7 +1255,6 @@ function renderPlaybook() {
   setHtml('playbook-gallery', rows.length ? html : emptyState('조건을 만족하는 S/A급 Playbook 샘플이 없습니다.'));
 
   els['playbook-gallery'].querySelectorAll('.playbook-card').forEach(card => {
-    // 버튼을 클릭했을 때 Library로 넘어가지 않도록 예외 처리
     card.onclick = (e) => {
       if (e.target.tagName === 'A') return;
       selectTrade(card.dataset.id);
