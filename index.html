@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Trading Desk Dashboard v4.0 (Start Page Edition)</title>
+  <title>Trading Desk Dashboard v4.1 (Premium Hub)</title>
   <link rel="stylesheet" href="./css/styles.css" />
 </head>
 <body>
@@ -34,8 +34,13 @@
   <main class="container">
     <section id="view-overview" class="view active">
       
-      <div class="overview-header-top">
-        <div class="realtime-clock" id="realtime-clock"></div>
+      <div class="quick-launch-section">
+        <div class="realtime-clock" id="realtime-clock">
+          </div>
+        <div class="quick-launch-links">
+          <div id="quick-launch-grid" class="quick-launch-grid"></div>
+          <button type="button" id="btn-manage-quick-links" class="tool-btn icon-btn" title="빠른 링크 관리">⚙️</button>
+        </div>
       </div>
 
       <div class="section-head section-head-large overview-hero">
@@ -53,17 +58,9 @@
         </div>
       </div>
 
-      <div class="quick-launch-wrapper">
-        <div class="section-head no-bottom">
-          <div><h3>🚀 Quick Launch</h3><p>자주 접속하는 트레이딩 리소스</p></div>
-          <button type="button" id="btn-manage-quick-links" class="tool-btn">⚙️ 관리</button>
-        </div>
-        <div id="quick-launch-grid" class="quick-launch-grid"></div>
-      </div>
-
       <div class="overview-top-row">
         <div id="metrics" class="metrics-grid"></div>
-        <article class="card premium-balance-card overview-bank-card hover-lift">
+        <article class="card premium-balance-card overview-bank-card">
           <div class="section-head inner-divider">
             <div><h3>💼 Portfolio Status</h3><p>현재 자산 구성 및 총액</p></div>
           </div>
@@ -71,7 +68,7 @@
         </article>
       </div>
 
-      <article class="card overview-calendar-card hover-lift">
+      <article class="card overview-calendar-card">
         <div class="section-head">
           <div><h3>월간 캘린더 (Heatmap)</h3><p>일별 순손익 및 클릭하여 해당 일자 복기</p></div>
           <div class="inline-actions">
@@ -84,24 +81,24 @@
       </article>
 
       <div class="grid grid-2" style="margin-top:24px; margin-bottom:24px;">
-        <article class="card chart-card hover-lift">
+        <article class="card chart-card">
           <div class="section-head"><div><h3>Equity Curve (매매 손익)</h3><p>순수 매매 성과 누적 곡선</p></div></div>
           <div id="equity-chart" class="chart-box"></div>
         </article>
-        <article class="card chart-card hover-lift">
+        <article class="card chart-card">
           <div class="section-head"><div><h3>Balance Curve (총 자산 흐름)</h3><p>입출금이 반영된 실제 계좌 잔고 추이</p></div></div>
           <div id="balance-chart" class="chart-box"></div>
         </article>
       </div>
 
       <div class="grid grid-2">
-        <article class="card chart-card hover-lift">
+        <article class="card chart-card">
           <div class="section-head"><div><h3>셋업 성과</h3><p>Entry setup 평균 R</p></div></div>
           <div id="setup-chart" class="chart-box"></div>
         </article>
         <div class="stack">
-          <article class="card compact-section hover-lift"><div class="section-head"><div><h3>주요 실수</h3><p>빈도 및 누적 손실</p></div></div><div id="mistake-list" class="stack"></div></article>
-          <article class="card compact-section hover-lift"><div class="section-head"><div><h3>Desk Notes</h3><p>자동 분석 인사이트</p></div></div><div id="research-notes" class="stack"></div></article>
+          <article class="card compact-section"><div class="section-head"><div><h3>주요 실수</h3><p>빈도 및 누적 손실</p></div></div><div id="mistake-list" class="stack"></div></article>
+          <article class="card compact-section"><div class="section-head"><div><h3>Desk Notes</h3><p>자동 분석 인사이트</p></div></div><div id="research-notes" class="stack"></div></article>
         </div>
       </div>
     </section>
@@ -153,8 +150,8 @@
 
             <div class="field-grid cols-1 journal-context-grid" style="margin-top: 10px;">
               <div class="grid-2" style="margin-top:0;">
-                <label><span>시장 컨텍스트</span><textarea id="context" placeholder="진입 전 시장 흐름, 유동성, 구조"></textarea></label>
-                <label><span>진입 논리 및 무효화 기준</span><textarea id="thesis" placeholder="왜 여기서 진입하는지, 어디서 틀렸다고 볼지"></textarea></label>
+                <label><span>시장 컨텍스트</span><textarea id="context" class="auto-resize" placeholder="진입 전 시장 흐름, 유동성, 구조"></textarea></label>
+                <label><span>진입 논리 및 무효화 기준</span><textarea id="thesis" class="auto-resize" placeholder="왜 여기서 진입하는지, 어디서 틀렸다고 볼지"></textarea></label>
               </div>
               <label><span>진입 차트 (Entry Chart)</span><input id="chart-entry" placeholder="https://www.tradingview.com/x/... 등 링크 입력" /></label>
             </div>
@@ -202,7 +199,7 @@
                   <button type="button" class="tool-btn btn-live-action fixed-btn" data-text="[추가 진입] ">➕ 추가진입</button>
                 </div>
               </div>
-              <textarea id="live-notes" class="live-notes" placeholder="[2026-04-01 09:35:10] NY open reclaim 확인"></textarea>
+              <textarea id="live-notes" class="auto-resize live-notes" placeholder="[2026-04-01 09:35:10] NY open reclaim 확인"></textarea>
               
               <div style="margin-top: 16px;">
                 <div class="mini-head"><h4>진행 중 차트 증거 (Live Charts)</h4><button type="button" id="add-live-chart" class="tool-btn">+ 차트 추가</button></div>
@@ -221,7 +218,7 @@
             <div class="field-grid cols-2">
               <label style="height: 100%;">
                 <span>Review</span>
-                <textarea id="review" placeholder="잘한 점, 실수, 재현 가능성" style="height: 100%; min-height: 160px;"></textarea>
+                <textarea id="review" class="auto-resize" placeholder="잘한 점, 실수, 재현 가능성" style="height: 100%; min-height: 160px;"></textarea>
               </label>
               
               <div class="stack" style="gap: 16px;">
@@ -267,7 +264,7 @@
         </article>
 
         <aside class="journal-sidebar stack">
-          <article class="card premium-balance-card resizable-card">
+          <article class="card premium-balance-card">
             <div class="section-head no-bottom">
               <div><h3>💳 Account Status</h3><p>포트폴리오 자산 스냅샷</p></div>
               <span class="subtle-pill accent">Local</span>
@@ -297,7 +294,7 @@
             </div>
           </article>
 
-          <article class="card compact-card risk-summary-card resizable-card">
+          <article class="card compact-card risk-summary-card">
             <div class="section-head"><div><h3>Risk Planner</h3><p>사이즈, 리스크, 잔여 익스포저</p></div></div>
             <div class="detail-box risk-box">
               <div class="kv">
@@ -315,10 +312,10 @@
             </div>
           </article>
 
-          <article class="card compact-card resizable-card">
+          <article class="card compact-card">
             <div class="section-head"><div><h3>Desk Rules</h3><p>원칙 및 체크리스트 관리</p></div></div>
             <div class="stack">
-              <label><span>📝 규칙 메모</span><textarea id="desk-rules" class="rules-box" placeholder="항상 되새길 일반 원칙들..."></textarea></label>
+              <label><span>📝 규칙 메모</span><textarea id="desk-rules" class="auto-resize" placeholder="항상 되새길 일반 원칙들..."></textarea></label>
               <div class="checklist-manager">
                 <label><span>✅ 체크리스트 (각 폼에 반영됨)</span></label>
                 <div id="master-checklist-list" class="stack" style="margin-bottom:8px;"></div>
