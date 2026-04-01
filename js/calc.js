@@ -10,15 +10,6 @@ function stopFeeRate(trade, maker, taker) {
   return (trade.stopType || 'M') === 'M' ? maker : taker;
 }
 
-function normalizePlannerMode(mode = 'BALANCED') {
-  const raw = String(mode || 'BALANCED').trim().toUpperCase();
-  if (['LADDER', 'LADDER_TIGHT', 'LADDER_DEEP', 'BALANCED'].includes(raw)) return 'BALANCED';
-  if (['PULLBACK', 'AVERAGE_DOWN', 'COST_AVERAGE'].includes(raw)) return 'PULLBACK';
-  if (['PYRAMID', 'PYRAMIDING', 'MOMENTUM_ADD'].includes(raw)) return 'PYRAMID';
-  if (raw === 'SINGLE') return 'SINGLE';
-  return 'BALANCED';
-}
-
 function normalizeEntryLegs(trade) {
   return (trade.entries || []).filter(e => Number(e.price) > 0 && Number(e.weight) > 0).map(e => ({
     price: Number(e.price || 0),
@@ -245,36 +236,26 @@ export function recalcTrade(trade) {
 }
 
 export function generatePlannerSuggestion(trade) {
-  const currentPrice = Number(trade.currentPrice || trade.markPrice || 0);
+  const currentPrice = Number(trade.currentPrice || trade.markPrice || trade.targetPrice || 0);
   const stop = Number(trade.stopPrice || 0);
-  const side = trade.side === 'SHORT' ? -1 : 1;
-  const mode = normalizePlannerMode(trade.plannerMode || 'BALANCED');
   const legsCount = Math.max(1, Math.min(4, Number(trade.plannerLegs || 3)));
+  const side = trade.side === 'SHORT' ? -1 : 1;
   if (!currentPrice || !stop || !trade.accountSize || !trade.riskPct) return { valid: false, reason: '현재가, 손절가, 계좌, 리스크를 먼저 입력하세요.' };
   if ((side === 1 && stop >= currentPrice) || (side === -1 && stop <= currentPrice)) return { valid: false, reason: '현재가와 손절가 방향이 맞지 않습니다.' };
 
   const dist = Math.abs(currentPrice - stop);
-  const targetRaw = Number(trade.targetPrice || 0);
-  const validTarget = targetRaw > 0 && ((side === 1 && targetRaw > currentPrice) || (side === -1 && targetRaw < currentPrice));
-  const targetAnchor = validTarget ? targetRaw : currentPrice + side * dist * 1.4;
+  const depthRatio = trade.plannerMode === 'LADDER_TIGHT' ? 0.45 : trade.plannerMode === 'LADDER_DEEP' ? 0.15 : 0.30;
+  const deepest = trade.plannerMode === 'SINGLE' || legsCount === 1
+    ? currentPrice
+    : (side === 1 ? stop + dist * depthRatio : stop - dist * depthRatio);
 
-  const makeRange = (start, end) => {
-    if (legsCount === 1) return [round(start, 4)];
-    return Array.from({ length: legsCount }, (_, i) => round(start + (end - start) * (i / (legsCount - 1)), 4));
-  };
-
-  let prices = [round(currentPrice, 4)];
-  if (mode === 'SINGLE') {
-    prices = [round(currentPrice, 4)];
-  } else if (mode === 'PULLBACK') {
-    const deeper = side === 1 ? stop + dist * 0.22 : stop - dist * 0.22;
-    prices = makeRange(currentPrice, deeper);
-  } else if (mode === 'PYRAMID') {
-    const favorable = currentPrice + (targetAnchor - currentPrice) * 0.55;
-    prices = makeRange(currentPrice, favorable);
-  } else {
-    const moderate = side === 1 ? stop + dist * 0.48 : stop - dist * 0.48;
-    prices = makeRange(currentPrice, moderate);
+  const prices = [];
+  for (let i = 0; i < legsCount; i += 1) {
+    if (legsCount === 1) prices.push(currentPrice);
+    else {
+      const t = i / (legsCount - 1);
+      prices.push(currentPrice + (deepest - currentPrice) * t);
+    }
   }
 
   let weightsRaw;
@@ -290,12 +271,12 @@ export function generatePlannerSuggestion(trade) {
 
   let entries = prices.map((price, idx) => ({
     price: round(price, 4),
-    type: idx === 0 ? 'M' : 'T',
+    type: 'T',
     weight: round(weights[idx], 2),
     leverage: Math.max(1, Number(trade.leverage || 1)),
   }));
 
-  let metrics = recalcTrade({ ...trade, plannerMode: mode, entries, exits: [] });
+  let metrics = recalcTrade({ ...trade, entries, exits: [] });
   entries = entries.map((entry, idx) => {
     const breakdown = metrics.entryBreakdown[idx];
     const desiredCapital = Math.max(1, Number(trade.accountSize || 0) * (entry.weight / 100));
@@ -303,15 +284,15 @@ export function generatePlannerSuggestion(trade) {
     return { ...entry, leverage: Math.max(1, suggestedLeverage, Number(trade.leverage || 1)) };
   });
 
-  metrics = recalcTrade({ ...trade, plannerMode: mode, entries, exits: [] });
+  metrics = recalcTrade({ ...trade, entries, exits: [] });
   return {
     valid: true,
     entries,
     metrics,
     currentPrice: round(currentPrice, 4),
     stopPrice: round(stop, 4),
-    plannerMode: mode,
-    plannerWeightMode: trade.plannerWeightMode || 'EQUAL',
+    plannerMode: trade.plannerMode || 'LADDER',
+    plannerWeightMode: trade.plannerWeightMode || 'BACKLOADED',
   };
 }
 
