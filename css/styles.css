@@ -366,7 +366,7 @@ tbody tr:hover { background: #f1f5f9; cursor: pointer; }
 .review-bar { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 20px; padding: 16px 20px; border: 1px solid var(--line); background: #ffffff; border-radius: 20px; box-shadow: var(--shadow-subtle); }
 
 /* Sidebar Account Status */
-.journal-sidebar { position: sticky; top: 100px; align-content: start; }
+.journal-sidebar { position: sticky; top: 100px; align-content: start; max-height: calc(100vh - 120px); overflow-y: auto; overscroll-behavior: contain; padding-right: 4px; scrollbar-gutter: stable; }
 .bank-balance-shell { border-radius: 16px; overflow: hidden; border: 1px solid var(--line); background: #ffffff; margin-bottom: 12px; box-shadow: var(--shadow-subtle); }
 .bank-balance-head { display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; background: #f8fafc; border-bottom: 1px solid var(--line); }
 .bank-balance-head span { color: var(--muted); font-weight: 800; font-size: 12px; text-transform: uppercase; }
@@ -497,4 +497,61 @@ tbody tr:hover { background: #f1f5f9; cursor: pointer; }
     content: attr(data-label); font-weight: 800; color: var(--muted); text-transform: uppercase; font-size: 11px; text-align: left;
   }
   .selected-row { background: var(--accent-soft) !important; border-color: var(--accent); }
+}
+
+
+/* Journal experience refinements */
+.details-guide {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #f8fafc;
+  padding: 0;
+}
+.details-guide summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 14px 16px;
+  font-weight: 800;
+  color: #0f172a;
+}
+.details-guide summary::-webkit-details-marker { display: none; }
+.details-guide-body { padding: 0 16px 16px; color: #334155; font-size: 13px; line-height: 1.7; }
+.details-guide-body ul { margin: 10px 0 0 18px; padding: 0; }
+.details-guide-body p { margin: 0 0 8px; }
+.section-summary {
+  background: linear-gradient(180deg, #f8fbff 0%, #eef4ff 100%);
+  border: 1px solid #dbeafe;
+  color: #1e3a8a;
+}
+.context-helper-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.context-helper-group { padding: 14px 16px; border: 1px solid var(--line); border-radius: 14px; background: #ffffff; }
+.compact-chips { margin-top: 8px; }
+.execution-section-group { padding: 18px; border: 1px solid var(--line); border-radius: 18px; background: #fbfdff; }
+.planner-mode-note { padding: 12px 14px; background: #ffffff; border: 1px dashed #cbd5e1; border-radius: 12px; }
+.post-assessment-shell {
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  border-radius: 18px;
+  padding: 22px;
+  box-shadow: var(--shadow-subtle);
+}
+.assessment-top { display: flex; justify-content: space-between; gap: 16px; align-items: center; margin-bottom: 18px; flex-wrap: wrap; }
+.assessment-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+.assessment-item { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 14px; }
+.assessment-item label { display: block; margin-bottom: 8px; color: var(--muted); font-size: 12px; font-weight: 800; }
+.assessment-item strong { display: block; color: #0f172a; font-size: 18px; font-weight: 900; letter-spacing: -0.3px; }
+.assessment-copy { margin-top: 16px; padding: 16px 18px; border-radius: 14px; background: #fff; border: 1px solid var(--line); color: #334155; line-height: 1.7; }
+.post-review-grid { background: #f8fafc; padding: 20px; border-radius: 16px; border: 1px solid var(--line); }
+.risk-summary-card { scroll-margin-top: 12px; }
+.journal-sidebar::-webkit-scrollbar { width: 8px; }
+.journal-sidebar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
+.journal-sidebar::-webkit-scrollbar-track { background: transparent; }
+@media (max-width: 960px) {
+  .assessment-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .context-helper-row { grid-template-columns: 1fr; }
+}
+@media (max-width: 768px) {
+  .journal-sidebar { max-height: none; overflow: visible; overscroll-behavior: auto; padding-right: 0; }
+  .assessment-grid { grid-template-columns: 1fr; }
+  .execution-section-group { padding: 14px; }
 }

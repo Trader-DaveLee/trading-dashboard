@@ -235,37 +235,52 @@ export function recalcTrade(trade) {
   };
 }
 
+
 export function generatePlannerSuggestion(trade) {
-  const currentPrice = Number(trade.currentPrice || trade.markPrice || trade.targetPrice || 0);
+  const currentPrice = Number(trade.currentPrice || trade.markPrice || 0);
   const stop = Number(trade.stopPrice || 0);
+  const target = Number(trade.targetPrice || 0);
   const legsCount = Math.max(1, Math.min(4, Number(trade.plannerLegs || 3)));
   const side = trade.side === 'SHORT' ? -1 : 1;
+  const plannerMode = normalizePlannerModeValue(trade.plannerMode || 'BALANCED');
+  const plannerWeightMode = normalizePlannerWeightModeValue(trade.plannerWeightMode || 'BACKLOADED');
+
   if (!currentPrice || !stop || !trade.accountSize || !trade.riskPct) return { valid: false, reason: '현재가, 손절가, 계좌, 리스크를 먼저 입력하세요.' };
   if ((side === 1 && stop >= currentPrice) || (side === -1 && stop <= currentPrice)) return { valid: false, reason: '현재가와 손절가 방향이 맞지 않습니다.' };
 
   const dist = Math.abs(currentPrice - stop);
-  const depthRatio = trade.plannerMode === 'LADDER_TIGHT' ? 0.45 : trade.plannerMode === 'LADDER_DEEP' ? 0.15 : 0.30;
-  const deepest = trade.plannerMode === 'SINGLE' || legsCount === 1
-    ? currentPrice
-    : (side === 1 ? stop + dist * depthRatio : stop - dist * depthRatio);
+  const profitMove = target > 0 && ((side === 1 && target > currentPrice) || (side === -1 && target < currentPrice))
+    ? Math.abs(target - currentPrice)
+    : dist * 1.2;
 
-  const prices = [];
-  for (let i = 0; i < legsCount; i += 1) {
-    if (legsCount === 1) prices.push(currentPrice);
-    else {
-      const t = i / (legsCount - 1);
-      prices.push(currentPrice + (deepest - currentPrice) * t);
-    }
+  let prices = [];
+  if (plannerMode === 'SINGLE' || legsCount === 1) {
+    prices = [currentPrice];
+  } else if (plannerMode === 'BALANCED') {
+    const deepest = currentPrice + (-side) * dist * 0.45;
+    prices = Array.from({ length: legsCount }, (_, i) => {
+      const t = legsCount === 1 ? 0 : i / (legsCount - 1);
+      return currentPrice + (deepest - currentPrice) * t;
+    });
+  } else if (plannerMode === 'AVERAGING') {
+    const deepest = currentPrice + (-side) * dist * 0.82;
+    prices = Array.from({ length: legsCount }, (_, i) => {
+      const t = legsCount === 1 ? 0 : i / (legsCount - 1);
+      return currentPrice + (deepest - currentPrice) * t;
+    });
+  } else if (plannerMode === 'PYRAMID') {
+    const top = currentPrice + side * Math.max(dist * 0.6, profitMove * 0.6);
+    prices = Array.from({ length: legsCount }, (_, i) => {
+      const t = legsCount === 1 ? 0 : i / (legsCount - 1);
+      return currentPrice + (top - currentPrice) * t;
+    });
   }
 
-  let weightsRaw;
-  if (trade.plannerWeightMode === 'FRONTLOADED') {
-    weightsRaw = Array.from({ length: legsCount }, (_, i) => legsCount - i);
-  } else if (trade.plannerWeightMode === 'BACKLOADED') {
-    weightsRaw = Array.from({ length: legsCount }, (_, i) => i + 1);
-  } else {
-    weightsRaw = Array.from({ length: legsCount }, () => 1);
-  }
+  const weightsRaw = plannerWeightMode === 'FRONTLOADED'
+    ? Array.from({ length: legsCount }, (_, i) => legsCount - i)
+    : plannerWeightMode === 'BACKLOADED'
+      ? Array.from({ length: legsCount }, (_, i) => i + 1)
+      : Array.from({ length: legsCount }, () => 1);
   const rawSum = weightsRaw.reduce((a, b) => a + b, 0);
   const weights = weightsRaw.map(w => (w / rawSum) * 100);
 
@@ -276,24 +291,58 @@ export function generatePlannerSuggestion(trade) {
     leverage: Math.max(1, Number(trade.leverage || 1)),
   }));
 
-  let metrics = recalcTrade({ ...trade, entries, exits: [] });
+  let metrics = recalcTrade({ ...trade, plannerMode, plannerWeightMode, entries, exits: [] });
   entries = entries.map((entry, idx) => {
     const breakdown = metrics.entryBreakdown[idx];
     const desiredCapital = Math.max(1, Number(trade.accountSize || 0) * (entry.weight / 100));
-    const suggestedLeverage = breakdown && breakdown.notional > 0 ? Math.max(1, Math.ceil(breakdown.notional / desiredCapital)) : Math.max(1, Number(trade.leverage || 1));
+    const suggestedLeverage = breakdown && breakdown.notional > 0
+      ? Math.max(1, Math.ceil(breakdown.notional / desiredCapital))
+      : Math.max(1, Number(trade.leverage || 1));
     return { ...entry, leverage: Math.max(1, suggestedLeverage, Number(trade.leverage || 1)) };
   });
 
-  metrics = recalcTrade({ ...trade, entries, exits: [] });
+  metrics = recalcTrade({ ...trade, plannerMode, plannerWeightMode, entries, exits: [] });
   return {
     valid: true,
     entries,
     metrics,
     currentPrice: round(currentPrice, 4),
     stopPrice: round(stop, 4),
-    plannerMode: trade.plannerMode || 'LADDER',
-    plannerWeightMode: trade.plannerWeightMode || 'BACKLOADED',
+    plannerMode,
+    plannerWeightMode,
+    plannerModeLabel: plannerModeLabel(plannerMode),
+    plannerWeightModeLabel: plannerWeightModeLabel(plannerWeightMode),
   };
+}
+
+function normalizePlannerModeValue(value) {
+  const raw = String(value || '').trim().toUpperCase();
+  if (raw === 'LADDER' || raw === 'LADDER_TIGHT') return 'BALANCED';
+  if (raw === 'LADDER_DEEP') return 'AVERAGING';
+  if (['SINGLE','BALANCED','AVERAGING','PYRAMID'].includes(raw)) return raw;
+  return 'BALANCED';
+}
+
+function normalizePlannerWeightModeValue(value) {
+  const raw = String(value || '').trim().toUpperCase();
+  return ['EQUAL','FRONTLOADED','BACKLOADED'].includes(raw) ? raw : 'BACKLOADED';
+}
+
+function plannerModeLabel(value) {
+  return {
+    SINGLE: '단일 진입',
+    BALANCED: '균형 분할',
+    AVERAGING: '눌림 분할',
+    PYRAMID: '피라미딩',
+  }[value] || '균형 분할';
+}
+
+function plannerWeightModeLabel(value) {
+  return {
+    EQUAL: '균등 배분',
+    FRONTLOADED: '초기 진입 비중↑',
+    BACKLOADED: '확인 후 비중↑',
+  }[value] || '확인 후 비중↑';
 }
 
 export function calcScaleInScenario(trade, candidate) {

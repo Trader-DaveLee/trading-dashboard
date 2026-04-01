@@ -108,13 +108,27 @@
           <form id="trade-form" class="form-stack">
             <input type="hidden" id="trade-id" />
 
-            <article class="phase-card phase-blue">
+            <article class="phase-card phase-blue" id="journal-pretrade-phase">
               <div class="phase-header">
                 <h3>Pre-Trade Context</h3>
                 <p>거래 기본 정보와 진입 근거</p>
               </div>
 
-              <div class="field-grid responsive-cols journal-core-grid">
+              <div id="pretrade-brief" class="summary-box section-summary">티커·방향·세션·셋업을 선택하면 프리뷰가 표시됩니다.</div>
+
+              <details class="context-guide details-guide" style="margin-top:16px;">
+                <summary>작성 가이드 보기</summary>
+                <div class="details-guide-body">
+                  <p><strong>이 섹션의 목적</strong>은 “왜 지금 이 거래를 열려고 하는지”를 한 번 더 언어로 점검하는 것입니다. 실제 손절/추가진입/익절 판단이 흔들릴 때 가장 먼저 돌아볼 기준이 됩니다.</p>
+                  <ul>
+                    <li><strong>시장 컨텍스트</strong>: 구조, 유동성 위치, 세션 특징, 뉴스/촉매를 적습니다.</li>
+                    <li><strong>진입 논리 및 무효화</strong>: 진입 트리거, 틀렸다고 보는 가격/조건, 추가 진입 조건, 익절 계획을 적습니다.</li>
+                    <li>리스크 계산이 좋아도 <strong>맥락이 약하면 좋은 거래가 아닙니다.</strong> 손절은 명확한데 진입 이유가 흐리면 규모를 줄이거나 패스하는 것이 맞습니다.</li>
+                  </ul>
+                </div>
+              </details>
+
+              <div class="field-grid responsive-cols journal-core-grid" style="margin-top:24px;">
                 <label style="grid-column: span 2;"><span>날짜/시간</span>
                   <div class="input-group flex-group">
                     <input id="trade-date" type="datetime-local" required />
@@ -153,8 +167,25 @@
               </div>
 
               <div class="field-grid cols-2 journal-context-grid" style="margin-top: 32px;">
-                <label><span>시장 컨텍스트</span><textarea id="context" class="auto-resize" placeholder="진입 전 시장 흐름, 유동성, 구조" style="min-height: 100px;"></textarea></label>
-                <label><span>진입 논리 및 무효화 기준</span><textarea id="thesis" class="auto-resize" placeholder="왜 여기서 진입하는지, 어디서 틀렸다고 볼지" style="min-height: 100px;"></textarea></label>
+                <label><span>시장 컨텍스트</span><textarea id="context" class="auto-resize" placeholder="진입 전 시장 흐름, 유동성, 구조" style="min-height: 108px;"></textarea></label>
+                <label><span>진입 논리 및 무효화 기준</span><textarea id="thesis" class="auto-resize" placeholder="왜 여기서 진입하는지, 어디서 틀렸다고 볼지" style="min-height: 108px;"></textarea></label>
+              </div>
+
+              <div class="context-helper-row" style="margin-top:16px;">
+                <div class="context-helper-group">
+                  <span class="muted-caption">시장 컨텍스트 프롬프트</span>
+                  <div class="chips compact-chips">
+                    <button type="button" id="btn-context-structure" class="chip-btn">구조/유동성</button>
+                    <button type="button" id="btn-context-catalyst" class="chip-btn">세션/촉매</button>
+                  </div>
+                </div>
+                <div class="context-helper-group">
+                  <span class="muted-caption">논리 프롬프트</span>
+                  <div class="chips compact-chips">
+                    <button type="button" id="btn-thesis-trigger" class="chip-btn">엔트리/추가진입</button>
+                    <button type="button" id="btn-thesis-invalidation" class="chip-btn">무효화/청산</button>
+                  </div>
+                </div>
               </div>
               
               <div style="margin-top: 32px;">
@@ -163,53 +194,91 @@
               </div>
             </article>
 
-            <article class="phase-card phase-yellow">
+            <article class="phase-card phase-yellow" id="journal-risk-phase">
               <div class="phase-header">
-                <h3>Risk & Execution</h3>
-                <p>리스크 및 포지션 사이즈 자동 설계</p>
+                <h3>Risk &amp; Execution</h3>
+                <p>리스크 예산, 진입 전략, 체결 구조를 주문하듯 설계</p>
               </div>
 
-              <div class="field-grid cols-4 compact-panel execution-grid">
-                <label><span>매매용 시드 ($)</span><input id="account-size" type="number" step="1" value="10000" /></label>
-                <label><span>리스크 (%)</span><input id="risk-pct" type="number" step="0.01" value="0.5" /></label>
-                <label><span>기본 레버리지</span><input id="leverage" type="number" step="0.1" value="5" /></label>
-                <label><span>현재가 (Now)</span><input id="current-price" type="number" step="0.01" /></label>
-                <label><span>손절가 (SL)</span><input id="stop-price" type="number" step="0.01" /></label>
-                <label><span>목표가 (TP)</span><input id="target-price" type="number" step="0.01" placeholder="예상 목표가" /></label>
-                <label><span>Mark Price</span><input id="mark-price" type="number" step="0.01" /></label>
-                <label><span>Planner Mode</span>
-                  <select id="planner-mode">
-                    <option value="SINGLE">SINGLE</option>
-                    <option value="LADDER">LADDER</option>
-                    <option value="LADDER_TIGHT">LADDER TIGHT</option>
-                    <option value="LADDER_DEEP">LADDER DEEP</option>
-                  </select>
-                </label>
-                <label><span>Planner Legs</span>
-                  <select id="planner-legs">
-                    <option value="1">1 Leg</option>
-                    <option value="2">2 Legs</option>
-                    <option value="3" selected>3 Legs</option>
-                    <option value="4">4 Legs</option>
-                  </select>
-                </label>
-                <label><span>Risk Share Mode</span>
-                  <select id="planner-weight-mode">
-                    <option value="EQUAL">EQUAL</option>
-                    <option value="FRONTLOADED">FRONTLOADED</option>
-                    <option value="BACKLOADED" selected>BACKLOADED</option>
-                  </select>
-                </label>
-                <label><span>Maker Fee (%)</span><input id="maker-fee" type="number" step="0.001" value="0.02" /></label>
-                <label><span>Taker Fee (%)</span><input id="taker-fee" type="number" step="0.001" value="0.05" /></label>
-                <label><span>미세 보정 (+/- $)</span><input id="adjustment" type="number" step="0.01" value="0" /></label>
-                <label><span>손절 체결 방식</span><select id="stop-type"><option value="M">Maker</option><option value="T">Taker</option></select></label>
+              <details class="details-guide" style="margin-top:8px;">
+                <summary>사용 가이드 보기</summary>
+                <div class="details-guide-body">
+                  <p><strong>입력 순서</strong>: 현재가 → 손절가 → 목표가 → 리스크(%) → 진입 전략 → 추천안 생성/조정 → 실제 체결 반영.</p>
+                  <ul>
+                    <li><strong>단일 진입</strong>: 한 번에 진입할 때 적합합니다.</li>
+                    <li><strong>균형 분할</strong>: 현재가와 손절 사이를 무난하게 나눠 들어가는 기본형입니다.</li>
+                    <li><strong>눌림 분할 (Cost Averaging)</strong>: 더 좋은 가격을 기다리며 손절 쪽으로 분할 진입합니다.</li>
+                    <li><strong>피라미딩</strong>: 진입가보다 높은 가격에서 추세 확인 후 추가 진입하는 전략입니다. 강한 추세/브레이크아웃 환경에서 더 유효합니다.</li>
+                    <li><strong>Step/Leg</strong>: 분할 진입의 각 단계를 뜻합니다.</li>
+                    <li><strong>비중 스타일</strong>: 각 단계에 리스크를 어떻게 나눌지 정합니다. 균등 배분은 고르게, 초기 진입 비중↑은 첫 진입을 크게, 확인 후 비중↑은 뒤쪽 단계를 더 크게 둡니다.</li>
+                  </ul>
+                  <p><strong>과신하면 안 되는 경우</strong>: 손절 기준이 불명확하거나, 변동성 이벤트 직전/직후이거나, 목표가가 비현실적일 때 계산값은 참고치일 뿐입니다.</p>
+                </div>
+              </details>
+
+              <div class="execution-section-group" style="margin-top:24px;">
+                <div class="mini-head"><h4>PRICE MAP</h4><span class="muted-caption">가격 기준과 현재 추적 가격</span></div>
+                <div class="field-grid cols-4 compact-panel execution-grid">
+                  <label><span>현재가 (Now)</span><input id="current-price" type="number" step="0.01" /></label>
+                  <label><span>손절가 (SL)</span><input id="stop-price" type="number" step="0.01" /></label>
+                  <label><span>목표가 (TP)</span><input id="target-price" type="number" step="0.01" placeholder="예상 목표가" /></label>
+                  <label><span>Mark Price</span><input id="mark-price" type="number" step="0.01" /></label>
+                </div>
               </div>
+
+              <div class="execution-section-group" style="margin-top:18px;">
+                <div class="mini-head"><h4>RISK BUDGET</h4><span class="muted-caption">이번 트레이드에 쓸 최대 손실과 기본 레버리지</span></div>
+                <div class="field-grid cols-4 compact-panel execution-grid">
+                  <label><span>매매용 시드 ($)</span><input id="account-size" type="number" step="1" value="10000" /></label>
+                  <label><span>리스크 (%)</span><input id="risk-pct" type="number" step="0.01" value="0.5" /></label>
+                  <label><span>기본 레버리지</span><input id="leverage" type="number" step="0.1" value="5" /></label>
+                  <label><span>미세 보정 (+/- $)</span><input id="adjustment" type="number" step="0.01" value="0" /></label>
+                </div>
+              </div>
+
+              <div class="execution-section-group" style="margin-top:18px;">
+                <div class="mini-head"><h4>ENTRY STRATEGY</h4><span class="muted-caption">추천 진입 구조를 계산하는 방식</span></div>
+                <div class="field-grid cols-3 compact-panel execution-grid">
+                  <label><span>Planner Mode</span>
+                    <select id="planner-mode">
+                      <option value="SINGLE">단일 진입</option>
+                      <option value="BALANCED">균형 분할</option>
+                      <option value="AVERAGING">눌림 분할 (Cost Averaging)</option>
+                      <option value="PYRAMID">피라미딩 (추세 추가)</option>
+                    </select>
+                  </label>
+                  <label><span>진입 단계 수</span>
+                    <select id="planner-legs">
+                      <option value="1">1단계</option>
+                      <option value="2">2단계</option>
+                      <option value="3" selected>3단계</option>
+                      <option value="4">4단계</option>
+                    </select>
+                  </label>
+                  <label><span>비중 스타일</span>
+                    <select id="planner-weight-mode">
+                      <option value="EQUAL">균등 배분</option>
+                      <option value="FRONTLOADED">초기 진입 비중↑</option>
+                      <option value="BACKLOADED" selected>확인 후 비중↑</option>
+                    </select>
+                  </label>
+                </div>
+                <div id="planner-mode-note" class="muted-caption planner-mode-note" style="margin-top:10px;">현재가/손절가/목표가를 기준으로 전략별 추천 진입 단계를 계산합니다.</div>
+              </div>
+
+              <details class="details-guide compact-guide" style="margin-top:18px;">
+                <summary>수수료·체결 방식 고급 설정</summary>
+                <div class="field-grid cols-3 compact-panel execution-grid" style="margin-top:12px;">
+                  <label><span>Maker Fee (%)</span><input id="maker-fee" type="number" step="0.001" value="0.02" /></label>
+                  <label><span>Taker Fee (%)</span><input id="taker-fee" type="number" step="0.001" value="0.05" /></label>
+                  <label><span>손절 체결 방식</span><select id="stop-type"><option value="M">Maker</option><option value="T">Taker</option></select></label>
+                </div>
+              </details>
 
               <div class="mini-head" style="margin-top:24px; align-items:flex-start; gap:12px; flex-wrap:wrap;">
                 <div>
                   <h4>AUTO ENTRY PLANNER</h4>
-                  <div class="muted-caption" style="margin-top:6px;">현재가·손절가·목표가를 기준으로 추천 진입 레그와 수량/레버리지를 계산합니다.</div>
+                  <div class="muted-caption" style="margin-top:6px;">현재가·손절가·목표가·전략 모드를 기준으로 추천 진입 단계와 수량/레버리지를 계산합니다.</div>
                 </div>
                 <div class="inline-actions">
                   <button type="button" id="btn-generate-plan" class="tool-btn btn-sm">추천안 재계산</button>
@@ -257,12 +326,12 @@
 
             <article class="phase-card phase-purple">
               <div class="phase-header" style="margin-bottom: 24px;">
-                <h3>Post-Trade Review</h3>
-                <p>핵심 복기와 평가 점수</p>
+                <h3>Post-Trade Assessment</h3>
+                <p>리스크 사용, 손익 결과, 다음 복기 포인트를 한 번에 정리</p>
               </div>
 
-              <div class="post-trade-eval-box">
-                <div class="eval-header">
+              <div class="post-assessment-shell">
+                <div class="assessment-top">
                   <div class="eval-status-badge" id="eval-status-badge">OPEN (Projected)</div>
                   <div class="eval-grade-wrapper">
                     <label>Grade</label>
@@ -275,17 +344,24 @@
                     </select>
                   </div>
                 </div>
-                <div class="eval-grid">
-                  <div class="eval-item"><label>투입 마진 (Risked)</label><span id="eval-margin" class="eval-value">0</span></div>
-                  <div class="eval-item"><label title="수수료를 포함하여 손실이 0이 되는 가격">본절가 (BEP)</label><span id="eval-bep" class="eval-value">0</span></div>
-                  <div class="eval-item"><label>수수료 합계</label><span id="eval-fees" class="eval-value negative">0</span></div>
-                  <div class="eval-item"><label id="label-pnl">예상 PnL</label><span id="eval-pnl" class="eval-value">0</span></div>
-                  <div class="eval-item"><label id="label-r">예상 R</label><span id="eval-r" class="eval-value">0</span></div>
-                  <div class="eval-item"><label>계좌 수익률 (ROI)</label><span id="eval-roi" class="eval-value">0</span></div>
+
+                <div class="assessment-grid">
+                  <div class="assessment-item"><label>사용 리스크</label><strong id="assessment-risk-used">$0</strong></div>
+                  <div class="assessment-item"><label>허용 리스크</label><strong id="assessment-risk-budget">$0</strong></div>
+                  <div class="assessment-item"><label>예상 PnL</label><strong id="assessment-projected-pnl">$0</strong></div>
+                  <div class="assessment-item"><label>최종 PnL</label><strong id="assessment-final-pnl">$0</strong></div>
+                  <div class="assessment-item"><label>예상 R</label><strong id="assessment-projected-r">0.00R</strong></div>
+                  <div class="assessment-item"><label>최종 R</label><strong id="assessment-final-r">0.00R</strong></div>
+                  <div class="assessment-item"><label>본절가 (BEP)</label><strong id="assessment-bep">0.00</strong></div>
+                  <div class="assessment-item"><label>잔여 리스크</label><strong id="assessment-residual">$0</strong></div>
+                  <div class="assessment-item"><label>누적 수수료</label><strong id="assessment-fees">$0</strong></div>
+                  <div class="assessment-item"><label>계좌 영향</label><strong id="assessment-account-impact">0.00%</strong></div>
                 </div>
+
+                <div id="post-assessment-copy" class="assessment-copy">리스크 사용 평가, 청산 상태 요약, 다음 복기 포인트가 여기에 표시됩니다.</div>
               </div>
 
-              <div class="field-grid cols-2" style="background: #f8fafc; padding: 24px; border-radius: 16px; border: 1px solid var(--line); margin-bottom: 24px; margin-top: 8px;">
+              <div class="field-grid cols-2 post-review-grid" style="margin-top: 24px;">
                 <label>
                   <span>태그</span>
                   <input id="tags" placeholder="trend, ny-open, sweep" />
@@ -298,9 +374,9 @@
                 </label>
               </div>
 
-              <div class="field-grid cols-1" style="margin-bottom: 32px;">
+              <div class="field-grid cols-1" style="margin-top: 20px; margin-bottom: 28px;">
                 <label>
-                  <span>Review & Lessons (복기)</span>
+                  <span>Review &amp; Lessons (복기)</span>
                   <textarea id="review" class="auto-resize" placeholder="잘한 점, 실수, 다음 매매를 위한 피드백..." style="min-height: 120px;"></textarea>
                 </label>
               </div>
@@ -320,7 +396,7 @@
           </form>
         </div>
 
-        <aside class="journal-sidebar stack">
+        <aside class="journal-sidebar stack" id="journal-sidebar">
           <article class="card premium-balance-card">
             <div class="section-head no-bottom">
               <div><h3>💳 Account Status</h3><p>포트폴리오 자산 스냅샷</p></div>
@@ -351,7 +427,7 @@
             </div>
           </article>
 
-          <article class="card compact-card risk-summary-card">
+          <article class="card compact-card risk-summary-card" id="risk-planner-card">
             <div class="section-head"><div><h3>Risk Planner</h3><p>자동 주문 설계 · 포지션 상태 · Scale-In 시뮬레이터</p></div></div>
             <div class="detail-box risk-box">
               <div class="kv">

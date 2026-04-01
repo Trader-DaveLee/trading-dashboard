@@ -191,7 +191,7 @@ function fromV5Trade(t) {
     riskPct: Number(t.risk || 0.5),
     leverage: Number(t.lev || 5),
     currentPrice: 0,
-    plannerMode: 'LADDER',
+    plannerMode: 'BALANCED',
     plannerLegs: 3,
     plannerWeightMode: 'BACKLOADED',
     makerFee: Number(t.fM || 0.02),
@@ -230,9 +230,9 @@ export function normalizeTrade(t = {}) {
     riskPct: Math.max(0, Number(t.riskPct || 0.5)),
     leverage: Math.max(1, Number(t.leverage || 5)),
     currentPrice: Number(t.currentPrice || t.markPrice || 0),
-    plannerMode: String(t.plannerMode || 'LADDER').trim().toUpperCase(),
+    plannerMode: normalizePlannerMode(t.plannerMode),
     plannerLegs: Math.max(1, Number(t.plannerLegs || 3)),
-    plannerWeightMode: String(t.plannerWeightMode || 'BACKLOADED').trim().toUpperCase(),
+    plannerWeightMode: normalizePlannerWeightMode(t.plannerWeightMode),
     makerFee: Math.max(0, Number(t.makerFee || 0.02)),
     takerFee: Math.max(0, Number(t.takerFee || 0.05)),
     stopPrice: Number(t.stopPrice || 0),
@@ -257,6 +257,19 @@ export function normalizeTrade(t = {}) {
 
   trade.metrics = recalcTrade(trade);
   return trade;
+}
+
+function normalizePlannerMode(value) {
+  const raw = String(value || 'BALANCED').trim().toUpperCase();
+  if (raw === 'LADDER' || raw === 'LADDER_TIGHT') return 'BALANCED';
+  if (raw === 'LADDER_DEEP') return 'AVERAGING';
+  if (['SINGLE','BALANCED','AVERAGING','PYRAMID'].includes(raw)) return raw;
+  return 'BALANCED';
+}
+
+function normalizePlannerWeightMode(value) {
+  const raw = String(value || 'BACKLOADED').trim().toUpperCase();
+  return ['EQUAL','FRONTLOADED','BACKLOADED'].includes(raw) ? raw : 'BACKLOADED';
 }
 
 export function sanitizeUrl(url) {

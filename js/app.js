@@ -29,13 +29,13 @@ let draftTimer = null;
 const ID_LIST = [
   'nav','force-save-draft','export-json','import-json-btn','import-json','journal-status','draft-saved-at',
   'view-overview','metrics','overview-from','overview-to','overview-clear','overview-search','prev-month','calendar-title','next-month','calendar','equity-chart','balance-chart','setup-chart','mistake-list','research-notes','overview-portfolio',
-  'realtime-clock','quick-launch-grid','btn-manage-quick-links',
+  'realtime-clock','quick-launch-grid','btn-manage-quick-links','journal-sidebar','journal-pretrade-phase','journal-risk-phase','risk-planner-card','pretrade-brief','btn-context-structure','btn-context-catalyst','btn-thesis-trigger','btn-thesis-invalidation','planner-mode-note',
   'view-journal','trade-form','trade-id','trade-date','btn-now','ticker','btn-manage-ticker','status','session','side','setup-entry','btn-manage-setup-entry','setup-exit','btn-manage-setup-exit',
   'account-size','risk-pct','leverage','current-price','planner-mode','planner-legs','planner-weight-mode','btn-generate-plan','btn-apply-plan','planner-summary','maker-fee','taker-fee','stop-price','target-price','mark-price','stop-type','adjustment',
   'context','thesis','review','tags','mistakes',
   'add-entry','entries','add-exit','exits','calc-summary','quick-tags','quick-mistakes','live-notes','btn-insert-time','add-live-chart','live-charts-container',
   'add-entry-chart','entry-charts-container','add-exit-chart','exit-charts-container',
-  'eval-status-badge', 'eval-margin', 'eval-bep', 'eval-fees', 'eval-pnl', 'eval-r', 'eval-roi', 'label-pnl', 'label-r',
+  'eval-status-badge','assessment-risk-used','assessment-risk-budget','assessment-projected-pnl','assessment-final-pnl','assessment-projected-r','assessment-final-r','assessment-bep','assessment-residual','assessment-fees','assessment-account-impact','post-assessment-copy',
   'bal-cash','bal-crypto','bal-usdt','bal-stock','bal-total','balance-type','balance-memo','btn-update-balance','balance-history',
   'duplicate-trade','reset-form','delete-trade','grade',
   'desk-rules','master-checklist-list','new-check-input','btn-add-check','trade-checklist-container',
@@ -304,6 +304,13 @@ function bindEvents() {
   if(els['btn-manage-setup-entry']) els['btn-manage-setup-entry'].onclick = () => openListManager('entrySetups', 'Entry Setup', 'upper');
   if(els['btn-manage-setup-exit']) els['btn-manage-setup-exit'].onclick = () => openListManager('exitSetups', 'Exit Setup', 'upper');
   if(els['btn-manage-quick-links']) els['btn-manage-quick-links'].onclick = () => openQuickLinkManager();
+
+  if(els['btn-context-structure']) els['btn-context-structure'].onclick = () => appendTemplateToField('context', '시장 구조: \n유동성 위치: \n세션 특징: ');
+  if(els['btn-context-catalyst']) els['btn-context-catalyst'].onclick = () => appendTemplateToField('context', '촉매 / 뉴스: \n체크할 변수: ');
+  if(els['btn-thesis-trigger']) els['btn-thesis-trigger'].onclick = () => appendTemplateToField('thesis', '엔트리 트리거: \n추가 진입 조건: ');
+  if(els['btn-thesis-invalidation']) els['btn-thesis-invalidation'].onclick = () => appendTemplateToField('thesis', '무효화 기준: \n청산 계획: ');
+
+  initJournalSidebarSync();
 
   if(els['btn-now']) els['btn-now'].onclick = () => { setVal('trade-date', inputDate(nowIso())); markDirty(); updatePreview(); };
   if(els['prev-month']) els['prev-month'].onclick = () => { state.month.setMonth(state.month.getMonth() - 1); renderCalendar(); };
@@ -592,7 +599,7 @@ function hydrateInitialForm() {
   setVal('account-size', tpl.accountSize || Math.round(Number(state.db.meta.accountBalance || 10000)));
   setVal('risk-pct', tpl.riskPct || 0.5);
   setVal('leverage', tpl.leverage || 5);
-  setVal('planner-mode', tpl.plannerMode || 'LADDER');
+  setVal('planner-mode', tpl.plannerMode || 'BALANCED');
   setVal('planner-legs', tpl.plannerLegs || 3);
   setVal('planner-weight-mode', tpl.plannerWeightMode || 'BACKLOADED');
   setVal('maker-fee', tpl.makerFee || 0.02);
@@ -717,7 +724,7 @@ function resetFormForce() {
     'trade-id','context','thesis','review','tags','mistakes','live-notes',
     'mark-price','adjustment','stop-price','target-price','current-price','scalein-price'
   ].forEach(id => setVal(id, ''));
-  setVal('planner-mode', 'LADDER');
+  setVal('planner-mode', 'BALANCED');
   setVal('planner-legs', 3);
   setVal('planner-weight-mode', 'BACKLOADED');
   setVal('scalein-risk-share', 10);
@@ -735,7 +742,7 @@ function resetFormForce() {
   setVal('account-size', tpl.accountSize || Math.round(Number(state.db.meta.accountBalance || 10000)));
   setVal('risk-pct', tpl.riskPct || 0.5);
   setVal('leverage', tpl.leverage || 5);
-  setVal('planner-mode', tpl.plannerMode || 'LADDER');
+  setVal('planner-mode', tpl.plannerMode || 'BALANCED');
   setVal('planner-legs', tpl.plannerLegs || 3);
   setVal('planner-weight-mode', tpl.plannerWeightMode || 'BACKLOADED');
   setVal('maker-fee', tpl.makerFee || 0.02);
@@ -807,7 +814,7 @@ function readForm() {
     riskPct: Number(getVal('risk-pct') || 0),
     leverage: Number(getVal('leverage') || 0),
     currentPrice: Number(getVal('current-price') || 0),
-    plannerMode: getVal('planner-mode') || 'LADDER',
+    plannerMode: getVal('planner-mode') || 'BALANCED',
     plannerLegs: Number(getVal('planner-legs') || 3),
     plannerWeightMode: getVal('planner-weight-mode') || 'BACKLOADED',
     makerFee: Number(getVal('maker-fee') || 0),
@@ -931,7 +938,7 @@ function applyTradeToForm(trade, options = {}) {
   setVal('risk-pct', trade.riskPct);
   setVal('leverage', trade.leverage);
   setVal('current-price', trade.currentPrice || '');
-  setVal('planner-mode', trade.plannerMode || 'LADDER');
+  setVal('planner-mode', trade.plannerMode || 'BALANCED');
   setVal('planner-legs', trade.plannerLegs || 3);
   setVal('planner-weight-mode', trade.plannerWeightMode || 'BACKLOADED');
   setVal('maker-fee', trade.makerFee);
@@ -973,9 +980,11 @@ function updatePreview() {
   const trade = readForm();
   const metrics = trade.metrics;
 
+  renderPreTradeBrief(trade);
   renderCalcSummary(metrics, trade);
   renderRiskPanel(metrics, trade);
   renderTradeEvaluation(metrics, trade);
+  renderPlannerModeNote(trade);
   renderPlannerSummary(trade);
   renderScaleInSummary(trade);
   renderTargetLadderSummary(metrics, trade);
@@ -983,33 +992,127 @@ function updatePreview() {
   if(els['risk-bep']) els['risk-bep'].textContent = metrics.breakEvenPrice > 0 ? safeNumber(metrics.breakEvenPrice.toFixed(4)) : '0.00';
 }
 
+
+function renderPreTradeBrief(trade) {
+  if (!els['pretrade-brief']) return;
+  const bits = [
+    trade.ticker || '티커 미선택',
+    `${trade.side || '—'} · ${trade.session || '—'}`,
+    trade.setupEntry || '셋업 미선택',
+    trade.status || 'OPEN'
+  ];
+  const contextState = trade.context ? '컨텍스트 작성됨' : '컨텍스트 미작성';
+  const thesisState = trade.thesis ? '진입 논리 작성됨' : '진입 논리 미작성';
+  setHtml('pretrade-brief', `
+    <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-bottom:10px;">
+      ${bits.map(bit => `<span class="subtle-pill">${escapeHtml(bit)}</span>`).join('')}
+    </div>
+    <div style="font-size:13px; color:#334155; line-height:1.7; font-weight:700;">${escapeHtml(contextState)} · ${escapeHtml(thesisState)} · 체크리스트 ${getCheckedRules().length}개 확인</div>
+  `);
+}
+
+function renderPlannerModeNote(trade) {
+  if (!els['planner-mode-note']) return;
+  const mode = String(trade.plannerMode || 'BALANCED').toUpperCase();
+  const notes = {
+    SINGLE: '단일 진입은 확신 구간에서 한 번에 진입할 때 적합합니다. 체결은 단순하지만 평균단가 개선 여지는 적습니다.',
+    BALANCED: '균형 분할은 현재가와 손절 사이를 무난하게 나눕니다. 방향이 맞지만 한 번에 크게 들어가고 싶지 않을 때 기본값으로 쓰기 좋습니다.',
+    AVERAGING: '눌림 분할은 더 좋은 가격으로 평균단가를 개선하는 전략입니다. 명확한 손절과 재진입 계획이 있을 때만 유효합니다.',
+    PYRAMID: '피라미딩은 수익 방향으로 추세가 확인될수록 추가 진입합니다. 브레이크아웃·추세 추종 환경에 적합하지만 과도한 추격 매수/매도는 피해야 합니다.'
+  };
+  setText('planner-mode-note', notes[mode] || notes.BALANCED);
+}
+
+function appendTemplateToField(id, template) {
+  const prev = getVal(id).trim();
+  const next = prev ? `${prev}
+${template}` : template;
+  setVal(id, next);
+  if (els[id]) autoResize(els[id]);
+  handleFormMutation();
+}
+
+function initJournalSidebarSync() {
+  const sidebar = els['journal-sidebar'];
+  const riskPhase = els['journal-risk-phase'];
+  const pretradePhase = els['journal-pretrade-phase'];
+  const riskCard = els['risk-planner-card'];
+  if (!sidebar) return;
+
+  sidebar.addEventListener('wheel', (event) => {
+    if (window.innerWidth <= 768) return;
+    if (sidebar.scrollHeight <= sidebar.clientHeight) return;
+    sidebar.scrollTop += event.deltaY;
+    event.preventDefault();
+  }, { passive: false });
+
+  const scrollSidebarTo = (targetTop) => {
+    if (window.innerWidth <= 768) return;
+    sidebar.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' });
+  };
+
+  if (riskPhase && riskCard) {
+    const syncRisk = () => scrollSidebarTo(riskCard.offsetTop - 10);
+    riskPhase.addEventListener('mouseenter', syncRisk);
+    riskPhase.addEventListener('focusin', syncRisk);
+  }
+
+  if (pretradePhase) {
+    const syncTop = () => scrollSidebarTo(0);
+    pretradePhase.addEventListener('mouseenter', syncTop);
+    pretradePhase.addEventListener('focusin', syncTop);
+  }
+}
+
+
 function renderTradeEvaluation(metrics, trade) {
   if (!els['eval-status-badge']) return;
 
   const isClosed = trade.status === 'CLOSED';
-  
-  els['eval-status-badge'].innerHTML = isClosed 
-    ? '<span style="color:#94a3b8;">FINAL (CLOSED)</span>' 
+  const riskUsed = metrics.actualRiskUsed || 0;
+  const riskBudget = metrics.riskDollar || 0;
+  const projectedPnl = metrics.projectedPnl || metrics.unrealizedPnl || 0;
+  const finalPnl = metrics.pnl || 0;
+  const projectedR = metrics.projectedR || metrics.unrealizedR || 0;
+  const finalR = metrics.r || 0;
+  const riskUsage = riskBudget > 0 ? (riskUsed / riskBudget) * 100 : 0;
+
+  els['eval-status-badge'].innerHTML = isClosed
+    ? '<span style="color:#94a3b8;">FINAL (CLOSED)</span>'
     : '<span style="color:#60a5fa;">PROJECTED (OPEN)</span>';
 
-  els['eval-margin'].textContent = moneyAbs(metrics.margin);
-  els['eval-bep'].textContent = metrics.breakEvenPrice > 0 ? safeNumber(metrics.breakEvenPrice.toFixed(4)) : '0.00';
-  els['eval-fees'].textContent = `-${moneyAbs(metrics.totalFees)}`;
-  
-  const displayPnl = isClosed ? metrics.netPnl : (metrics.hasProjection ? metrics.projectedPnl : metrics.unrealizedPnl);
-  const displayR = isClosed ? metrics.r : (metrics.hasProjection ? metrics.projectedR : metrics.unrealizedR);
-  
-  els['eval-pnl'].textContent = money(displayPnl);
-  els['eval-pnl'].className = `eval-value ${displayPnl > 0 ? 'positive' : displayPnl < 0 ? 'negative' : ''}`;
-  
-  els['eval-r'].textContent = `${displayR.toFixed(2)}R`;
-  els['eval-r'].className = `eval-value ${displayR > 0 ? 'positive' : displayR < 0 ? 'negative' : ''}`;
-  
-  els['eval-roi'].textContent = `${metrics.accountImpact > 0 ? '+' : ''}${metrics.accountImpact.toFixed(2)}%`;
-  els['eval-roi'].className = `eval-value ${metrics.accountImpact > 0 ? 'positive' : metrics.accountImpact < 0 ? 'negative' : ''}`;
+  setText('assessment-risk-used', moneyAbs(riskUsed));
+  setText('assessment-risk-budget', moneyAbs(riskBudget));
+  setText('assessment-projected-pnl', money(projectedPnl));
+  setText('assessment-final-pnl', money(finalPnl));
+  setText('assessment-projected-r', `${projectedR.toFixed(2)}R`);
+  setText('assessment-final-r', `${finalR.toFixed(2)}R`);
+  setText('assessment-bep', metrics.breakEvenPrice > 0 ? safeNumber(metrics.breakEvenPrice.toFixed(4)) : '0.00');
+  setText('assessment-residual', moneyAbs(metrics.residualRisk));
+  setText('assessment-fees', moneyAbs(metrics.totalFees));
+  setText('assessment-account-impact', `${metrics.accountImpact > 0 ? '+' : ''}${metrics.accountImpact.toFixed(2)}%`);
 
-  if(els['label-pnl']) els['label-pnl'].textContent = isClosed ? '최종 PnL' : '예상 PnL';
-  if(els['label-r']) els['label-r'].textContent = isClosed ? '최종 R' : '예상 R';
+  const riskComment = riskUsage > 100
+    ? `허용 리스크를 ${riskUsage.toFixed(1)}% 사용 중입니다. 규모 축소 또는 손절 재정의가 필요합니다.`
+    : riskUsage > 80
+      ? `허용 리스크를 ${riskUsage.toFixed(1)}% 사용 중입니다. 추가 진입은 매우 보수적으로 접근하는 편이 좋습니다.`
+      : `허용 리스크 안에서 운영 중입니다. 현재 사용률은 ${riskUsage.toFixed(1)}%입니다.`;
+
+  const executionComment = isClosed
+    ? `실제 청산 비중은 ${metrics.actualExitPct.toFixed(1)}%이며 최종 결과는 ${money(finalPnl)} / ${finalR.toFixed(2)}R입니다.`
+    : `현재 OPEN 상태이며 실제 청산 ${metrics.actualExitPct.toFixed(1)}%, 계획 청산 ${metrics.plannedExitPct.toFixed(1)}%가 설정되어 있습니다.`;
+
+  let nextFocus = '다음 복기 포인트: 진입 논리와 무효화 기준이 실제 집행 과정에서도 유지됐는지 확인하세요.';
+  if (metrics.missingMarkPrice) nextFocus = '다음 복기 포인트: Mark Price를 넣어 미실현 손익과 잔여 리스크를 실제 운영값으로 추적하세요.';
+  else if (metrics.residualRisk > riskBudget * 0.5 && trade.status === 'OPEN') nextFocus = '다음 복기 포인트: 부분청산 또는 손절 상향 전환이 가능한 구간인지 재검토하세요.';
+  else if ((trade.mistakes || []).length) nextFocus = `다음 복기 포인트: 기록된 실수(${trade.mistakes.join(', ')})가 계획 단계에서 예방 가능했는지 점검하세요.`;
+  else if (isClosed && finalR > 0) nextFocus = '다음 복기 포인트: 수익이 난 이유가 계획의 우위 때문인지, 운 좋게 흘러간 거래인지 구분해 보세요.';
+
+  setHtml('post-assessment-copy', `
+    <p><strong>리스크 사용 평가</strong><br>${escapeHtml(riskComment)}</p>
+    <p><strong>청산/실행 상태 요약</strong><br>${escapeHtml(executionComment)}</p>
+    <p><strong>다음 복기 포인트</strong><br>${escapeHtml(nextFocus)}</p>
+  `);
 }
 
 function renderCalcSummary(metrics, trade) {
@@ -1089,7 +1192,7 @@ function renderPlannerSummary(trade) {
 
   setHtml('planner-summary', `
     <div style="display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:14px;">
-      <div style="font-weight:800; color:#0f172a;">추천 모드: ${escapeHtml(suggestion.plannerMode)} · ${escapeHtml(suggestion.plannerWeightMode)}</div>
+      <div style="font-weight:800; color:#0f172a;">추천 전략: ${escapeHtml(suggestion.plannerModeLabel)} · ${escapeHtml(suggestion.plannerWeightModeLabel)}</div>
       <div style="font-size:12px; color:var(--muted); font-weight:700;">Risk ${moneyAbs(suggestion.metrics.riskDollar)} · Margin ${moneyAbs(suggestion.metrics.margin)} · Weighted Lev ${suggestion.metrics.weightedLeverage.toFixed(2)}x</div>
     </div>
     <div class="summary-grid">
@@ -1097,9 +1200,9 @@ function renderPlannerSummary(trade) {
         const d = suggestion.metrics.entryBreakdown[idx] || {};
         return `
           <div class="summary-item">
-            <div class="summary-label">LEG ${idx + 1}</div>
+            <div class="summary-label">STEP ${idx + 1}</div>
             <div class="summary-value">${safeNumber(leg.price)}</div>
-            <div style="font-size:12px; color:var(--muted); font-weight:700; margin-top:6px;">Risk ${leg.weight.toFixed(1)}% · ${leg.leverage.toFixed(1)}x</div>
+            <div style="font-size:12px; color:var(--muted); font-weight:700; margin-top:6px;">리스크 비중 ${leg.weight.toFixed(1)}% · ${leg.leverage.toFixed(1)}x</div>
             <div style="font-size:12px; color:#334155; margin-top:4px;">Qty ${qty(d.qty)} · Margin ${moneyAbs(d.margin)}</div>
           </div>
         `;
