@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Trading Desk Dashboard v5.2 (Ultimate Layout)</title>
+  <title>Trading Desk Dashboard v6.0 (Luxury Edition)</title>
   <link rel="stylesheet" href="./css/styles.css" />
 </head>
 <body>
@@ -44,8 +44,8 @@
 
       <div class="section-head section-head-large overview-hero">
         <div>
-          <h3>Overview</h3>
-          <p>매매 환경 및 핵심 트레이딩 성과</p>
+          <h3>Overview & Dashboard</h3>
+          <p>오늘의 매매 환경과 핵심 트레이딩 성과입니다.</p>
         </div>
         <div class="date-filter-box">
           <span class="filter-label">📊 통계 기간</span>
@@ -145,7 +145,10 @@
               </div>
 
               <div class="field-grid cols-1" style="margin-top: 32px;">
-                <label><span>✅ 원칙 점검 (Checklist)</span></label>
+                <div class="premium-label-wrapper">
+                  <span class="premium-label-line"></span>
+                  <label>Rule Verification (원칙 점검)</label>
+                </div>
                 <div id="trade-checklist-container" class="trade-checklist-grid"></div>
               </div>
 
@@ -154,8 +157,9 @@
                 <label><span>진입 논리 및 무효화 기준</span><textarea id="thesis" class="auto-resize" placeholder="왜 여기서 진입하는지, 어디서 틀렸다고 볼지" style="min-height: 100px;"></textarea></label>
               </div>
               
-              <div class="field-grid cols-1" style="margin-top: 20px;">
-                <label><span>진입 차트 (Entry Chart)</span><input id="chart-entry" placeholder="https://www.tradingview.com/x/... 등 링크 입력" /></label>
+              <div style="margin-top: 32px;">
+                <div class="mini-head"><h4>진입 차트 증거 (Entry Charts)</h4><button type="button" id="add-entry-chart" class="tool-btn btn-sm">＋ 차트 추가</button></div>
+                <div id="entry-charts-container" class="stack"></div>
               </div>
             </article>
 
@@ -177,7 +181,7 @@
                 <label><span>미세 보정 (+/- $)</span><input id="adjustment" type="number" step="0.01" value="0" /></label>
               </div>
 
-              <div class="field-grid cols-2" style="margin-top: 24px;">
+              <div class="field-grid cols-2" style="margin-top: 32px;">
                 <div>
                   <div class="mini-head"><h4>SCALING-IN (진입 100%)</h4><button type="button" id="add-entry" class="tool-btn btn-sm">＋ 추가</button></div>
                   <div id="entries"></div>
@@ -207,7 +211,7 @@
                 </div>
                 <textarea id="live-notes" class="auto-resize live-notes" placeholder="[2026-04-01 09:35:10] NY open reclaim 확인"></textarea>
                 
-                <div style="margin-top: 24px;">
+                <div style="margin-top: 32px;">
                   <div class="mini-head"><h4>진행 중 차트 증거 (Live Charts)</h4><button type="button" id="add-live-chart" class="tool-btn btn-sm">＋ 차트 추가</button></div>
                   <div id="live-charts-container" class="stack"></div>
                 </div>
@@ -220,10 +224,12 @@
                 <p>핵심 복기와 평가 점수</p>
               </div>
 
-              <div class="field-grid cols-3" style="margin-bottom: 24px; align-items: end;">
+              <div id="post-trade-summary" class="post-trade-kpi-grid" style="display:none; margin-bottom: 24px;"></div>
+
+              <div class="field-grid cols-3" style="margin-bottom: 24px; align-items: stretch;">
                 <label>
                   <span>Grade (S~D)</span>
-                  <select id="grade" style="font-size:15px; font-weight:800;">
+                  <select id="grade" style="font-size:15px; font-weight:800; height: 100%;">
                     <option value="S">S (완벽한 원칙, 최고의 셋업)</option>
                     <option value="A">A (원칙 준수, 우량 셋업)</option>
                     <option value="B" selected>B (보통, 일반적 셋업)</option>
@@ -231,21 +237,22 @@
                     <option value="D">D (뇌동 매매, 원칙 위반)</option>
                   </select>
                 </label>
-                <label>
-                  <span>종료 차트 (Exit Chart)</span>
-                  <input id="chart-exit" placeholder="https://www.tradingview.com/x/..." />
-                </label>
-                <div class="review-kpi">
+                <div class="review-kpi" style="grid-column: span 2;">
                   <div class="review-kpi-label">Total R-Multiple</div>
                   <div id="deep-review-r" class="review-kpi-value">0.00R</div>
                 </div>
               </div>
 
-              <div class="field-grid cols-1" style="margin-bottom: 24px;">
+              <div class="field-grid cols-1" style="margin-bottom: 32px;">
                 <label>
                   <span>Review & Lessons</span>
                   <textarea id="review" class="auto-resize" placeholder="잘한 점, 실수, 다음 매매를 위한 피드백..." style="min-height: 120px;"></textarea>
                 </label>
+              </div>
+
+              <div style="margin-bottom: 32px;">
+                <div class="mini-head"><h4>종료 차트 증거 (Exit Charts)</h4><button type="button" id="add-exit-chart" class="tool-btn btn-sm">＋ 차트 추가</button></div>
+                <div id="exit-charts-container" class="stack"></div>
               </div>
               
               <div class="field-grid cols-2" style="background: #f8fafc; padding: 24px; border-radius: 16px; border: 1px solid var(--line);">
@@ -325,7 +332,10 @@
             <div class="stack">
               <label><span>📝 규칙 메모</span><textarea id="desk-rules" class="auto-resize rules-box" placeholder="항상 되새길 일반 원칙들..."></textarea></label>
               <div class="checklist-manager">
-                <label><span>✅ 체크리스트 (각 폼에 반영됨)</span></label>
+                <div class="premium-label-wrapper" style="margin-bottom: 12px;">
+                  <span class="premium-label-line"></span>
+                  <label>Master Checklist</label>
+                </div>
                 <div id="master-checklist-list" class="stack" style="margin-bottom:12px;"></div>
                 <div class="input-group flex-group">
                   <input type="text" id="new-check-input" placeholder="새 항목...">
