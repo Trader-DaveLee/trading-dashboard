@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Trading Desk Dashboard v6.3 (Perfect Journal UI)</title>
+  <title>Trading Desk Dashboard v6.4 (Real-time Receipt)</title>
   <link rel="stylesheet" href="./css/styles.css" />
 </head>
 <body>
@@ -38,7 +38,7 @@
         <div class="realtime-clock" id="realtime-clock"></div>
         <div class="quick-launch-links">
           <div id="quick-launch-grid" class="quick-launch-grid"></div>
-          <button type="button" id="btn-manage-quick-links" class="gear-btn fixed-btn" title="빠른 링크 관리">⚙️</button>
+          <button type="button" id="btn-manage-quick-links" class="tool-btn icon-btn" title="빠른 링크 관리">⚙️</button>
         </div>
       </div>
 
@@ -181,13 +181,13 @@
                 <label><span>미세 보정 (+/- $)</span><input id="adjustment" type="number" step="0.01" value="0" /></label>
               </div>
 
-              <div class="field-grid cols-2" style="margin-top: 24px;">
+              <div class="field-grid cols-1" style="margin-top: 32px; gap: 24px;">
                 <div>
-                  <div class="mini-head"><h4>SCALING-IN (진입 100%)</h4><button type="button" id="add-entry" class="tool-btn btn-sm">＋ 추가</button></div>
+                  <div class="mini-head"><h4>SCALING-IN (진입 합계 100%)</h4><button type="button" id="add-entry" class="tool-btn btn-sm">＋ 추가</button></div>
                   <div id="entries"></div>
                 </div>
                 <div>
-                  <div class="mini-head"><h4>SCALING-OUT (청산 최대 100%)</h4><button type="button" id="add-exit" class="tool-btn btn-sm">＋ 추가</button></div>
+                  <div class="mini-head"><h4>SCALING-OUT (청산 합계 최대 100%)</h4><button type="button" id="add-exit" class="tool-btn btn-sm">＋ 추가</button></div>
                   <div id="exits"></div>
                 </div>
               </div>
@@ -219,37 +219,36 @@
             </article>
 
             <article class="phase-card phase-purple">
-              <div class="phase-header">
+              <div class="phase-header" style="margin-bottom: 24px;">
                 <h3>Post-Trade Review</h3>
                 <p>핵심 복기와 평가 점수</p>
               </div>
 
-              <h4 style="margin:0 0 16px; font-size:14px; font-weight:800; color:var(--muted); text-transform:uppercase;">1. Performance Metrics</h4>
-              
-              <div class="field-grid cols-3" style="margin-bottom: 16px; align-items: stretch;">
-                <label>
-                  <span>Grade (S~D)</span>
-                  <select id="grade" style="font-size:15px; font-weight:800; height: 100%;">
-                    <option value="S">S (완벽한 원칙, 최고의 셋업)</option>
-                    <option value="A">A (원칙 준수, 우량 셋업)</option>
-                    <option value="B" selected>B (보통, 일반적 셋업)</option>
-                    <option value="C">C (원칙 이탈, 아쉬운 셋업)</option>
-                    <option value="D">D (뇌동 매매, 원칙 위반)</option>
-                  </select>
-                </label>
-                <div class="review-kpi" style="grid-column: span 2;">
-                  <div class="review-kpi-label">Total R-Multiple</div>
-                  <div id="deep-review-r" class="review-kpi-value">0.00R</div>
+              <div class="post-trade-eval-box">
+                <div class="eval-header">
+                  <div class="eval-status-badge" id="eval-status-badge">OPEN (Projected)</div>
+                  <div class="eval-grade-wrapper">
+                    <label>Grade</label>
+                    <select id="grade" class="eval-grade-select">
+                      <option value="S">S (완벽 원칙)</option>
+                      <option value="A">A (우량 셋업)</option>
+                      <option value="B" selected>B (일반 셋업)</option>
+                      <option value="C">C (원칙 이탈)</option>
+                      <option value="D">D (뇌동 매매)</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="eval-grid">
+                  <div class="eval-item"><label>투입 마진 (Risked)</label><span id="eval-margin" class="eval-value">0</span></div>
+                  <div class="eval-item"><label title="수수료를 포함하여 손실이 0이 되는 가격">본절가 (BEP)</label><span id="eval-bep" class="eval-value">0</span></div>
+                  <div class="eval-item"><label>수수료 합계</label><span id="eval-fees" class="eval-value negative">0</span></div>
+                  <div class="eval-item"><label id="label-pnl">예상 PnL</label><span id="eval-pnl" class="eval-value">0</span></div>
+                  <div class="eval-item"><label id="label-r">예상 R</label><span id="eval-r" class="eval-value">0</span></div>
+                  <div class="eval-item"><label>계좌 수익률 (ROI)</label><span id="eval-roi" class="eval-value">0</span></div>
                 </div>
               </div>
 
-              <div id="post-trade-eval" class="post-trade-eval-box hidden" style="margin-bottom: 32px;"></div>
-
-              <div class="inner-divider" style="margin-bottom: 24px;"></div>
-
-              <h4 style="margin:0 0 16px; font-size:14px; font-weight:800; color:var(--muted); text-transform:uppercase;">2. Trade Details & Lessons</h4>
-
-              <div class="field-grid cols-2" style="background: #f8fafc; padding: 24px; border-radius: 16px; border: 1px solid var(--line); margin-bottom: 24px;">
+              <div class="field-grid cols-2" style="background: #f8fafc; padding: 24px; border-radius: 16px; border: 1px solid var(--line); margin-bottom: 24px; margin-top: 8px;">
                 <label>
                   <span>태그</span>
                   <input id="tags" placeholder="trend, ny-open, sweep" />
@@ -264,7 +263,7 @@
 
               <div class="field-grid cols-1" style="margin-bottom: 32px;">
                 <label>
-                  <span>Review (복기)</span>
+                  <span>Review & Lessons (복기)</span>
                   <textarea id="review" class="auto-resize" placeholder="잘한 점, 실수, 다음 매매를 위한 피드백..." style="min-height: 120px;"></textarea>
                 </label>
               </div>
@@ -277,9 +276,9 @@
 
             <div class="journal-actions-sticky">
               <button type="submit" class="tool-btn primary-btn">💾 Save & Update Trade</button>
-              <button type="button" id="reset-form" class="tool-btn wide-btn">초기화</button>
-              <button type="button" id="duplicate-trade" class="tool-btn wide-btn">복제</button>
-              <button type="button" id="delete-trade" class="tool-btn wide-btn danger-btn">삭제</button>
+              <button type="button" id="reset-form" class="tool-btn">초기화</button>
+              <button type="button" id="duplicate-trade" class="tool-btn">복제</button>
+              <button type="button" id="delete-trade" class="tool-btn danger-btn">삭제</button>
             </div>
           </form>
         </div>
@@ -323,11 +322,11 @@
                 <div>진입 수량</div><div id="risk-qty" class="mono">0.00000</div>
                 <div>요구 증거금</div><div id="risk-margin" class="mono">$0</div>
                 <div>포지션 사용률</div><div id="risk-slider" class="mono positive">0.0%</div>
+                <div>본절가 (BEP)</div><div id="risk-bep" class="mono">0.00</div>
                 <div>명목 노출</div><div id="risk-notional" class="mono">$0</div>
                 <div>손절 거리</div><div id="risk-stop-distance" class="mono">0.00%</div>
                 <div>예상 수수료</div><div id="risk-fees" class="mono">$0</div>
                 <div>실현 손익</div><div id="risk-realized" class="mono">$0</div>
-                <div>미실현 손익</div><div id="risk-unrealized" class="mono">$0</div>
                 <div>잔여 리스크</div><div id="risk-residual" class="mono">$0</div>
               </div>
             </div>
@@ -338,7 +337,7 @@
             <div class="stack">
               <div class="premium-label-wrapper" style="margin-bottom: 0px;">
                 <span class="premium-label-line"></span>
-                <label>규칙 메모</label>
+                <label>Rule Memo</label>
               </div>
               <textarea id="desk-rules" class="auto-resize rules-box" placeholder="항상 되새길 일반 원칙들..."></textarea>
               
