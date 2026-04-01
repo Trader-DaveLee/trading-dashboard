@@ -191,7 +191,6 @@ export function normalizeTrade(t = {}) {
   return trade;
 }
 
-// ✨ URL이 http나 https로 시작하지 않으면 자동으로 붙여주는 안전장치
 export function sanitizeUrl(url) {
   if (!url) return '';
   let trimmed = String(url).trim();
