@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Trading Desk Dashboard v4.1 (Premium Hub)</title>
+  <title>Trading Desk Dashboard v4.2 (Premium Hub)</title>
   <link rel="stylesheet" href="./css/styles.css" />
 </head>
 <body>
@@ -35,8 +35,7 @@
     <section id="view-overview" class="view active">
       
       <div class="quick-launch-section">
-        <div class="realtime-clock" id="realtime-clock">
-          </div>
+        <div class="realtime-clock" id="realtime-clock"></div>
         <div class="quick-launch-links">
           <div id="quick-launch-grid" class="quick-launch-grid"></div>
           <button type="button" id="btn-manage-quick-links" class="tool-btn icon-btn" title="빠른 링크 관리">⚙️</button>
@@ -80,7 +79,7 @@
         <div id="calendar" class="calendar calendar-large"></div>
       </article>
 
-      <div class="grid grid-2" style="margin-top:24px; margin-bottom:24px;">
+      <div class="grid grid-2" style="margin-top:32px; margin-bottom:32px;">
         <article class="card chart-card">
           <div class="section-head"><div><h3>Equity Curve (매매 손익)</h3><p>순수 매매 성과 누적 곡선</p></div></div>
           <div id="equity-chart" class="chart-box"></div>
@@ -143,12 +142,12 @@
               </label>
             </div>
 
-            <div class="field-grid cols-1" style="margin-top: 10px;">
+            <div class="field-grid cols-1" style="margin-top: 16px;">
               <label><span>✅ 원칙 점검 (Checklist)</span></label>
               <div id="trade-checklist-container" class="trade-checklist-grid"></div>
             </div>
 
-            <div class="field-grid cols-1 journal-context-grid" style="margin-top: 10px;">
+            <div class="field-grid cols-1 journal-context-grid" style="margin-top: 16px;">
               <div class="grid-2" style="margin-top:0;">
                 <label><span>시장 컨텍스트</span><textarea id="context" class="auto-resize" placeholder="진입 전 시장 흐름, 유동성, 구조"></textarea></label>
                 <label><span>진입 논리 및 무효화 기준</span><textarea id="thesis" class="auto-resize" placeholder="왜 여기서 진입하는지, 어디서 틀렸다고 볼지"></textarea></label>
@@ -156,7 +155,7 @@
               <label><span>진입 차트 (Entry Chart)</span><input id="chart-entry" placeholder="https://www.tradingview.com/x/... 등 링크 입력" /></label>
             </div>
 
-            <div class="section-head premium-sec-head sec-yellow" style="margin-top: 24px;">
+            <div class="section-head premium-sec-head sec-yellow">
               <div><h3>RISK & EXECUTION</h3><p>리스크 및 포지션 사이즈 설계</p></div>
             </div>
 
@@ -184,7 +183,7 @@
             </div>
             <div id="calc-summary" class="summary-box">유효한 입력값이 필요합니다.</div>
 
-            <div class="section-head premium-sec-head sec-green" style="margin-top: 24px;">
+            <div class="section-head premium-sec-head sec-green">
               <div><h3>LIVE MANAGEMENT</h3><p>홀딩 중 발생한 대응과 심리 로그</p></div>
             </div>
             <div class="live-panel">
@@ -201,17 +200,17 @@
               </div>
               <textarea id="live-notes" class="auto-resize live-notes" placeholder="[2026-04-01 09:35:10] NY open reclaim 확인"></textarea>
               
-              <div style="margin-top: 16px;">
+              <div style="margin-top: 24px;">
                 <div class="mini-head"><h4>진행 중 차트 증거 (Live Charts)</h4><button type="button" id="add-live-chart" class="tool-btn">+ 차트 추가</button></div>
                 <div id="live-charts-container" class="stack"></div>
               </div>
             </div>
 
-            <div class="section-head premium-sec-head sec-purple" style="margin-top: 24px;">
+            <div class="section-head premium-sec-head sec-purple">
               <div><h3>POST-TRADE REVIEW</h3><p>핵심 복기와 평가 점수</p></div>
             </div>
 
-            <div class="field-grid cols-1" style="margin-bottom: 16px;">
+            <div class="field-grid cols-1" style="margin-bottom: 20px;">
                <label><span>종료 차트 (Exit Chart)</span><input id="chart-exit" placeholder="https://www.tradingview.com/x/... 등 링크 입력" /></label>
             </div>
 
@@ -221,7 +220,7 @@
                 <textarea id="review" class="auto-resize" placeholder="잘한 점, 실수, 재현 가능성" style="height: 100%; min-height: 160px;"></textarea>
               </label>
               
-              <div class="stack" style="gap: 16px;">
+              <div class="stack" style="gap: 20px;">
                 <div class="field-grid cols-2" style="align-items: end;">
                   <label>
                     <span>Grade (S~D)</span>
@@ -239,11 +238,11 @@
                   </div>
                 </div>
                 
-                <div style="background: #f8fafc; padding: 16px; border-radius: 16px; border: 1px solid var(--line);">
+                <div style="background: #f8fafc; padding: 20px; border-radius: 16px; border: 1px solid var(--line);">
                   <label>
                     <span>태그</span>
                     <input id="tags" placeholder="trend, ny-open, sweep" />
-                    <div id="quick-tags" class="chips" style="margin-bottom: 12px;"></div>
+                    <div id="quick-tags" class="chips" style="margin-bottom: 16px;"></div>
                   </label>
                   <label>
                     <span>실수 태그</span>
@@ -254,7 +253,7 @@
               </div>
             </div>
 
-            <div class="inline-actions form-actions" style="margin-top: 16px;">
+            <div class="inline-actions form-actions" style="margin-top: 24px;">
               <button type="submit" class="btn-save-trade primary">💾 Save & Update Trade</button>
               <button type="button" id="duplicate-trade" class="tool-btn wide-btn">복제</button>
               <button type="button" id="reset-form" class="tool-btn wide-btn">초기화</button>
@@ -264,7 +263,7 @@
         </article>
 
         <aside class="journal-sidebar stack">
-          <article class="card premium-balance-card">
+          <article class="card premium-balance-card resizable-card">
             <div class="section-head no-bottom">
               <div><h3>💳 Account Status</h3><p>포트폴리오 자산 스냅샷</p></div>
               <span class="subtle-pill accent">Local</span>
@@ -294,7 +293,7 @@
             </div>
           </article>
 
-          <article class="card compact-card risk-summary-card">
+          <article class="card compact-card risk-summary-card resizable-card">
             <div class="section-head"><div><h3>Risk Planner</h3><p>사이즈, 리스크, 잔여 익스포저</p></div></div>
             <div class="detail-box risk-box">
               <div class="kv">
@@ -312,13 +311,13 @@
             </div>
           </article>
 
-          <article class="card compact-card">
+          <article class="card compact-card resizable-card">
             <div class="section-head"><div><h3>Desk Rules</h3><p>원칙 및 체크리스트 관리</p></div></div>
             <div class="stack">
-              <label><span>📝 규칙 메모</span><textarea id="desk-rules" class="auto-resize" placeholder="항상 되새길 일반 원칙들..."></textarea></label>
+              <label><span>📝 규칙 메모</span><textarea id="desk-rules" class="auto-resize rules-box" placeholder="항상 되새길 일반 원칙들..."></textarea></label>
               <div class="checklist-manager">
                 <label><span>✅ 체크리스트 (각 폼에 반영됨)</span></label>
-                <div id="master-checklist-list" class="stack" style="margin-bottom:8px;"></div>
+                <div id="master-checklist-list" class="stack" style="margin-bottom:12px;"></div>
                 <div class="input-group flex-group">
                   <input type="text" id="new-check-input" placeholder="새 항목...">
                   <button type="button" id="btn-add-check" class="tool-btn fixed-btn">추가</button>
@@ -410,6 +409,40 @@
       <div class="modal-actions">
         <button id="modal-btn-cancel" class="modal-btn modal-cancel">취소</button>
         <button id="modal-btn-confirm" class="modal-btn modal-confirm">확인</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="list-manage-modal" class="modal-overlay">
+    <div class="modal-card" style="width: 480px;">
+      <div id="list-manage-title" class="modal-title">항목 관리</div>
+      <div class="input-group flex-group" style="margin-bottom: 20px;">
+        <input type="text" id="list-manage-input" placeholder="새 항목 추가..." />
+        <button type="button" id="list-manage-add" class="tool-btn primary-btn">추가</button>
+      </div>
+      <div id="list-manage-items" class="stack" style="max-height: 300px; overflow-y: auto; padding-right:4px;"></div>
+      <div class="modal-actions" style="margin-top: 24px;">
+        <button id="list-manage-close" class="modal-btn modal-cancel">닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="ql-modal" class="modal-overlay">
+    <div class="modal-card" style="width: 540px;">
+      <div class="modal-title">Quick Launch 관리</div>
+      <div class="field-grid cols-3" style="gap:12px; margin-bottom: 20px; align-items:end;">
+         <label><span>이름</span><input type="text" id="ql-name" placeholder="예: 바이낸스" /></label>
+         <label><span>URL</span><input type="text" id="ql-url" placeholder="https://..." /></label>
+         <label><span>아이콘/버튼</span>
+           <div class="input-group flex-group">
+             <input type="text" id="ql-icon" placeholder="선택" style="width:100%;" />
+             <button type="button" id="ql-add" class="tool-btn primary-btn fixed-btn">추가</button>
+           </div>
+         </label>
+      </div>
+      <div id="ql-items" class="stack" style="max-height: 300px; overflow-y: auto; padding-right:4px;"></div>
+      <div class="modal-actions" style="margin-top: 24px;">
+        <button id="ql-close" class="modal-btn modal-cancel">닫기</button>
       </div>
     </div>
   </div>
