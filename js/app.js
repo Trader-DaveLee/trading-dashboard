@@ -97,11 +97,19 @@ function cacheEls() {
   });
 }
 
+// ✨ 실시간 시계 포맷팅
 function startClock() {
   const updateClock = () => {
     const now = new Date();
     const pad = n => String(n).padStart(2, '0');
-    if(els['realtime-clock']) els['realtime-clock'].textContent = `${now.getFullYear()}. ${pad(now.getMonth()+1)}. ${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+    const days = ['일','월','화','수','목','금','토'];
+    
+    const dateStr = `${now.getFullYear()}. ${pad(now.getMonth()+1)}. ${pad(now.getDate())} (${days[now.getDay()]})`;
+    const timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+    
+    if(els['realtime-clock']) {
+      els['realtime-clock'].innerHTML = `<div class="clock-time">${timeStr}</div><div class="clock-date">${dateStr}</div>`;
+    }
   };
   updateClock();
   setInterval(updateClock, 1000);
@@ -130,6 +138,7 @@ function hideModal() {
   if(els['app-modal']) els['app-modal'].classList.remove('show');
 }
 
+// ✨ 내용에 맞춰 박스 높이를 자동으로 늘려주는 함수
 function autoResize(el) {
   if (!el) return;
   el.style.height = 'auto';
@@ -213,7 +222,6 @@ function bindEvents() {
   els['import-json-btn'].onclick = () => els['import-json'].click();
   els['import-json'].onchange = handleImport;
 
-  // ✨ Overview 조회 버튼으로 필터 적용 변경
   if(els['overview-search']) els['overview-search'].onclick = () => renderOverview();
   
   els['overview-clear'].onclick = () => {
@@ -247,9 +255,15 @@ function bindEvents() {
 
   if(els['btn-update-balance']) els['btn-update-balance'].onclick = updateBalance;
   
+  // ✨ 모든 textarea에 자동 높이 조절 이벤트 연결
+  document.querySelectorAll('textarea.auto-resize').forEach(ta => {
+    ta.addEventListener('input', function() {
+      autoResize(this);
+    });
+  });
+
   if(els['desk-rules']) {
     els['desk-rules'].addEventListener('input', function() {
-      autoResize(this);
       state.db.meta.rules = this.value;
       saveDB(state.db);
     });
@@ -268,7 +282,6 @@ function bindEvents() {
     };
   }
 
-  // ✨ Quick Launch 관리 버튼 이벤트
   if(els['btn-manage-quick-links']) {
     els['btn-manage-quick-links'].onclick = () => {
       showModal({ type: 'PROMPT', title: `바로가기 링크 추가`, desc: `새로 추가할 링크를 쉼표로 구분하여 입력하세요.<br>형식: <b>이름, URL, 아이콘(선택)</b><br>(예: 바이낸스, https://binance.com, 💱)<br><br>※ 삭제하려면 이름 앞에 '-'를 붙이세요. (예: -바이낸스)` }, (val) => {
@@ -353,11 +366,19 @@ function renderNav() {
   });
 }
 
+// ✨ 탭 이동 시 텍스트 박스 자동 리사이징 버그 해결
 function renderViews() {
   views.forEach(view => {
     els[`view-${view}`].classList.toggle('active', state.view === view);
   });
   renderNav();
+  
+  if (state.view === 'journal') {
+    setTimeout(() => {
+      document.querySelectorAll('textarea.auto-resize').forEach(ta => autoResize(ta));
+    }, 10);
+  }
+  
   if (state.view === 'library') renderLibrary();
   if (state.view === 'playbook') renderPlaybook();
   if (state.view === 'overview') renderOverview();
@@ -373,7 +394,6 @@ function render() {
   updatePreview();
 }
 
-// ✨ Quick Launch 렌더링
 function renderQuickLaunch() {
   if(!els['quick-launch-grid']) return;
   const links = state.db.meta.quickLinks || [];
@@ -483,7 +503,6 @@ function hydrateInitialForm() {
   setVal('taker-fee', tpl.takerFee || 0.05);
   
   setVal('desk-rules', state.db.meta.rules || '');
-  setTimeout(() => autoResize(els['desk-rules']), 0);
   
   state.draftEntries = [{ price: 0, type: 'M', weight: 100 }];
   state.draftExits = [];
@@ -609,6 +628,11 @@ function resetFormForce() {
   renderLegs('exit');
   renderLiveCharts();
   renderTradeChecklist([]);
+  
+  setTimeout(() => {
+    document.querySelectorAll('textarea.auto-resize').forEach(ta => autoResize(ta));
+  }, 10);
+
   updatePreview();
   refreshJournalStatus('새 폼 준비');
 }
@@ -796,6 +820,11 @@ function applyTradeToForm(trade, options = {}) {
   renderLegs('exit');
   renderLiveCharts();
   renderTradeChecklist(trade.checkedRules || []); 
+  
+  setTimeout(() => {
+    document.querySelectorAll('textarea.auto-resize').forEach(ta => autoResize(ta));
+  }, 10);
+  
   updatePreview();
 }
 
@@ -997,6 +1026,7 @@ function renderBalanceChart() {
   setHtml('balance-chart', lineSvg(points, true));
 }
 
+// ✨ SVG 차트 렌더링 복구
 function lineSvg(points, isBalance = false) {
   if (points.length === 0) return '';
   const width = 780, height = 280, pad = 32;
@@ -1553,10 +1583,6 @@ function emptyState(text) {
 
 function splitCsv(value) {
   return String(value || '').split(',').map(v => v.trim()).filter(Boolean);
-}
-
-function splitLines(value) {
-  return String(value || '').split('\n').map(v => v.trim()).filter(Boolean);
 }
 
 function cloneRows(rows) {
