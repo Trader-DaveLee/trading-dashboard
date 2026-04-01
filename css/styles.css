@@ -1,7 +1,7 @@
 :root {
-  --bg: #f5f7fa;
+  --bg: #f4f6fb; /* 아주 살짝 밝고 부드러운 배경 */
   --panel: #ffffff;
-  --line: #e3e8f0;
+  --line: #e2e8f0;
   --text: #0f172a; 
   --muted: #475569; 
   --accent: #2563eb;
@@ -41,8 +41,8 @@ button, input, select, textarea { font: inherit; }
 button { cursor: pointer; }
 input, select, textarea {
   width: 100%; border: 1px solid var(--line); background: #f8fafc; color: var(--text);
-  padding: 12px 16px; border-radius: var(--radius-sm); outline: none; transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  font-weight: 500;
+  padding: 14px 16px; border-radius: var(--radius-sm); outline: none; transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  font-weight: 600;
 }
 textarea { min-height: 96px; resize: vertical; line-height: 1.6; }
 input:focus, select:focus, textarea:focus {
@@ -65,7 +65,7 @@ input:focus, select:focus, textarea:focus {
 }
 .modal-overlay.show { opacity: 1; pointer-events: auto; }
 .modal-card {
-  background: #fff; width: 400px; max-width: 90%; border-radius: 20px; padding: 32px;
+  background: #fff; width: 400px; max-width: 90%; border-radius: 24px; padding: 32px;
   box-shadow: 0 20px 40px rgba(0,0,0,0.1); transform: translateY(20px); transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .modal-overlay.show .modal-card { transform: translateY(0); }
@@ -95,23 +95,27 @@ input:focus, select:focus, textarea:focus {
 #nav button:hover { color: var(--text); }
 #nav button.active { background: #ffffff; color: var(--accent); box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
 
-/* ✨ 범용 버튼 디자인 고급화 (부드러운 Hover 트랜지션) */
+/* 범용 버튼 디자인 고급화 */
 .tool-btn, .backup-actions button, .gear-btn { 
-  border: 1px solid #e2e8f0; background: #ffffff; color: #475569; padding: 10px 16px; 
+  border: 1px solid #e2e8f0; background: #ffffff; color: #475569; padding: 12px 18px; 
   border-radius: var(--radius-sm); font-weight: 700; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); 
 }
 .tool-btn:hover, .backup-actions button:hover, .gear-btn:hover { background: #f8fafc; border-color: #cbd5e1; color: #0f172a; box-shadow: 0 2px 6px rgba(0,0,0,0.03); transform: translateY(-1px); }
 .tool-btn:active { transform: translateY(0); }
-.btn-sm { padding: 8px 12px; font-size: 12px; border-radius: 10px; }
-.icon-btn { border-radius: 50%; width: 42px; height: 42px; padding: 0; display: grid; place-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.02);}
+.btn-sm { padding: 8px 14px; font-size: 12px; border-radius: 10px; }
+.icon-btn { border-radius: 50%; width: 46px; height: 46px; padding: 0; display: grid; place-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.02);}
 
-/* ✨ 항목 관리 리스트의 삭제버튼 찌그러짐 방지 */
-.btn-icon-sm { background: #f1f5f9; border: 1px solid transparent; color: var(--muted); border-radius: 6px; width: 28px; height: 28px; display: grid; place-items: center; font-size: 12px; font-weight: 800; transition: 0.2s; cursor: pointer; padding:0;}
+/* 항목 관리 리스트의 삭제버튼 찌그러짐 방지 & Hover 컬러 세팅 */
+.btn-icon-sm { background: #f1f5f9; border: 1px solid transparent; color: var(--muted); border-radius: 8px; width: 30px; height: 30px; display: grid; place-items: center; font-size: 12px; font-weight: 800; transition: 0.2s; cursor: pointer; padding:0; flex-shrink: 0;}
 .btn-icon-sm:hover { background: #e2e8f0; color: #0f172a; }
+.danger-text { color: #f87171 !important; }
 .danger-text:hover { background: var(--red-soft) !important; color: var(--red) !important; }
 
-.primary-btn { background: var(--accent) !important; color: #fff !important; border:none !important; box-shadow: 0 4px 12px rgba(37,99,235,0.2) !important;}
-.primary-btn:hover { background: var(--accent-hover) !important; transform: translateY(-1px); box-shadow: 0 6px 16px rgba(37,99,235,0.3) !important;}
+/* ✨ Primary / Save 버튼 프리미엄 디자인 */
+.primary-btn { background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%) !important; color: #fff !important; border:none !important; box-shadow: 0 4px 15px rgba(37,99,235,0.3) !important;}
+.primary-btn:hover { background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%) !important; transform: translateY(-2px); box-shadow: 0 8px 25px rgba(37,99,235,0.4) !important;}
+.btn-save-trade { font-size: 15px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; }
+
 .danger-btn { background: #fff !important; border: 1px solid #fecaca !important; color: var(--red) !important; }
 .danger-btn:hover { background: var(--red-soft) !important; border-color: var(--red) !important; box-shadow: 0 4px 12px rgba(239,68,68,0.15) !important; }
 
@@ -126,21 +130,21 @@ input:focus, select:focus, textarea:focus {
 
 /* Layout & Cards */
 .container { max-width: 1440px; margin: 0 auto; padding: 32px; }
-.card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-subtle); padding: 28px; transition: all 0.3s ease; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-subtle); padding: 32px; transition: all 0.3s ease; }
 
 .view { display: none; opacity: 0; }
 .view.active { display: block; animation: viewFadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
 @keyframes viewFadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
 /* 최상단 Quick Launch & 시계 섹션 디자인 */
-.quick-launch-section { display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; background: #fff; padding: 20px 28px; border-radius: 20px; border: 1px solid var(--line); box-shadow: var(--shadow-subtle); flex-wrap: wrap; gap: 16px;}
+.quick-launch-section { display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; background: #fff; padding: 20px 32px; border-radius: 20px; border: 1px solid var(--line); box-shadow: var(--shadow-subtle); flex-wrap: wrap; gap: 16px;}
 .realtime-clock { display: flex; align-items: baseline; gap: 12px; }
 .clock-time { font-size: 36px; font-weight: 900; letter-spacing: -1.5px; color: #0f172a; line-height: 1; font-variant-numeric: tabular-nums;}
 .clock-date { font-size: 14px; font-weight: 800; color: var(--muted); letter-spacing: 0.5px; }
 
 .quick-launch-links { display: flex; align-items: center; gap: 12px; flex-wrap: wrap;}
 .quick-launch-grid { display: flex; gap: 10px; flex-wrap: wrap; }
-.quick-link-card { display: flex; align-items: center; gap: 8px; padding: 10px 18px; background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%); border: 1px solid var(--line); border-radius: 999px; text-decoration: none; color: #0f172a; font-weight: 800; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); font-size: 13px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);}
+.quick-link-card { display: flex; align-items: center; gap: 8px; padding: 10px 20px; background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%); border: 1px solid var(--line); border-radius: 999px; text-decoration: none; color: #0f172a; font-weight: 800; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); font-size: 13px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);}
 .quick-link-card:hover { background: #ffffff; border-color: var(--accent); box-shadow: 0 6px 16px rgba(37,99,235,0.12); transform: translateY(-2px); color: var(--accent); }
 .quick-link-icon { font-size: 16px; }
 
@@ -150,83 +154,92 @@ input:focus, select:focus, textarea:focus {
 .list-manage-row > span, .list-manage-row > strong { flex: 1; word-break: break-all; padding-right: 12px; }
 .row-actions { display: flex; gap: 6px; flex-shrink: 0; }
 
-
-.section-head { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 20px; }
+.section-head { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 24px; }
 .section-head-large h3 { margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -0.8px; color: #0f172a; }
 .section-head h3 { margin: 0; font-size: 18px; font-weight: 800; letter-spacing: -0.3px; color: #0f172a; }
-.section-head p { margin: 4px 0 0; color: var(--muted); font-size: 13px; font-weight: 600;}
+.section-head p { margin: 6px 0 0; color: var(--muted); font-size: 13px; font-weight: 600;}
 .inner-divider { border-bottom: 1px solid var(--line); padding-bottom: 16px; }
 .no-bottom { margin-bottom: 12px; }
 .inline-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .align-end { align-self: end; }
 .overview-hero { margin-bottom: 32px; }
 
-.date-filter-box { display: flex; align-items: center; gap: 8px; padding: 6px 12px; background: #ffffff; border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow-subtle); }
+.date-filter-box { display: flex; align-items: center; gap: 8px; padding: 8px 16px; background: #ffffff; border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow-subtle); }
 .date-filter-box input { width: auto; padding: 6px 8px; background: transparent; border: none; font-weight: 700; cursor: pointer; }
 .date-filter-box input:focus { box-shadow: none; }
 .filter-label, .filter-sep { color: var(--muted); font-weight: 800; font-size: 12px; }
 .calendar-title { font-size: 18px; font-weight: 800; color: var(--text); }
 
+/* ✨ Overview Metric 그라데이션 고급화 */
 .overview-top-row { display: grid; grid-template-columns: 2.5fr 1fr; gap: 24px; margin-bottom: 24px; }
 .metrics-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
 .metric {
-  background: #ffffff; border: 1px solid var(--line); border-radius: 20px;
+  background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+  border: 1px solid var(--line); border-radius: 20px;
   padding: 24px; display: flex; flex-direction: column; justify-content: center;
   box-shadow: var(--shadow-subtle); transition: all 0.3s ease; position: relative; overflow: hidden;
 }
-.metric:hover { transform: translateY(-3px); box-shadow: var(--shadow-hover); }
-.metric::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 3px; background: var(--line); transition: 0.3s; }
-.metric-blue:hover::before { background: var(--accent); }
-.metric-green:hover::before { background: var(--green); }
-.metric-purple:hover::before { background: var(--purple); }
-.metric-orange:hover::before { background: var(--yellow); }
-.metric-red:hover::before { background: var(--red); }
-.metric-teal:hover::before { background: var(--teal); }
+.metric:hover { transform: translateY(-3px); box-shadow: var(--shadow-hover); border-color: #cbd5e1;}
+.metric::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 4px; transition: 0.3s; opacity: 0; }
+.metric:hover::before { opacity: 1; }
+.metric-blue::before { background: linear-gradient(90deg, #3b82f6, #2563eb); }
+.metric-green::before { background: linear-gradient(90deg, #10b981, #059669); }
+.metric-purple::before { background: linear-gradient(90deg, #a855f7, #7c3aed); }
+.metric-orange::before { background: linear-gradient(90deg, #fbbf24, #d97706); }
+.metric-red::before { background: linear-gradient(90deg, #ef4444, #dc2626); }
+.metric-teal::before { background: linear-gradient(90deg, #14b8a6, #0d9488); }
+
 .metric span { display: block; color: var(--muted); font-size: 13px; font-weight: 800; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
 .metric strong { font-size: 32px; font-weight: 900; letter-spacing: -1px; color: #0f172a; }
 
 .grid { display: grid; gap: 24px; margin-top: 24px; }
 .grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
-/* ✨ Journal Layout 개편 (독립된 카드 배치 및 여백 확대) */
+/* ✨ Journal Layout (독립된 카드 배치 및 여백 확대) */
 .grid-journal { grid-template-columns: minmax(0, 1.8fr) minmax(340px, 0.9fr); gap: 32px; align-items: start; }
 .journal-main-card { background: transparent; border: none; box-shadow: none; padding: 0; }
-.journal-form-wrapper { display: flex; flex-direction: column; gap: 24px; }
+.journal-form-wrapper { display: flex; flex-direction: column; gap: 32px; }
 
 .phase-card {
-  background: #ffffff; border: 1px solid var(--line); border-radius: 24px; padding: 32px;
+  background: #ffffff; border: 1px solid var(--line); border-radius: 24px; padding: 40px;
   box-shadow: var(--shadow-subtle); position: relative; overflow: hidden;
 }
-.phase-card::before { content: ''; position: absolute; top:0; left:0; width:100%; height:4px; }
+.phase-card::before { content: ''; position: absolute; top:0; left:0; width:100%; height:6px; }
 .phase-blue::before { background: linear-gradient(90deg, #3b82f6, #2563eb); }
 .phase-yellow::before { background: linear-gradient(90deg, #fbbf24, #d97706); }
 .phase-green::before { background: linear-gradient(90deg, #10b981, #059669); }
 .phase-purple::before { background: linear-gradient(90deg, #a855f7, #7c3aed); }
 
+/* ✨ Phase Header 빛나는 네온 효과 (Glow Dot) 추가 */
 .phase-header { margin-bottom: 32px; border-bottom: 1px solid var(--line); padding-bottom: 16px; }
-.phase-header h3 { margin: 0; font-size: 20px; font-weight: 900; color: #0f172a; letter-spacing: -0.3px; }
-.phase-header p { margin: 6px 0 0; color: var(--muted); font-size: 13px; font-weight: 600; }
+.phase-header h3 { margin: 0; font-size: 22px; font-weight: 900; color: #0f172a; letter-spacing: -0.3px; display: flex; align-items: center; gap: 12px; }
+.phase-header h3::before { content: ''; display: inline-block; width: 12px; height: 12px; border-radius: 50%; }
+.phase-blue .phase-header h3::before { background: var(--accent); box-shadow: 0 0 12px rgba(37,99,235,0.6); }
+.phase-yellow .phase-header h3::before { background: var(--yellow); box-shadow: 0 0 12px rgba(245,158,11,0.6); }
+.phase-green .phase-header h3::before { background: var(--green); box-shadow: 0 0 12px rgba(16,185,129,0.6); }
+.phase-purple .phase-header h3::before { background: var(--purple); box-shadow: 0 0 12px rgba(139,92,246,0.6); }
+.phase-header p { margin: 6px 0 0; color: var(--muted); font-size: 13px; font-weight: 600; padding-left: 24px;}
 
 .detail-grid { align-items: start; }
 
 .form-stack { display: grid; gap: 24px; }
-.field-grid { display: grid; gap: 20px; }
-.responsive-cols { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.field-grid { display: grid; gap: 24px; } /* 여백 확대 */
+.responsive-cols { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px;}
 .cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .cols-1 { grid-template-columns: 1fr; }
-label span { display: block; margin-bottom: 8px; color: var(--muted); font-size: 12px; font-weight: 800; }
+label span { display: block; margin-bottom: 10px; color: var(--muted); font-size: 12px; font-weight: 800; } /* 라벨 여백 확대 */
 
 .input-group { display: flex; gap: 8px; align-items: center; width: 100%; }
 .flex-group input, .flex-group select { flex: 1 1 auto; min-width: 0; }
 .fixed-btn { flex: 0 0 auto; white-space: nowrap; }
 
 .input-with-unit { display: flex; align-items: stretch; background: #f8fafc; border: 1px solid var(--line); border-radius: var(--radius-sm); overflow: hidden; transition: 0.25s; width: 100%;}
-.input-with-unit input { border: none; background: transparent; padding: 12px 14px; border-radius: 0; width: 100%; min-width: 0;}
+.input-with-unit input { border: none; background: transparent; padding: 14px 16px; border-radius: 0; width: 100%; min-width: 0;}
 .input-with-unit input:focus { box-shadow: none; }
 .input-with-unit:focus-within { border-color: var(--accent); box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1); background: #ffffff; }
-.input-with-unit .unit { display: flex; align-items: center; padding: 0 12px; background: #f1f5f9; color: var(--muted); font-weight: 800; font-size: 13px; }
+.input-with-unit .unit { display: flex; align-items: center; padding: 0 16px; background: #f1f5f9; color: var(--muted); font-weight: 800; font-size: 13px; }
 .input-with-unit .unit.left { border-right: 1px solid var(--line); }
 .input-with-unit .unit.right { border-left: 1px solid var(--line); }
 
@@ -235,7 +248,7 @@ label span { display: block; margin-bottom: 8px; color: var(--muted); font-size:
 .mini-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .mini-head h4 { margin: 0; color: var(--muted); font-size: 13px; font-weight: 800; text-transform: uppercase; }
 
-.leg-row { display: grid; grid-template-columns: 1.5fr 1fr 1.2fr auto; gap: 10px; margin-bottom: 12px; }
+.leg-row { display: grid; grid-template-columns: 1.5fr 1fr 1.2fr auto; gap: 12px; margin-bottom: 12px; } /* 여백 확대 */
 .summary-box { background: var(--accent-soft); border: 1px dashed #bfdbfe; border-radius: 16px; padding: 20px; }
 .summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 .summary-item { background: #fff; border: 1px solid #bfdbfe; border-radius: 12px; padding: 14px; }
@@ -247,23 +260,28 @@ label span { display: block; margin-bottom: 8px; color: var(--muted); font-size:
 .quick-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
 .live-notes { min-height: 180px; margin-top: 16px; background: #ffffff; }
 
-.review-kpi { background: #ffffff; border: 1px solid var(--line); border-radius: 16px; padding: 16px; text-align: right; box-shadow: 0 4px 12px rgba(0,0,0,0.02); height: 100%; display: flex; flex-direction: column; justify-content: center;}
+/* ✨ Total R-Multiple 디자인 및 중앙 정렬 완벽 적용 */
+.review-kpi { background: #ffffff; border: 1px solid var(--line); border-radius: 16px; padding: 16px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.02); height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center;}
 .review-kpi-label { font-size: 11px; color: var(--muted); font-weight: 800; text-transform: uppercase; }
-.review-kpi-value { font-size: 32px; font-weight: 900; letter-spacing: -1px; color: var(--accent); margin-top: 4px; }
+.review-kpi-value { font-size: 32px; font-weight: 900; letter-spacing: -1px; color: var(--accent); margin-top: 8px; }
 
-/* ✨ 플로팅 액션 바 (화면 하단에 항상 떠있음) */
+/* ✨ Post-Trade 요약 평가 패널 추가 */
+.post-trade-kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; padding: 24px; background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%); border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.02); }
+.post-trade-kpi-item { display: flex; flex-direction: column; gap: 6px; }
+.post-trade-kpi-item label { font-size: 11px; font-weight: 800; color: var(--muted); text-transform: uppercase; margin: 0; }
+.post-trade-kpi-item span { font-size: 20px; font-weight: 900; color: #0f172a; }
+
+/* 플로팅 액션 바 (화면 하단에 항상 떠있음) */
 .journal-actions-sticky {
-  position: sticky; bottom: 24px; z-index: 40;
-  display: flex; gap: 12px; align-items: center;
-  background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-  padding: 16px; border-radius: 20px; border: 1px solid rgba(226, 232, 240, 0.8);
-  box-shadow: 0 10px 40px rgba(0,0,0,0.1); margin-top: 8px;
+  position: sticky; bottom: 32px; z-index: 40;
+  display: flex; gap: 16px; align-items: center;
+  background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  padding: 20px; border-radius: 24px; border: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow: 0 10px 40px rgba(0,0,0,0.1); margin-top: 16px;
 }
-.journal-actions-sticky .wide-btn { flex: 1; padding: 14px; font-size: 14px; }
-.journal-actions-sticky .btn-save-trade { flex: 2.5; padding: 14px; font-size: 15px; }
 
-.stack { display: grid; gap: 12px; }
-.list-row, .note-card, .similar-item { padding: 16px; border: 1px solid var(--line); border-radius: 16px; background: #ffffff; transition: all 0.2s ease; }
+.stack { display: grid; gap: 16px; }
+.list-row, .note-card, .similar-item { padding: 20px; border: 1px solid var(--line); border-radius: 16px; background: #ffffff; transition: all 0.2s ease; }
 .list-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .list-title { font-weight: 800; font-size: 14px; color: #0f172a; }
 .list-sub { color: var(--muted); font-size: 12px; margin-top: 6px; font-weight: 600; }
@@ -271,10 +289,10 @@ label span { display: block; margin-bottom: 8px; color: var(--muted); font-size:
 .note-card { line-height: 1.6; }
 
 /* 캘린더 디자인 고급화 */
-.calendar-large { padding: 8px; }
-.calendar-head { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 12px; margin-bottom: 12px; }
+.calendar-large { padding: 12px; }
+.calendar-head { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
 .calendar-head span { text-align: center; color: var(--muted); font-size: 12px; font-weight: 800; text-transform: uppercase; }
-.calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 12px; }
+.calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 16px; }
 .day { 
   min-height: 160px;
   border: 1px solid var(--line); border-radius: 16px; background: #ffffff; 
@@ -294,7 +312,7 @@ label span { display: block; margin-bottom: 8px; color: var(--muted); font-size:
 /* Library Table */
 .table-wrap { overflow: auto; border: 1px solid var(--line); border-radius: 20px; background: #fff; box-shadow: var(--shadow-subtle); }
 table { width: 100%; min-width: 1100px; border-collapse: collapse; }
-th, td { padding: 16px 20px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: middle; font-size: 13px; font-weight: 600;}
+th, td { padding: 18px 24px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: middle; font-size: 13px; font-weight: 600;}
 th { position: sticky; top: 0; z-index: 2; background: #f8fafc; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; font-size: 11px; font-weight: 800; }
 tbody tr { transition: background-color 0.2s ease; }
 tbody tr:hover { background: #f1f5f9; cursor: pointer; }
@@ -328,7 +346,7 @@ tbody tr:hover { background: #f1f5f9; cursor: pointer; }
 /* Sidebar Account Status */
 .journal-sidebar { position: sticky; top: 100px; align-content: start; }
 .bank-balance-shell { border-radius: 16px; overflow: hidden; border: 1px solid var(--line); background: #ffffff; margin-bottom: 12px; box-shadow: var(--shadow-subtle); }
-.bank-balance-head { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; background: #f8fafc; border-bottom: 1px solid var(--line); }
+.bank-balance-head { display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; background: #f8fafc; border-bottom: 1px solid var(--line); }
 .bank-balance-head span { color: var(--muted); font-weight: 800; font-size: 12px; text-transform: uppercase; }
 .bank-balance-head strong { font-size: 24px; font-weight: 900; letter-spacing: -1px; color: #0f172a; }
 .bank-grid { display: grid; gap: 12px; padding: 16px; }
@@ -339,25 +357,17 @@ tbody tr:hover { background: #f1f5f9; cursor: pointer; }
 .bank-asset-card input { border: none; padding: 0; font-size: 18px; font-weight: 900; background: transparent; box-shadow: none; color: #0f172a; }
 .bank-action-row { display: flex; gap: 8px; padding: 0 16px 16px; border-bottom: 1px solid var(--line); margin-bottom: 16px;}
 .bank-action-row input { flex: 1; padding: 10px 14px; font-size: 13px; font-weight: 600;}
-.btn-save-balance { padding: 10px 16px; border: none; background: var(--accent); color: #fff; font-weight: 800; border-radius: var(--radius-sm); font-size: 13px; cursor: pointer; transition: 0.2s;}
-.btn-save-balance:hover { background: var(--accent-hover); }
 .balance-history-container { padding: 0 16px 16px 16px; max-height: 160px; overflow-y: auto;}
 
-/* ✨ Checklist Styles (고급 카드형 박스 디자인 적용) */
-.trade-checklist-grid { 
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); 
-  gap: 12px; background: #f8fafc; padding: 20px; border-radius: 16px; border: 1px solid var(--line); 
-}
-.check-inline { 
-  display: flex; align-items: center; gap: 10px; cursor: pointer; 
-  font-weight: 700; color: #334155; padding: 12px 16px; 
-  background: #ffffff; border: 1px solid var(--line); border-radius: 12px;
-  transition: all 0.2s ease;
-}
-.check-inline:hover { border-color: var(--accent); background: var(--accent-soft); }
-.check-inline input[type="checkbox"] { 
-  margin: 0; width: 18px; height: 18px; accent-color: var(--green); cursor: pointer; flex-shrink: 0;
-}
+/* ✨ Checklist Styles (프리미엄 룩) */
+.premium-label-wrapper { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.premium-label-line { width: 4px; height: 16px; background: var(--accent); border-radius: 2px; }
+.premium-label-wrapper label { margin: 0; font-size: 14px; color: #0f172a; font-weight: 800;}
+
+.trade-checklist-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+.check-inline { display: flex; align-items: center; gap: 10px; cursor: pointer; font-weight: 700; color: #334155; padding: 14px 16px; background: #f8fafc; border: 1px solid var(--line); border-radius: 12px; transition: all 0.2s ease;}
+.check-inline:hover { border-color: var(--accent); background: #ffffff; box-shadow: 0 2px 8px rgba(37,99,235,0.05);}
+.check-inline input[type="checkbox"] { margin: 0; width: 18px; height: 18px; accent-color: var(--green); cursor: pointer; flex-shrink: 0;}
 
 /* Playbook Card Styles */
 .playbook-card { background: #ffffff; border: 1px solid var(--line); border-radius: 24px; overflow: hidden; transition: all 0.3s ease; cursor: pointer; display: flex; flex-direction: column; box-shadow: var(--shadow-subtle); }
@@ -368,10 +378,7 @@ tbody tr:hover { background: #f1f5f9; cursor: pointer; }
 .btn-view-chart { padding: 10px 20px; background: #fff; color: var(--accent); font-weight: 800; font-size: 13px; border-radius: 999px; text-decoration: none; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.15); transition: 0.2s; z-index: 10;}
 .btn-view-chart:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(37, 99, 235, 0.25); color: var(--accent-hover);}
 
-
-/* ==========================================================================
-   📱 Mobile Optimization (Responsive UI) & Card View
-   ========================================================================== */
+/* Mobile Optimization */
 @media (max-width: 768px) {
   .container { padding: 12px; }
   .card, .phase-card { padding: 16px; border-radius: 16px; }
@@ -429,7 +436,9 @@ tbody tr:hover { background: #f1f5f9; cursor: pointer; }
   .day .pnl { font-size: 11px; word-break: break-all; line-height: 1.2;}
   
   input, select, textarea, .tool-btn, .btn-save-balance { font-size: 14px; padding: 14px; }
-  
+  .check-inline { padding: 8px 12px; }
+  .check-inline input[type="checkbox"] { width: 22px; height: 22px; }
+
   .table-wrap { background: transparent; border: none; box-shadow: none; overflow: visible; }
   .table-wrap table, .table-wrap thead, .table-wrap tbody, .table-wrap th, .table-wrap td, .table-wrap tr { display: block; width: 100%; }
   .table-wrap thead { display: none; } 
