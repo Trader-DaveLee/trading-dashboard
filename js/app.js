@@ -1,23 +1,21 @@
 import { recalcTrade } from './calc.js';
 import {
-  summarize, groupAverageR, tagStats,
-  recentWindowStats, sessionSetupStats, gradeStats, filterTradesByDate
+  summarize, groupAverageR, tagStats, filterTradesByDate
 } from './analytics.js';
 import {
   loadDB, saveDB, exportDB, parseImport, normalizeTrade,
-  loadDraft, saveDraft, clearDraft, loadPrefs, savePrefs
+  loadDraft, saveDraft, clearDraft
 } from './storage.js';
 
 const state = {
   db: loadDB(),
-  prefs: loadPrefs(),
   view: 'overview',
   month: new Date(),
   selectedTradeId: null,
   filteredTrades: [],
   draftEntries: [{ price: 0, type: 'M', weight: 100 }],
   draftExits: [],
-  draftLiveCharts: [], // ✨ Live 차트 상태 관리 추가
+  draftLiveCharts: [],
   dirty: false,
 };
 
@@ -27,7 +25,7 @@ let draftTimer = null;
 
 const ID_LIST = [
   'nav','force-save-draft','export-json','import-json-btn','import-json','journal-status','draft-saved-at',
-  'view-overview','metrics','overview-from','overview-to','overview-clear','prev-month','calendar-title','next-month','calendar','equity-chart','setup-chart','mistake-list','research-notes','overview-portfolio',
+  'view-overview','metrics','overview-from','overview-to','overview-clear','prev-month','calendar-title','next-month','calendar','equity-chart','balance-chart','setup-chart','mistake-list','research-notes','overview-portfolio',
   'view-journal','trade-form','trade-id','trade-date','btn-now','ticker','btn-manage-ticker','status','session','side','setup-entry','btn-manage-setup-entry','setup-exit','btn-manage-setup-exit',
   'account-size','risk-pct','leverage','maker-fee','taker-fee','stop-price','mark-price','stop-type','adjustment',
   'context','thesis','review','chart-entry','chart-exit','tags','mistakes',
@@ -54,7 +52,6 @@ window.__desk_jump_date = (dateString) => {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
-// ✨ 잔고 개별 삭제 전역 함수
 window.__desk_del_balance = (id) => {
   if(!confirm("이 잔고 기록을 삭제하시겠습니까?")) return;
   state.db.meta.balanceHistory = state.db.meta.balanceHistory.filter(h => h.id !== id);
@@ -66,6 +63,7 @@ window.__desk_del_balance = (id) => {
   saveDB(state.db);
   renderAccountBalance();
   renderOverviewPortfolio();
+  if (state.view === 'overview') renderOverview();
   updatePreview();
 };
 
@@ -135,7 +133,6 @@ function bindEvents() {
     updatePreview();
   };
   
-  // ✨ 진행 중 차트(Live Chart) 추가 이벤트
   els['add-live-chart'].onclick = () => {
     state.draftLiveCharts.push('');
     renderLiveCharts();
@@ -191,7 +188,7 @@ function bindEvents() {
   
   if(els['desk-rules']) {
     els['desk-rules'].addEventListener('input', function() {
-      autoResize(this); // ✨ 입력할 때마다 자동 리사이징
+      autoResize(this);
       state.db.meta.rules = this.value;
       saveDB(state.db);
     });
@@ -331,7 +328,6 @@ function getCheckedRules() {
   return Array.from(boxes).map(b => b.value);
 }
 
-
 function renderDropdowns() {
   populateSelect('ticker', state.db.meta.tickers);
   populateSelect('setup-entry', state.db.meta.entrySetups);
@@ -383,7 +379,7 @@ function hydrateInitialForm() {
   setVal('trade-date', inputDate(new Date().toISOString()));
   setVal('account-size', Math.round(Number(state.db.meta.accountBalance || 10000)));
   setVal('desk-rules', state.db.meta.rules || '');
-  autoResize(els['desk-rules']); // ✨ 데스크룰 높이 자동 조정 반영
+  setTimeout(() => autoResize(els['desk-rules']), 0);
   state.draftEntries = [{ price: 0, type: 'M', weight: 100 }];
   state.draftExits = [];
   state.draftLiveCharts = [];
@@ -403,7 +399,6 @@ function restoreDraftIfPresent() {
   }
 }
 
-// ✨ 진행 중 차트 (다중) 렌더링 로직
 function renderLiveCharts() {
   const container = els['live-charts-container'];
   if (!container) return;
@@ -782,6 +777,7 @@ function renderOverview() {
   renderCalendar();
   renderEquityChart(stats.closed);
   renderSetupChart(setups.slice(0, 8));
+  renderBalanceChart(); // ✨ Phase 1: 자금 흐름(Balance Curve) 차트 렌더링 호출
   renderOverviewPortfolio();
 }
 
@@ -855,28 +851,58 @@ function renderEquityChart(trades) {
     equity += trade.metrics.pnl;
     return { x: idx, y: equity };
   });
-  const yValues = points.map(p => p.y);
-  const minY = Math.min(0, ...yValues);
-  const maxY = Math.max(0, ...yValues);
-  const width = 780;
-  const height = 280;
-  const pad = 32;
-  const xStep = points.length > 1 ? (width - pad * 2) / (points.length - 1) : 0;
-  const scaleY = value => {
-    if (maxY === minY) return height / 2;
-    return height - pad - ((value - minY) / (maxY - minY)) * (height - pad * 2);
-  };
-  const d = points.map((point, idx) => `${idx === 0 ? 'M' : 'L'} ${pad + point.x * xStep} ${scaleY(point.y)}`).join(' ');
-  const area = `${d} L ${pad + (points.length - 1) * xStep} ${height - pad} L ${pad} ${height - pad} Z`;
+  
+  setHtml('equity-chart', lineSvg(points, false));
+}
 
-  setHtml('equity-chart', `
-    <svg viewBox="0 0 ${width} ${height}" aria-label="equity curve">
+// ✨ Phase 1: 입출금이 포함된 총 자산(Balance) 흐름 차트 시각화
+function renderBalanceChart() {
+  const history = state.db.meta.balanceHistory || [];
+  if (!history.length) {
+    setHtml('balance-chart', emptyState('표시할 잔고 데이터가 없습니다.'));
+    return;
+  }
+
+  const rows = [...history].reverse(); // 과거부터 최신순으로 정렬
+  const points = rows.map((row, idx) => ({ x: idx, y: row.val }));
+
+  setHtml('balance-chart', lineSvg(points, true));
+}
+
+function lineSvg(points, isBalance = false) {
+  if (points.length === 0) return '';
+  const width = 780, height = 280, pad = 32;
+  const yValues = points.map(p => p.y);
+  let minY, maxY;
+  
+  if (isBalance) {
+    const minVal = Math.min(...yValues);
+    const maxVal = Math.max(...yValues);
+    const diff = maxVal - minVal || maxVal * 0.1 || 10;
+    minY = Math.max(0, minVal - diff * 0.2);
+    maxY = maxVal + diff * 0.2;
+  } else {
+    minY = Math.min(0, ...yValues);
+    maxY = Math.max(0, ...yValues);
+  }
+  
+  const xStep = points.length > 1 ? (width - pad * 2) / (points.length - 1) : 0;
+  const scaleY = val => {
+    if (maxY === minY) return height / 2;
+    return height - pad - ((val - minY) / (maxY - minY)) * (height - pad * 2);
+  };
+  
+  const d = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${pad + i * xStep} ${scaleY(p.y)}`).join(' ');
+  const area = `${d} L ${pad + (points.length - 1) * xStep} ${height - pad} L ${pad} ${height - pad} Z`;
+  
+  return `
+    <svg viewBox="0 0 ${width} ${height}" aria-label="chart">
       <line x1="${pad}" y1="${height - pad}" x2="${width - pad}" y2="${height - pad}" class="grid-line" />
       <line x1="${pad}" y1="${pad}" x2="${pad}" y2="${height - pad}" class="grid-line" />
       <path d="${area}" class="area"></path>
       <path d="${d}" class="line"></path>
     </svg>
-  `);
+  `;
 }
 
 function renderSetupChart(rows) {
@@ -941,12 +967,11 @@ function renderAccountBalance() {
   calcTotalBalance();
   
   setVal('desk-rules', state.db.meta.rules || '');
-  autoResize(els['desk-rules']); // 불러올 때 자동 높이 적용
+  setTimeout(() => autoResize(els['desk-rules']), 0);
 
   const typeColors = { PNL: 'var(--accent)', DEPOSIT: 'var(--green)', WITHDRAWAL: 'var(--red)', MANUAL: 'var(--muted)' };
   const typeLabels = { PNL: '매매', DEPOSIT: '입금', WITHDRAWAL: '출금', MANUAL: '조정' };
 
-  // ✨ 기록 개별 삭제를 위한 X 버튼 추가 반영
   setHtml('balance-history', history.length ? history.map(row => `
     <div style="padding:12px; border:1px solid var(--line); border-radius:12px; margin-bottom:8px; background:#fff;">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
@@ -1003,6 +1028,7 @@ function updateBalance() {
   saveDB(state.db);
   renderAccountBalance();
   renderOverviewPortfolio();
+  if (state.view === 'overview') renderOverview(); // 잔고 추가 시 바로 차트 렌더링 반영
   updatePreview();
 }
 
@@ -1020,20 +1046,21 @@ function renderLibrary() {
     state.selectedTradeId = rows[0]?.id || null;
   }
 
+  // ✨ Phase 4: 모바일 최적화를 위해 표 요소에 data-label 속성 부여
   setHtml('trade-table', rows.length ? rows.map(trade => `
     <tr data-id="${trade.id}" class="${trade.id === state.selectedTradeId ? 'selected-row' : ''}">
-      <td>${formatDateTime(trade.date)}</td>
-      <td>${trade.status === 'OPEN' ? '<span class="badge-open">OPEN</span>' : '<span class="badge-closed">CLOSED</span>'}</td>
-      <td style="font-weight:800; color:#0f172a;">${escapeHtml(trade.ticker)}</td>
-      <td>${escapeHtml(trade.side)}</td>
-      <td>${escapeHtml(trade.session)}</td>
-      <td style="font-weight:700;">${escapeHtml(trade.setupEntry || '—')}</td>
-      <td class="mono">${trade.metrics.avgEntry ? moneyAbs(trade.metrics.avgEntry) : '—'}</td>
-      <td class="mono">${trade.metrics.avgExit ? moneyAbs(trade.metrics.avgExit) : '—'}</td>
-      <td class="mono ${trade.metrics.pnl > 0 ? 'positive' : trade.metrics.pnl < 0 ? 'negative' : ''}">${money(trade.metrics.pnl)}</td>
-      <td class="mono ${trade.metrics.r > 0 ? 'positive' : trade.metrics.r < 0 ? 'negative' : ''}">${trade.metrics.r.toFixed(2)}R</td>
-      <td><span class="badge ${trade.grade === 'S' || trade.grade === 'A' ? 'badge-good' : ''}">${trade.grade}</span></td>
-      <td>${(trade.tags || []).slice(0, 3).map(tag => `<span class="chip">${escapeHtml(tag)}</span>`).join(' ')}</td>
+      <td data-label="날짜">${formatDateTime(trade.date)}</td>
+      <td data-label="상태">${trade.status === 'OPEN' ? '<span class="badge-open">OPEN</span>' : '<span class="badge-closed">CLOSED</span>'}</td>
+      <td data-label="티커" style="font-weight:800; color:#0f172a;">${escapeHtml(trade.ticker)}</td>
+      <td data-label="방향">${escapeHtml(trade.side)}</td>
+      <td data-label="세션">${escapeHtml(trade.session)}</td>
+      <td data-label="셋업" style="font-weight:700;">${escapeHtml(trade.setupEntry || '—')}</td>
+      <td data-label="Avg In" class="mono">${trade.metrics.avgEntry ? moneyAbs(trade.metrics.avgEntry) : '—'}</td>
+      <td data-label="Avg Out" class="mono">${trade.metrics.avgExit ? moneyAbs(trade.metrics.avgExit) : '—'}</td>
+      <td data-label="PnL" class="mono ${trade.metrics.pnl > 0 ? 'positive' : trade.metrics.pnl < 0 ? 'negative' : ''}">${money(trade.metrics.pnl)}</td>
+      <td data-label="R" class="mono ${trade.metrics.r > 0 ? 'positive' : trade.metrics.r < 0 ? 'negative' : ''}">${trade.metrics.r.toFixed(2)}R</td>
+      <td data-label="Grade"><span class="badge ${trade.grade === 'S' || trade.grade === 'A' ? 'badge-good' : ''}">${trade.grade}</span></td>
+      <td data-label="태그">${(trade.tags || []).slice(0, 3).map(tag => `<span class="chip">${escapeHtml(tag)}</span>`).join(' ')}</td>
     </tr>
   `).join('') : `<tr><td colspan="12">${emptyState('검색 결과가 없습니다.')}</td></tr>`);
 
@@ -1215,7 +1242,6 @@ function renderPlaybook() {
 
   let html = '';
   rows.forEach(trade => {
-    // ✨ Playbook 썸네일은 '종료 차트' 우선, 없으면 '진입 차트' 사용
     const chartUrl = trade.evidence?.exitChart || trade.evidence?.entryChart;
     let imgHtml = '';
     if (chartUrl) {
