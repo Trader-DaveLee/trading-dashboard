@@ -145,7 +145,7 @@ function fromV5Trade(t) {
     tags: [],
     mistakes: [],
     checkedRules: [],
-    evidence: { entryChart: t.img1 || '', exitChart: t.img2 || '', liveCharts: [] },
+    evidence: { entryCharts: [t.img1].filter(Boolean), exitCharts: [t.img2].filter(Boolean), liveCharts: [] },
     entries: (t.entries || []).map(x => ({ price: Number(x.price || 0), type: x.type || 'M', weight: Number(x.weight || 0) })),
     exits: (t.exits || []).map(x => ({ price: Number(x.price || 0), type: x.type || 'M', weight: Number(x.weight || 0) })),
   };
@@ -182,7 +182,7 @@ export function normalizeTrade(t = {}) {
     mistakes: normalizeLowerList(t.mistakes),
     checkedRules: normalizeList(t.checkedRules),
 
-    evidence: normalizeEvidence(t.evidence, t.artifacts),
+    evidence: normalizeEvidence(t.evidence, t.artifacts, t.entryChart, t.exitChart),
     entries: normalizeLegs(t.entries, true),
     exits: normalizeLegs(t.exits, false),
   };
@@ -200,12 +200,24 @@ export function sanitizeUrl(url) {
   return trimmed;
 }
 
-function normalizeEvidence(evidence, artifacts) {
+function normalizeEvidence(evidence, artifacts, legacyEntry, legacyExit) {
   const fallback = Array.isArray(artifacts) ? artifacts : [];
   const obj = evidence && typeof evidence === 'object' ? evidence : {};
+  
+  // 이전 버전의 단일 문자열 포맷을 다중 배열 포맷으로 안전하게 마이그레이션
+  let entryArray = Array.isArray(obj.entryCharts) ? obj.entryCharts : [];
+  if (entryArray.length === 0 && (obj.entryChart || fallback[0] || legacyEntry)) {
+      entryArray = [obj.entryChart || fallback[0] || legacyEntry];
+  }
+  
+  let exitArray = Array.isArray(obj.exitCharts) ? obj.exitCharts : [];
+  if (exitArray.length === 0 && (obj.exitChart || fallback[1] || legacyExit)) {
+      exitArray = [obj.exitChart || fallback[1] || legacyExit];
+  }
+
   return {
-    entryChart: sanitizeUrl(obj.entryChart || fallback[0]),
-    exitChart: sanitizeUrl(obj.exitChart || fallback[1]),
+    entryCharts: entryArray.map(v => sanitizeUrl(v)).filter(Boolean),
+    exitCharts: exitArray.map(v => sanitizeUrl(v)).filter(Boolean),
     liveCharts: Array.isArray(obj.liveCharts) ? obj.liveCharts.map(v => sanitizeUrl(v)).filter(Boolean) : [],
   };
 }
