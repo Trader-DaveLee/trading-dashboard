@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Trading Desk Dashboard v6.0 (Luxury Edition)</title>
+  <title>Trading Desk Dashboard v6.1 (Luxury UI)</title>
   <link rel="stylesheet" href="./css/styles.css" />
 </head>
 <body>
@@ -44,15 +44,15 @@
 
       <div class="section-head section-head-large overview-hero">
         <div>
-          <h3>Overview & Dashboard</h3>
-          <p>오늘의 매매 환경과 핵심 트레이딩 성과입니다.</p>
+          <h3 style="font-size: 40px; font-weight: 900; letter-spacing: -1.5px;">Overview</h3>
+          <p style="font-size: 15px; font-weight: 700; color: var(--muted); margin-top: 8px;">트레이딩 성과 요약</p>
         </div>
         <div class="date-filter-box">
           <span class="filter-label">📊 통계 기간</span>
           <input type="date" id="overview-from" />
           <span class="filter-sep">~</span>
           <input type="date" id="overview-to" />
-          <button type="button" id="overview-search" class="tool-btn primary-btn">조회</button>
+          <button type="button" id="overview-search" class="tool-btn">조회</button>
           <button type="button" id="overview-clear" class="tool-btn">전체</button>
         </div>
       </div>
@@ -181,7 +181,7 @@
                 <label><span>미세 보정 (+/- $)</span><input id="adjustment" type="number" step="0.01" value="0" /></label>
               </div>
 
-              <div class="field-grid cols-2" style="margin-top: 32px;">
+              <div class="field-grid cols-2" style="margin-top: 24px;">
                 <div>
                   <div class="mini-head"><h4>SCALING-IN (진입 100%)</h4><button type="button" id="add-entry" class="tool-btn btn-sm">＋ 추가</button></div>
                   <div id="entries"></div>
@@ -211,7 +211,7 @@
                 </div>
                 <textarea id="live-notes" class="auto-resize live-notes" placeholder="[2026-04-01 09:35:10] NY open reclaim 확인"></textarea>
                 
-                <div style="margin-top: 32px;">
+                <div style="margin-top: 24px;">
                   <div class="mini-head"><h4>진행 중 차트 증거 (Live Charts)</h4><button type="button" id="add-live-chart" class="tool-btn btn-sm">＋ 차트 추가</button></div>
                   <div id="live-charts-container" class="stack"></div>
                 </div>
@@ -224,7 +224,7 @@
                 <p>핵심 복기와 평가 점수</p>
               </div>
 
-              <div id="post-trade-summary" class="post-trade-kpi-grid" style="display:none; margin-bottom: 24px;"></div>
+              <div id="post-trade-eval" class="post-trade-eval-box hidden"></div>
 
               <div class="field-grid cols-3" style="margin-bottom: 24px; align-items: stretch;">
                 <label>
@@ -237,9 +237,9 @@
                     <option value="D">D (뇌동 매매, 원칙 위반)</option>
                   </select>
                 </label>
-                <div class="review-kpi" style="grid-column: span 2;">
+                <div class="review-kpi" style="grid-column: span 2; text-align: center; justify-content: center;">
                   <div class="review-kpi-label">Total R-Multiple</div>
-                  <div id="deep-review-r" class="review-kpi-value">0.00R</div>
+                  <div id="deep-review-r" class="review-kpi-value" style="display:flex; justify-content:center;">0.00R</div>
                 </div>
               </div>
 
@@ -270,10 +270,10 @@
             </article>
 
             <div class="journal-actions-sticky">
-              <button type="submit" class="btn-save-trade primary-btn">💾 Save & Update Trade</button>
-              <button type="button" id="duplicate-trade" class="tool-btn">복제</button>
-              <button type="button" id="reset-form" class="tool-btn">초기화</button>
               <button type="button" id="delete-trade" class="tool-btn danger-btn">삭제</button>
+              <button type="button" id="reset-form" class="tool-btn">초기화</button>
+              <button type="button" id="duplicate-trade" class="tool-btn">복제</button>
+              <button type="submit" class="tool-btn primary-btn">💾 Save & Update Trade</button>
             </div>
           </form>
         </div>
@@ -303,7 +303,7 @@
                   <option value="MANUAL">단순조정</option>
                 </select>
                 <input type="text" id="balance-memo" placeholder="메모 (선택)" style="flex:1;" />
-                <button type="button" id="btn-update-balance" class="tool-btn primary-btn">기록</button>
+                <button type="button" id="btn-update-balance" class="tool-btn">기록</button>
               </div>
               <div id="balance-history" class="balance-history-container"></div>
             </div>
@@ -330,8 +330,13 @@
           <article class="card compact-card">
             <div class="section-head"><div><h3>Desk Rules</h3><p>원칙 및 체크리스트 관리</p></div></div>
             <div class="stack">
-              <label><span>📝 규칙 메모</span><textarea id="desk-rules" class="auto-resize rules-box" placeholder="항상 되새길 일반 원칙들..."></textarea></label>
-              <div class="checklist-manager">
+              <div class="premium-label-wrapper" style="margin-bottom: 0px;">
+                <span class="premium-label-line"></span>
+                <label>📝 규칙 메모</label>
+              </div>
+              <textarea id="desk-rules" class="auto-resize rules-box" placeholder="항상 되새길 일반 원칙들..."></textarea>
+              
+              <div class="checklist-manager" style="margin-top: 12px;">
                 <div class="premium-label-wrapper" style="margin-bottom: 12px;">
                   <span class="premium-label-line"></span>
                   <label>Master Checklist</label>
@@ -339,7 +344,7 @@
                 <div id="master-checklist-list" class="stack" style="margin-bottom:12px;"></div>
                 <div class="input-group flex-group">
                   <input type="text" id="new-check-input" placeholder="새 항목...">
-                  <button type="button" id="btn-add-check" class="tool-btn primary-btn fixed-btn">추가</button>
+                  <button type="button" id="btn-add-check" class="tool-btn fixed-btn">추가</button>
                 </div>
               </div>
             </div>
@@ -437,11 +442,11 @@
       <div id="list-manage-title" class="modal-title">항목 관리</div>
       <div class="input-group flex-group" style="margin-bottom: 24px;">
         <input type="text" id="list-manage-input" placeholder="새 항목 추가..." />
-        <button type="button" id="list-manage-add" class="tool-btn primary-btn">추가</button>
+        <button type="button" id="list-manage-add" class="tool-btn">추가</button>
       </div>
       <div id="list-manage-items" class="stack" style="max-height: 380px; overflow-y: auto; padding-right:4px;"></div>
       <div class="modal-actions" style="margin-top: 24px;">
-        <button id="list-manage-close" class="tool-btn">닫기</button>
+        <button id="list-manage-close" class="tool-btn primary-btn">닫기</button>
       </div>
     </div>
   </div>
@@ -455,13 +460,13 @@
          <label><span>아이콘(이모지)</span>
            <div class="input-group flex-group">
              <input type="text" id="ql-icon" placeholder="🔗" style="width:100%;" />
-             <button type="button" id="ql-add" class="tool-btn primary-btn fixed-btn">추가</button>
+             <button type="button" id="ql-add" class="tool-btn fixed-btn">추가</button>
            </div>
          </label>
       </div>
       <div id="ql-items" class="stack" style="max-height: 380px; overflow-y: auto; padding-right:4px;"></div>
       <div class="modal-actions" style="margin-top: 24px;">
-        <button id="ql-close" class="tool-btn">닫기</button>
+        <button id="ql-close" class="tool-btn primary-btn">닫기</button>
       </div>
     </div>
   </div>
