@@ -28,16 +28,20 @@ let draftTimer = null;
 const ID_LIST = [
   'nav','force-save-draft','export-json','import-json-btn','import-json','journal-status','draft-saved-at',
   'view-overview','metrics','overview-from','overview-to','overview-clear','overview-search','prev-month','calendar-title','next-month','calendar','equity-chart','balance-chart','setup-chart','mistake-list','research-notes','overview-portfolio',
-  'realtime-clock','quick-launch-grid','btn-manage-quick-links','today-console','eod-memo',
+  'realtime-clock','quick-launch-grid','btn-manage-quick-links',
   'view-journal','trade-form','trade-id','trade-date','btn-now','ticker','btn-manage-ticker','status','session','side','setup-entry','btn-manage-setup-entry','setup-exit','btn-manage-setup-exit',
   'account-size','risk-pct','leverage','maker-fee','taker-fee','stop-price','mark-price','stop-type','adjustment',
   'context','thesis','review','tags','mistakes',
   'add-entry','entries','add-exit','exits','calc-summary','quick-tags','quick-mistakes','live-notes','btn-insert-time','add-live-chart','live-charts-container',
-  'add-entry-chart','entry-charts-container','add-exit-chart','exit-charts-container','post-trade-eval',
+  'add-entry-chart','entry-charts-container','add-exit-chart','exit-charts-container',
+  
+  // ✨ 실시간 영수증(Phase 4) 관련 ID
+  'eval-status-badge', 'eval-margin', 'eval-bep', 'eval-fees', 'eval-pnl', 'eval-r', 'eval-roi', 'label-pnl', 'label-r',
+  
   'bal-cash','bal-crypto','bal-usdt','bal-stock','bal-total','balance-type','balance-memo','btn-update-balance','balance-history',
-  'duplicate-trade','reset-form','delete-trade','grade','deep-review-r',
+  'duplicate-trade','reset-form','delete-trade','grade',
   'desk-rules','master-checklist-list','new-check-input','btn-add-check','trade-checklist-container',
-  'risk-risk-dollar','risk-qty','risk-margin','risk-slider','risk-notional','risk-stop-distance','risk-fees','risk-realized','risk-unrealized','risk-residual',
+  'risk-risk-dollar','risk-qty','risk-margin','risk-slider','risk-notional','risk-stop-distance','risk-fees','risk-realized','risk-unrealized','risk-residual','risk-bep',
   'view-library','q','f-from','f-to','f-status','f-side','f-session','f-setup','f-tag','f-mistake','f-grade','sort','clear-filters','library-result-count','review-position','review-breadcrumb','prev-trade','next-trade','filter-same-setup','filter-same-ticker','clear-quick-filter','trade-table','detail','detail-insights',
   'view-playbook','playbook-gallery',
   'app-modal','modal-title','modal-desc','modal-input','modal-btn-cancel','modal-btn-confirm',
@@ -888,45 +892,50 @@ function applyTradeToForm(trade, options = {}) {
   updatePreview();
 }
 
+// ✨ 화면 업데이트 및 영수증 실시간 렌더링
 function updatePreview() {
   const trade = readForm();
   const metrics = trade.metrics;
+  
   renderCalcSummary(metrics, trade);
   renderRiskPanel(metrics);
-  renderTradeEvaluation(metrics, trade);
-  setText('deep-review-r', `${metrics.r.toFixed(2)}R`);
+  renderTradeEvaluation(metrics, trade); // 영수증 렌더링
+
+  // 기존 Risk Planner 본절가 반영
+  if(els['risk-bep']) els['risk-bep'].textContent = metrics.breakEvenPrice > 0 ? safeNumber(metrics.breakEvenPrice.toFixed(4)) : '0.00';
 }
 
+// ✨ 통합된 영수증(Receipt) 평가 패널 렌더링
 function renderTradeEvaluation(metrics, trade) {
-  const container = els['post-trade-eval'];
-  if (!container) return;
-  
-  if (trade.status !== 'CLOSED' || !metrics.valid) {
-    container.classList.add('hidden');
-    return;
-  }
-  container.classList.remove('hidden');
+  if (!els['eval-status-badge']) return;
 
-  const isWin = metrics.netPnl > 0;
-  const otherClosed = state.db.trades.filter(t => t.status === 'CLOSED' && t.id !== trade.id);
-  const oldWins = otherClosed.filter(t => t.metrics.pnl > 0).length;
-  const oldTotal = otherClosed.length;
-  const oldWinRate = oldTotal ? (oldWins / oldTotal) * 100 : 0;
+  const isClosed = trade.status === 'CLOSED';
   
-  const newWins = oldWins + (isWin ? 1 : 0);
-  const newTotal = oldTotal + 1;
-  const newWinRate = (newWins / newTotal) * 100;
-  const winRateImpact = newWinRate - oldWinRate;
+  // 상태 바지 표시 (OPEN/CLOSED)
+  els['eval-status-badge'].innerHTML = isClosed 
+    ? '<span style="color:#94a3b8;">FINAL (CLOSED)</span>' 
+    : '<span style="color:#60a5fa;">PROJECTED (OPEN)</span>';
 
-  setHtml('post-trade-eval', `
-    <div class="eval-grid">
-      <div class="eval-item"><label>투입 마진</label><span class="eval-value">${moneyAbs(metrics.margin)}</span></div>
-      <div class="eval-item"><label>평균 진입</label><span class="eval-value">${moneyAbs(metrics.avgEntry)}</span></div>
-      <div class="eval-item"><label>평균 청산</label><span class="eval-value">${moneyAbs(metrics.avgExit)}</span></div>
-      <div class="eval-item"><label>수수료</label><span class="eval-value negative">-${moneyAbs(metrics.totalFees)}</span></div>
-      <div class="eval-item"><label>최종 손익</label><span class="eval-value ${metrics.netPnl > 0 ? 'positive' : 'negative'}">${money(metrics.netPnl)}</span></div>
-    </div>
-  `);
+  // 값 바인딩
+  els['eval-margin'].textContent = moneyAbs(metrics.margin);
+  els['eval-bep'].textContent = metrics.breakEvenPrice > 0 ? safeNumber(metrics.breakEvenPrice.toFixed(4)) : '0.00';
+  els['eval-fees'].textContent = `-${moneyAbs(metrics.totalFees)}`;
+  
+  const displayPnl = isClosed ? metrics.netPnl : (metrics.exitPct > 0 ? metrics.projectedPnl : metrics.unrealizedPnl);
+  const displayR = isClosed ? metrics.r : (metrics.exitPct > 0 ? metrics.projectedR : metrics.unrealizedR);
+  
+  els['eval-pnl'].textContent = money(displayPnl);
+  els['eval-pnl'].className = `eval-value ${displayPnl > 0 ? 'positive' : displayPnl < 0 ? 'negative' : ''}`;
+  
+  els['eval-r'].textContent = `${displayR.toFixed(2)}R`;
+  els['eval-r'].className = `eval-value ${displayR > 0 ? 'positive' : displayR < 0 ? 'negative' : ''}`;
+  
+  els['eval-roi'].textContent = `${metrics.accountImpact > 0 ? '+' : ''}${metrics.accountImpact.toFixed(2)}%`;
+  els['eval-roi'].className = `eval-value ${metrics.accountImpact > 0 ? 'positive' : metrics.accountImpact < 0 ? 'negative' : ''}`;
+
+  // 라벨 문구 변경 (예상 vs 최종)
+  if(els['label-pnl']) els['label-pnl'].textContent = isClosed ? '최종 PnL' : '예상 PnL';
+  if(els['label-r']) els['label-r'].textContent = isClosed ? '최종 R' : '예상 R';
 }
 
 function renderCalcSummary(metrics, trade) {
@@ -995,8 +1004,6 @@ function metricCard(label, value, colorClass) {
 }
 
 function renderOverview() {
-  renderTodayConsole();
-
   const trades = getOverviewTrades();
   const stats = summarize(trades);
   const setups = groupAverageR(stats.closed, trade => trade.setupEntry);
@@ -1032,38 +1039,6 @@ function renderOverview() {
   renderEquityChart(stats.closed);
   renderBalanceChart(); 
   renderOverviewPortfolio();
-}
-
-function renderTodayConsole() {
-  if (!els['today-console']) return;
-  const todayStr = new Date().toISOString().slice(0, 10);
-  const todays = state.db.trades.filter(t => t.date.slice(0,10) === todayStr);
-  const s = summarize(todays);
-  
-  if(!state.db.meta.dailyMemos) state.db.meta.dailyMemos = {};
-  setVal('eod-memo', state.db.meta.dailyMemos[todayStr] || '');
-  setTimeout(() => autoResize(els['eod-memo']), 0);
-
-  if (!todays.length) {
-    setHtml('today-console', emptyState('오늘 기록된 매매가 없습니다.'));
-  } else {
-    setHtml('today-console', `
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-        <div style="font-size:24px; font-weight:900; color:${s.net >= 0 ? 'var(--green)' : 'var(--red)'};">${money(s.net)}</div>
-        <div style="font-size:18px; font-weight:800; color:var(--text);">${s.avgR.toFixed(2)}R</div>
-      </div>
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
-        <div style="background:#f1f5f9; padding:10px; border-radius:8px; text-align:center;">
-          <span style="display:block; font-size:11px; color:var(--muted); font-weight:800;">WINS / LOSSES</span>
-          <strong style="font-size:14px;">${s.wins.length}W / ${s.losses.length}L</strong>
-        </div>
-        <div style="background:#f1f5f9; padding:10px; border-radius:8px; text-align:center;">
-          <span style="display:block; font-size:11px; color:var(--muted); font-weight:800;">FEES PAID</span>
-          <strong style="font-size:14px; color:var(--red);">${moneyAbs(s.fees)}</strong>
-        </div>
-      </div>
-    `);
-  }
 }
 
 function renderStackStats(id, rows, formatter) {
@@ -1712,10 +1687,6 @@ function emptyState(text) {
 
 function splitCsv(value) {
   return String(value || '').split(',').map(v => v.trim()).filter(Boolean);
-}
-
-function splitLines(value) {
-  return String(value || '').split('\n').map(v => v.trim()).filter(Boolean);
 }
 
 function cloneRows(rows) {
