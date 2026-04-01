@@ -54,7 +54,6 @@ export function exportDB(db) {
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
   
-  // ✨ 로컬 타임존 기반으로 정확한 오늘 날짜 파일명 생성
   const d = new Date();
   const pad = n => String(n).padStart(2, '0');
   const localDateStr = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -68,11 +67,9 @@ export function parseImport(text) {
   return migrateDB(parsed);
 }
 
-// ✨ 방탄 마이그레이션(Bulletproof Migration) 로직 복구
 export function migrateDB(input) {
   if (!input) return structuredClone(DEFAULT_DB);
 
-  // 1. 최신 v6 포맷 (정상)
   if (input.schemaVersion === 3 && Array.isArray(input.trades)) {
     return {
       schemaVersion: 3,
@@ -81,7 +78,6 @@ export function migrateDB(input) {
     };
   }
 
-  // 2. 아주 오래된 v5 포맷 (배열 형태)
   if (Array.isArray(input)) {
     return {
       schemaVersion: 3,
@@ -90,7 +86,6 @@ export function migrateDB(input) {
     };
   }
 
-  // 3. 구버전 v2 포맷 (객체 형태이나 schemaVersion이 없거나 구버전 객체를 가진 경우)
   if (input.trades && Array.isArray(input.trades)) {
     return {
       schemaVersion: 3,
@@ -136,13 +131,13 @@ function normalizeBalancePoint(row) {
   };
 }
 
-// ✨ 구버전 v2 트레이드 포맷 안전 변환
 function fromV2Trade(t) {
   const artifacts = Array.isArray(t.artifacts) ? t.artifacts : [];
   return {
     ...t,
     grade: t.grade || 'B',
     markPrice: Number(t.markPrice || 0),
+    targetPrice: Number(t.targetPrice || 0),
     liveNotes: t.liveNotes || '',
     evidence: t.evidence || {
       entryCharts: [artifacts[0]].filter(Boolean),
@@ -169,6 +164,7 @@ function fromV5Trade(t) {
     makerFee: Number(t.fM || 0.02),
     takerFee: Number(t.fT || 0.05),
     stopPrice: Number(t.sl || 0),
+    targetPrice: Number(t.targetPrice || 0), // ✨ 추가
     stopType: t.slT || 'M',
     adjustment: Number(t.fine || 0),
     markPrice: 0,
@@ -203,6 +199,7 @@ export function normalizeTrade(t = {}) {
     makerFee: Math.max(0, Number(t.makerFee || 0.02)),
     takerFee: Math.max(0, Number(t.takerFee || 0.05)),
     stopPrice: Number(t.stopPrice || 0),
+    targetPrice: Number(t.targetPrice || 0), // ✨ 추가
     stopType: String(t.stopType || 'M').toUpperCase(),
     adjustment: Number(t.adjustment || 0),
     markPrice: Number(t.markPrice || 0),
