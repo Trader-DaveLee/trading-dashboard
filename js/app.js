@@ -26,6 +26,7 @@ let draftTimer = null;
 const ID_LIST = [
   'nav','force-save-draft','export-json','import-json-btn','import-json','journal-status','draft-saved-at',
   'view-overview','metrics','overview-from','overview-to','overview-clear','prev-month','calendar-title','next-month','calendar','equity-chart','balance-chart','setup-chart','mistake-list','research-notes','overview-portfolio',
+  'today-console','eod-memo',
   'view-journal','trade-form','trade-id','trade-date','btn-now','ticker','btn-manage-ticker','status','session','side','setup-entry','btn-manage-setup-entry','setup-exit','btn-manage-setup-exit',
   'account-size','risk-pct','leverage','maker-fee','taker-fee','stop-price','mark-price','stop-type','adjustment',
   'context','thesis','review','chart-entry','chart-exit','tags','mistakes',
@@ -35,7 +36,8 @@ const ID_LIST = [
   'desk-rules','master-checklist-list','new-check-input','btn-add-check','trade-checklist-container',
   'risk-risk-dollar','risk-qty','risk-margin','risk-slider','risk-notional','risk-stop-distance','risk-fees','risk-realized','risk-unrealized','risk-residual',
   'view-library','q','f-from','f-to','f-status','f-side','f-session','f-setup','f-tag','f-mistake','f-grade','sort','clear-filters','library-result-count','review-position','review-breadcrumb','prev-trade','next-trade','filter-same-setup','filter-same-ticker','clear-quick-filter','trade-table','detail','detail-insights',
-  'view-playbook','playbook-gallery'
+  'view-playbook','playbook-gallery',
+  'app-modal','modal-title','modal-desc','modal-input','modal-btn-cancel','modal-btn-confirm'
 ];
 
 window.__desk = {
@@ -53,18 +55,20 @@ window.__desk_jump_date = (dateString) => {
 };
 
 window.__desk_del_balance = (id) => {
-  if(!confirm("이 잔고 기록을 삭제하시겠습니까?")) return;
-  state.db.meta.balanceHistory = state.db.meta.balanceHistory.filter(h => h.id !== id);
-  if (state.db.meta.balanceHistory.length > 0) {
-    state.db.meta.accountBalance = state.db.meta.balanceHistory[0].val;
-  } else {
-    state.db.meta.accountBalance = 10000;
-  }
-  saveDB(state.db);
-  renderAccountBalance();
-  renderOverviewPortfolio();
-  if (state.view === 'overview') renderOverview();
-  updatePreview();
+  showModal({ type: 'CONFIRM', title: '잔고 내역 삭제', desc: '이 잔고 기록을 삭제하시겠습니까?' }, (res) => {
+    if(!res) return;
+    state.db.meta.balanceHistory = state.db.meta.balanceHistory.filter(h => h.id !== id);
+    if (state.db.meta.balanceHistory.length > 0) {
+      state.db.meta.accountBalance = state.db.meta.balanceHistory[0].val;
+    } else {
+      state.db.meta.accountBalance = 10000;
+    }
+    saveDB(state.db);
+    renderAccountBalance();
+    renderOverviewPortfolio();
+    if (state.view === 'overview') renderOverview();
+    updatePreview();
+  });
 };
 
 bootstrap();
@@ -85,6 +89,29 @@ function cacheEls() {
   });
 }
 
+// ✨ 커스텀 모달 (Alert, Confirm, Prompt 대체)
+let modalCallback = null;
+function showModal({ type, title, desc, placeholder, val }, callback) {
+  modalCallback = callback;
+  els['app-modal'].classList.add('show');
+  setText('modal-title', title || '알림');
+  setHtml('modal-desc', desc || '');
+  const inp = els['modal-input'];
+  if (type === 'PROMPT') {
+    inp.style.display = 'block';
+    inp.placeholder = placeholder || '';
+    inp.value = val || '';
+    inp.focus();
+  } else {
+    inp.style.display = 'none';
+  }
+  els['modal-btn-cancel'].style.display = type === 'ALERT' ? 'none' : 'block';
+}
+
+function hideModal() {
+  els['app-modal'].classList.remove('show');
+}
+
 function autoResize(el) {
   if (!el) return;
   el.style.height = 'auto';
@@ -103,6 +130,15 @@ function initMeta() {
 }
 
 function bindEvents() {
+  els['modal-btn-cancel'].onclick = () => { hideModal(); if (modalCallback) modalCallback(null); };
+  els['modal-btn-confirm'].onclick = () => {
+    hideModal();
+    if (modalCallback) {
+      const inp = els['modal-input'];
+      modalCallback(inp.style.display === 'block' ? inp.value : true);
+    }
+  };
+
   els['btn-manage-ticker'].onclick = () => manageList('tickers', 'Ticker', 'upper');
   els['btn-manage-setup-entry'].onclick = () => manageList('entrySetups', 'Entry Setup', 'upper');
   els['btn-manage-setup-exit'].onclick = () => manageList('exitSetups', 'Exit Setup', 'upper');
@@ -205,6 +241,16 @@ function bindEvents() {
         renderTradeChecklist(); 
       }
     };
+  }
+  
+  if (els['eod-memo']) {
+    els['eod-memo'].addEventListener('input', function() {
+      autoResize(this);
+      const todayStr = new Date().toISOString().slice(0, 10);
+      if (!state.db.meta.dailyMemos) state.db.meta.dailyMemos = {};
+      state.db.meta.dailyMemos[todayStr] = this.value;
+      saveDB(state.db);
+    });
   }
 
   bindKeyboardShortcuts();
@@ -353,33 +399,38 @@ function renderQuickChips() {
 }
 
 function manageList(key, label, casing = 'upper') {
-  const arr = state.db.meta[key];
-  const action = (prompt(`${label} 관리\n추가하려면 ADD, 삭제하려면 DEL 입력`) || '').trim().toUpperCase();
-  if (!action) return;
-  if (action === 'ADD') {
-    const raw = prompt(`새 ${label}:`);
-    if (!raw) return;
-    const value = casing === 'upper' ? raw.trim().toUpperCase() : raw.trim().toLowerCase();
-    if (!value) return;
-    if (!arr.includes(value)) arr.push(value);
-  }
-  if (action === 'DEL') {
-    const raw = prompt(`삭제할 ${label}:`);
-    if (!raw) return;
-    const value = casing === 'upper' ? raw.trim().toUpperCase() : raw.trim().toLowerCase();
-    const idx = arr.indexOf(value);
-    if (idx >= 0) arr.splice(idx, 1);
-  }
-  saveDB(state.db);
-  renderDropdowns();
-  renderQuickChips();
+  showModal({ type: 'PROMPT', title: `${label} 관리`, desc: `새로 추가할 항목을 입력하세요.<br>(삭제하려면 이름 앞에 '-'를 붙이세요. 예: -FOMO)` }, (val) => {
+    if (!val) return;
+    const isDel = val.startsWith('-');
+    const cleanVal = (isDel ? val.slice(1) : val).trim();
+    const finalVal = casing === 'upper' ? cleanVal.toUpperCase() : cleanVal.toLowerCase();
+    if (!finalVal) return;
+    
+    const arr = state.db.meta[key];
+    if (isDel) {
+      const idx = arr.indexOf(finalVal);
+      if (idx >= 0) arr.splice(idx, 1);
+    } else {
+      if (!arr.includes(finalVal)) arr.push(finalVal);
+    }
+    saveDB(state.db);
+    renderDropdowns();
+    renderQuickChips();
+  });
 }
 
 function hydrateInitialForm() {
+  const tpl = state.db.meta.lastTradeForm || {};
   setVal('trade-date', inputDate(new Date().toISOString()));
-  setVal('account-size', Math.round(Number(state.db.meta.accountBalance || 10000)));
+  setVal('account-size', tpl.accountSize || Math.round(Number(state.db.meta.accountBalance || 10000)));
+  setVal('risk-pct', tpl.riskPct || 0.5);
+  setVal('leverage', tpl.leverage || 5);
+  setVal('maker-fee', tpl.makerFee || 0.02);
+  setVal('taker-fee', tpl.takerFee || 0.05);
+  
   setVal('desk-rules', state.db.meta.rules || '');
   setTimeout(() => autoResize(els['desk-rules']), 0);
+  
   state.draftEntries = [{ price: 0, type: 'M', weight: 100 }];
   state.draftExits = [];
   state.draftLiveCharts = [];
@@ -472,8 +523,7 @@ function deleteLeg(kind, index) {
   persistDraft();
 }
 
-function resetForm() {
-  if (state.dirty && !confirm('현재 편집 내용을 초기화하시겠습니까?')) return;
+function resetFormForce() {
   clearDraft();
   state.selectedTradeId = null;
   state.dirty = false;
@@ -487,15 +537,17 @@ function resetForm() {
   setVal('status', 'OPEN');
   setVal('side', 'LONG');
   setVal('grade', 'B');
-  setVal('account-size', Math.round(Number(state.db.meta.accountBalance || 10000)));
-  setVal('risk-pct', 0.5);
-  setVal('leverage', 5);
-  setVal('maker-fee', 0.02);
-  setVal('taker-fee', 0.05);
-  setVal('stop-type', 'M');
   setVal('ticker', state.db.meta.tickers[0] || 'BTCUSDT');
   setVal('setup-entry', state.db.meta.entrySetups[0] || '');
   setVal('setup-exit', state.db.meta.exitSetups[0] || '');
+
+  // 템플릿 로드
+  const tpl = state.db.meta.lastTradeForm || {};
+  setVal('account-size', tpl.accountSize || Math.round(Number(state.db.meta.accountBalance || 10000)));
+  setVal('risk-pct', tpl.riskPct || 0.5);
+  setVal('leverage', tpl.leverage || 5);
+  setVal('maker-fee', tpl.makerFee || 0.02);
+  setVal('taker-fee', tpl.takerFee || 0.05);
 
   state.draftEntries = [{ price: 0, type: 'M', weight: 100 }];
   state.draftExits = [];
@@ -508,6 +560,16 @@ function resetForm() {
   refreshJournalStatus('새 폼 준비');
 }
 
+function resetForm() {
+  if (state.dirty) {
+    showModal({ type: 'CONFIRM', title: '초기화', desc: '현재 편집 내용을 초기화하시겠습니까?' }, (res) => {
+      if (res) resetFormForce();
+    });
+  } else {
+    resetFormForce();
+  }
+}
+
 function duplicateTrade() {
   const trade = readForm();
   if (!trade) return;
@@ -518,12 +580,14 @@ function duplicateTrade() {
 function deleteTrade() {
   const id = getVal('trade-id');
   if (!id) return;
-  if (!confirm('이 트레이드를 삭제하시겠습니까?')) return;
-  state.db.trades = state.db.trades.filter(trade => trade.id !== id);
-  saveDB(state.db);
-  resetForm();
-  render();
-  refreshJournalStatus('트레이드 삭제 완료');
+  showModal({ type: 'CONFIRM', title: '트레이드 삭제', desc: '이 트레이드를 영구적으로 삭제하시겠습니까?' }, (res) => {
+    if (!res) return;
+    state.db.trades = state.db.trades.filter(trade => trade.id !== id);
+    saveDB(state.db);
+    resetFormForce();
+    render();
+    refreshJournalStatus('트레이드 삭제 완료');
+  });
 }
 
 function readForm() {
@@ -569,19 +633,25 @@ function handleSubmit(event) {
   const trade = readForm();
   
   if (trade.metrics.exitExceeds100) {
-    alert(`청산 비중 합계가 100%를 초과할 수 없습니다. (현재: ${trade.metrics.exitPct}%)`);
+    showModal({ type: 'ALERT', title: '계산 오류', desc: `청산 비중 합계가 100%를 초과할 수 없습니다. (현재: ${trade.metrics.exitPct}%)` });
     return;
   }
   if (!trade.metrics.valid) {
-    alert('손절가와 진입 가격, 진입 비중(합계 100%)을 먼저 확인해 주세요.');
+    showModal({ type: 'ALERT', title: '입력 누락', desc: '손절가, 진입 가격, 진입 비중(합계 100%)을 먼저 정확히 입력해주세요.' });
     return;
   }
   if (trade.status === 'CLOSED' && trade.metrics.remainingPct > 0) {
-    alert('잔량이 남아있는 상태에서 CLOSED로 저장할 수 없습니다.\\n청산 물량을 추가하거나 상태를 OPEN으로 변경하세요.');
+    showModal({ type: 'ALERT', title: '상태 오류', desc: '포지션 잔량이 남아있는 상태에서 CLOSED로 저장할 수 없습니다.<br>청산 물량을 추가하거나 상태를 OPEN으로 변경하세요.' });
     return;
   }
   if (trade.status === 'OPEN' && trade.metrics.remainingPct === 0) {
-    alert('모든 물량이 청산되었습니다. 상태를 CLOSED로 변경해주세요.');
+    showModal({ type: 'ALERT', title: '상태 오류', desc: '모든 물량이 청산되었습니다. 상태를 CLOSED로 변경해주세요.' });
+    return;
+  }
+  
+  // ✨ Phase 1: 원칙 (Grade S) 강제 검증
+  if (trade.grade === 'S' && trade.checkedRules.length < state.db.meta.checklists.length) {
+    showModal({ type: 'ALERT', title: '원칙 위반 경고', desc: 'S등급은 설정한 원칙(체크리스트)을 100% 완벽히 지켰을 때만 부여할 수 있습니다.<br>체크리스트를 확인하거나 등급을 하향 조정하세요.' });
     return;
   }
 
@@ -591,6 +661,15 @@ function handleSubmit(event) {
   } else {
     state.db.trades.unshift(trade);
   }
+
+  // ✨ 최근 입력값 템플릿 저장
+  state.db.meta.lastTradeForm = {
+    accountSize: trade.accountSize,
+    riskPct: trade.riskPct,
+    leverage: trade.leverage,
+    makerFee: trade.makerFee,
+    takerFee: trade.takerFee
+  };
 
   syncMetaFromTrade(trade);
   state.db.meta.rules = getVal('desk-rules');
@@ -681,7 +760,7 @@ function renderCalcSummary(metrics, trade) {
   let warnHtml = '';
   if (metrics.directionError) warnHtml += '<div class="warn-text">⚠️ 방향과 손절 위치가 충돌합니다.</div>';
   if (metrics.exitExceeds100) warnHtml += `<div class="warn-text" style="color:var(--red);">⚠️ 청산 비중 합계가 100%를 초과합니다. (${metrics.exitPct}%)</div>`;
-  if (trade.status === 'OPEN' && metrics.missingMarkPrice) warnHtml += '<div class="warn-text">⚠️ 현재가(Mark Price)가 입력되지 않아 미실현 손익이 0으로 계산됩니다.</div>';
+  if (trade.status === 'OPEN' && metrics.missingMarkPrice) warnHtml += '<div class="warn-text">⚠️ 현재가(Mark Price)가 없어 미실현 손익이 0으로 처리됩니다.</div>';
 
   if (!metrics.valid && !metrics.exitExceeds100) {
     setHtml('calc-summary', `
@@ -742,7 +821,43 @@ function metricCard(label, value, colorClass) {
   `;
 }
 
+// ✨ Today Console 렌더링
+function renderTodayConsole() {
+  if (!els['today-console']) return;
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const todays = state.db.trades.filter(t => t.date.slice(0,10) === todayStr);
+  const s = summarize(todays);
+  
+  if(!state.db.meta.dailyMemos) state.db.meta.dailyMemos = {};
+  setVal('eod-memo', state.db.meta.dailyMemos[todayStr] || '');
+  setTimeout(() => autoResize(els['eod-memo']), 0);
+
+  if (!todays.length) {
+    setHtml('today-console', emptyState('오늘 기록된 매매가 없습니다.'));
+    return;
+  }
+
+  setHtml('today-console', `
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+      <div style="font-size:24px; font-weight:900; color:${s.net >= 0 ? 'var(--green)' : 'var(--red)'};">${money(s.net)}</div>
+      <div style="font-size:18px; font-weight:800; color:var(--text);">${s.avgR.toFixed(2)}R</div>
+    </div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+      <div style="background:#f1f5f9; padding:10px; border-radius:8px; text-align:center;">
+        <span style="display:block; font-size:11px; color:var(--muted); font-weight:800;">WINS / LOSSES</span>
+        <strong style="font-size:14px;">${s.wins.length}W / ${s.losses.length}L</strong>
+      </div>
+      <div style="background:#f1f5f9; padding:10px; border-radius:8px; text-align:center;">
+        <span style="display:block; font-size:11px; color:var(--muted); font-weight:800;">FEES PAID</span>
+        <strong style="font-size:14px; color:var(--red);">${moneyAbs(s.fees)}</strong>
+      </div>
+    </div>
+  `);
+}
+
 function renderOverview() {
+  renderTodayConsole();
+
   const trades = getOverviewTrades();
   const stats = summarize(trades);
   const setups = groupAverageR(stats.closed, trade => trade.setupEntry);
@@ -776,8 +891,7 @@ function renderOverview() {
 
   renderCalendar();
   renderEquityChart(stats.closed);
-  renderSetupChart(setups.slice(0, 8));
-  renderBalanceChart(); // ✨ Phase 1: 자금 흐름(Balance Curve) 차트 렌더링 호출
+  renderBalanceChart(); 
   renderOverviewPortfolio();
 }
 
@@ -855,7 +969,6 @@ function renderEquityChart(trades) {
   setHtml('equity-chart', lineSvg(points, false));
 }
 
-// ✨ Phase 1: 입출금이 포함된 총 자산(Balance) 흐름 차트 시각화
 function renderBalanceChart() {
   const history = state.db.meta.balanceHistory || [];
   if (!history.length) {
@@ -863,7 +976,7 @@ function renderBalanceChart() {
     return;
   }
 
-  const rows = [...history].reverse(); // 과거부터 최신순으로 정렬
+  const rows = [...history].reverse(); 
   const points = rows.map((row, idx) => ({ x: idx, y: row.val }));
 
   setHtml('balance-chart', lineSvg(points, true));
@@ -903,32 +1016,6 @@ function lineSvg(points, isBalance = false) {
       <path d="${d}" class="line"></path>
     </svg>
   `;
-}
-
-function renderSetupChart(rows) {
-  if (!rows.length) {
-    setHtml('setup-chart', emptyState('표시할 데이터가 없습니다.'));
-    return;
-  }
-  const width = 780;
-  const rowHeight = 28;
-  const gap = 12;
-  const height = rows.length * (rowHeight + gap) + 20;
-  const max = Math.max(...rows.map(row => Math.abs(row.value)), 1);
-
-  setHtml('setup-chart', `
-    <svg viewBox="0 0 ${width} ${height}">
-      ${rows.map((row, idx) => {
-        const y = idx * (rowHeight + gap) + 10;
-        const barWidth = (Math.abs(row.value) / max) * 420;
-        return `
-          <text x="0" y="${y + 18}" class="axis">${escapeHtml(row.label)} (${row.count})</text>
-          <rect x="280" y="${y}" width="${barWidth}" height="${rowHeight}" class="${row.value >= 0 ? 'bar-pos' : 'bar-neg'}" rx="8"></rect>
-          <text x="${290 + barWidth}" y="${y + 18}" class="axis">${row.value.toFixed(2)}R</text>
-        `;
-      }).join('')}
-    </svg>
-  `);
 }
 
 function renderOverviewPortfolio() {
@@ -978,6 +1065,7 @@ function renderAccountBalance() {
         <div style="display:flex; align-items:center;">
           <span style="font-size:10px; font-weight:800; color:${typeColors[row.type] || 'var(--muted)'}; border:1px solid ${typeColors[row.type] || 'var(--muted)'}; padding:2px 6px; border-radius:4px; margin-right:8px;">${typeLabels[row.type] || row.type}</span>
           <strong style="font-size:14px; color:#0f172a;">${moneyAbsNatural(row.val)}</strong>
+          ${row.delta !== 0 ? `<span style="margin-left:6px; font-size:11px; font-weight:700; color:${row.delta > 0 ? 'var(--green)' : 'var(--red)'};">${row.delta > 0 ? '+' : ''}${moneyAbsNatural(row.delta)}</span>` : ''}
         </div>
         <div style="display:flex; align-items:center; gap:8px;">
           <span style="color:var(--muted); font-size:11px;">${formatDateTime(row.date)}</span>
@@ -987,14 +1075,6 @@ function renderAccountBalance() {
       ${row.memo ? `<div style="font-size:11px; color:#475569; background:#f1f5f9; padding:4px 8px; border-radius:6px; display:inline-block; margin-top:2px;">${escapeHtml(row.memo)}</div>` : ''}
     </div>
   `).join('') : emptyState('잔고 히스토리가 없습니다.'));
-}
-
-function calcTotalBalance() {
-  if(!els['bal-cash']) return 0;
-  const total = ['bal-cash','bal-crypto','bal-usdt','bal-stock']
-    .reduce((sum, id) => sum + Number(els[id].value || 0), 0);
-  setText('bal-total', moneyAbsNatural(total));
-  return total;
 }
 
 function updateBalance() {
@@ -1007,15 +1087,20 @@ function updateBalance() {
   const total = cash + crypto + usdt + stock;
 
   if (total <= 0) {
-    alert('총 자산은 0보다 커야 합니다.');
+    showModal({ type: 'ALERT', title: '입력 오류', desc: '총 자산은 0보다 커야 합니다.' });
     return;
   }
+
+  const history = state.db.meta.balanceHistory || [];
+  const prevTotal = history.length > 0 ? history[0].val : total;
+  const delta = total - prevTotal;
 
   state.db.meta.accountBalance = total;
   state.db.meta.balanceHistory.unshift({
     id: Date.now(),
     date: new Date().toISOString(),
     val: total,
+    delta,
     cash,
     crypto,
     usdt,
@@ -1028,7 +1113,7 @@ function updateBalance() {
   saveDB(state.db);
   renderAccountBalance();
   renderOverviewPortfolio();
-  if (state.view === 'overview') renderOverview(); // 잔고 추가 시 바로 차트 렌더링 반영
+  if (state.view === 'overview') renderOverview();
   updatePreview();
 }
 
@@ -1046,7 +1131,6 @@ function renderLibrary() {
     state.selectedTradeId = rows[0]?.id || null;
   }
 
-  // ✨ Phase 4: 모바일 최적화를 위해 표 요소에 data-label 속성 부여
   setHtml('trade-table', rows.length ? rows.map(trade => `
     <tr data-id="${trade.id}" class="${trade.id === state.selectedTradeId ? 'selected-row' : ''}">
       <td data-label="날짜">${formatDateTime(trade.date)}</td>
@@ -1347,23 +1431,28 @@ function clearFilters() {
 function handleImport(event) {
   const file = event.target.files?.[0];
   if (!file) return;
-  const reader = new FileReader();
-  reader.onload = () => {
-    try {
-      const imported = parseImport(String(reader.result));
-      state.db = imported;
-      saveDB(state.db);
-      initMeta();
-      resetForm();
-      render();
-      refreshJournalStatus('데이터 복원 완료');
-    } catch (error) {
-      console.error(error);
-      alert('JSON 복원에 실패했습니다.');
-    }
-  };
-  reader.readAsText(file);
-  event.target.value = '';
+  
+  showModal({ type: 'CONFIRM', title: '데이터 복원', desc: '경고: 데이터를 복원하면 현재 작성된 모든 기록이 덮어씌워집니다.<br>안전을 위해 현재 데이터를 먼저 백업(다운로드) 하시겠습니까?' }, (wantsBackup) => {
+    if (wantsBackup) exportDB(state.db);
+    
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const imported = parseImport(String(reader.result));
+        state.db = imported;
+        saveDB(state.db);
+        initMeta();
+        resetFormForce();
+        render();
+        showModal({ type: 'ALERT', title: '복원 완료', desc: '데이터가 성공적으로 복원되었습니다.' });
+      } catch (error) {
+        console.error(error);
+        showModal({ type: 'ALERT', title: '복원 실패', desc: '유효한 JSON 파일이 아닙니다.' });
+      }
+    };
+    reader.readAsText(file);
+    event.target.value = '';
+  });
 }
 
 function insertLiveNote(prefix) {
@@ -1415,10 +1504,6 @@ function emptyState(text) {
 
 function splitCsv(value) {
   return String(value || '').split(',').map(v => v.trim()).filter(Boolean);
-}
-
-function splitLines(value) {
-  return String(value || '').split('\n').map(v => v.trim()).filter(Boolean);
 }
 
 function cloneRows(rows) {
