@@ -1,4 +1,4 @@
-import { recalcTrade } from './calc.js';
+import { generatePlannerSuggestion, calcScaleInScenario } from './calc.js';
 import {
   summarize, groupAverageR, tagStats, filterTradesByDate
 } from './analytics.js';
@@ -13,7 +13,8 @@ const state = {
   month: new Date(),
   selectedTradeId: null,
   filteredTrades: [],
-  draftEntries: [{ price: 0, type: 'M', weight: 100 }],
+  draftEntries: [{ price: 0, type: 'M', weight: 100, leverage: 5 }],
+  plannerSuggestion: null,
   draftExits: [],
   draftEntryCharts: [],
   draftExitCharts: [],
@@ -30,7 +31,7 @@ const ID_LIST = [
   'view-overview','metrics','overview-from','overview-to','overview-clear','overview-search','prev-month','calendar-title','next-month','calendar','equity-chart','balance-chart','setup-chart','mistake-list','research-notes','overview-portfolio',
   'realtime-clock','quick-launch-grid','btn-manage-quick-links',
   'view-journal','trade-form','trade-id','trade-date','btn-now','ticker','btn-manage-ticker','status','session','side','setup-entry','btn-manage-setup-entry','setup-exit','btn-manage-setup-exit',
-  'account-size','risk-pct','leverage','maker-fee','taker-fee','stop-price','target-price','mark-price','stop-type','adjustment',
+  'account-size','risk-pct','leverage','current-price','planner-mode','planner-legs','planner-weight-mode','btn-generate-plan','btn-apply-plan','planner-summary','maker-fee','taker-fee','stop-price','target-price','mark-price','stop-type','adjustment',
   'context','thesis','review','tags','mistakes',
   'add-entry','entries','add-exit','exits','calc-summary','quick-tags','quick-mistakes','live-notes','btn-insert-time','add-live-chart','live-charts-container',
   'add-entry-chart','entry-charts-container','add-exit-chart','exit-charts-container',
@@ -38,8 +39,8 @@ const ID_LIST = [
   'bal-cash','bal-crypto','bal-usdt','bal-stock','bal-total','balance-type','balance-memo','btn-update-balance','balance-history',
   'duplicate-trade','reset-form','delete-trade','grade',
   'desk-rules','master-checklist-list','new-check-input','btn-add-check','trade-checklist-container',
-  'risk-risk-dollar','risk-qty','risk-margin','risk-slider','risk-notional','risk-stop-distance','risk-fees','risk-realized','risk-unrealized','risk-residual',
-  'risk-projected-pnl','risk-projected-r',
+  'risk-risk-dollar','risk-qty','risk-margin','risk-slider','risk-notional','risk-stop-distance','risk-fees','risk-realized','risk-unrealized','risk-residual','risk-actual-risk','risk-risk-usage','risk-weighted-lev','risk-avg-entry','risk-bep','risk-remaining-risk',
+  'risk-projected-pnl','risk-projected-r','scalein-price','scalein-risk-share','scalein-leverage','scalein-type','btn-apply-scalein','scalein-summary','target-ladder-summary',
   'view-library','q','f-from','f-to','f-status','f-side','f-session','f-setup','f-tag','f-mistake','f-grade','sort','clear-filters','library-result-count','review-position','review-breadcrumb','prev-trade','next-trade','filter-same-setup','filter-same-ticker','clear-quick-filter','trade-table','detail','detail-insights',
   'view-playbook','playbook-gallery',
   'app-modal','modal-title','modal-desc','modal-input','modal-btn-cancel','modal-btn-confirm',
@@ -294,8 +295,11 @@ function bindEvents() {
   if(els['prev-month']) els['prev-month'].onclick = () => { state.month.setMonth(state.month.getMonth() - 1); renderCalendar(); };
   if(els['next-month']) els['next-month'].onclick = () => { state.month.setMonth(state.month.getMonth() + 1); renderCalendar(); };
 
-  if(els['add-entry']) els['add-entry'].onclick = () => { state.draftEntries.push({ price: 0, type: 'M', weight: 0 }); renderLegs('entry'); updatePreview(); };
-  if(els['add-exit']) els['add-exit'].onclick = () => { state.draftExits.push({ price: 0, type: 'M', weight: 0 }); renderLegs('exit'); updatePreview(); };
+  if(els['add-entry']) els['add-entry'].onclick = () => { state.draftEntries.push({ price: 0, type: 'M', weight: 0, leverage: Math.max(1, Number(getVal('leverage') || 1)) }); renderLegs('entry'); updatePreview(); };
+  if(els['add-exit']) els['add-exit'].onclick = () => { state.draftExits.push({ price: 0, type: 'M', weight: 0, status: 'PLANNED' }); renderLegs('exit'); updatePreview(); };
+  if(els['btn-generate-plan']) els['btn-generate-plan'].onclick = () => { updatePreview(); refreshJournalStatus('추천 플랜 재계산'); };
+  if(els['btn-apply-plan']) els['btn-apply-plan'].onclick = applyPlannerSuggestion;
+  if(els['btn-apply-scalein']) els['btn-apply-scalein'].onclick = applyScaleIn;
   
   if(els['add-entry-chart']) els['add-entry-chart'].onclick = () => { state.draftEntryCharts.push(''); renderChartInputs('entry'); updatePreview(); };
   if(els['add-exit-chart']) els['add-exit-chart'].onclick = () => { state.draftExitCharts.push(''); renderChartInputs('exit'); updatePreview(); };
@@ -371,7 +375,7 @@ function bindEvents() {
 
   [
     'trade-date','ticker','status','session','side','setup-entry','setup-exit',
-    'account-size','risk-pct','leverage','maker-fee','taker-fee','stop-price','target-price','mark-price','stop-type','adjustment',
+    'account-size','risk-pct','leverage','current-price','planner-mode','planner-legs','planner-weight-mode','btn-generate-plan','btn-apply-plan','planner-summary','maker-fee','taker-fee','stop-price','target-price','mark-price','stop-type','adjustment',
     'context','thesis','review','tags','mistakes','grade','live-notes'
   ].forEach(id => {
     if (!els[id]) return;
@@ -573,6 +577,9 @@ function hydrateInitialForm() {
   setVal('account-size', tpl.accountSize || Math.round(Number(state.db.meta.accountBalance || 10000)));
   setVal('risk-pct', tpl.riskPct || 0.5);
   setVal('leverage', tpl.leverage || 5);
+  setVal('planner-mode', tpl.plannerMode || 'LADDER');
+  setVal('planner-legs', tpl.plannerLegs || 3);
+  setVal('planner-weight-mode', tpl.plannerWeightMode || 'BACKLOADED');
   setVal('maker-fee', tpl.makerFee || 0.02);
   setVal('taker-fee', tpl.takerFee || 0.05);
   setVal('target-price', ''); // 폼 초기화 시 목표가는 비움
@@ -580,7 +587,7 @@ function hydrateInitialForm() {
   setVal('desk-rules', state.db.meta.rules || '');
   setTimeout(() => autoResize(els['desk-rules']), 0);
   
-  state.draftEntries = [{ price: 0, type: 'M', weight: 100 }];
+  state.draftEntries = [{ price: 0, type: 'M', weight: 100, leverage: Math.max(1, Number(getVal('leverage') || 1)) }];
   state.draftExits = [];
   state.draftEntryCharts = [''];
   state.draftExitCharts = [''];
@@ -607,38 +614,70 @@ function renderLegs(kind) {
   const key = kind === 'entry' ? 'draftEntries' : 'draftExits';
   const target = els[kind === 'entry' ? 'entries' : 'exits'];
   if(!target) return;
-  
-  // ✨ Scaling In/Out 레이아웃을 넓게 1줄로 쓰는 형태로 렌더링
-  target.innerHTML = state[key].map((leg, index) => `
-    <div class="leg-row" data-kind="${kind}" data-index="${index}">
-      <div class="input-with-unit">
-        <span class="unit left">$</span>
-        <input type="number" step="0.01" class="leg-price" value="${safeNumber(leg.price)}" placeholder="Price" />
+
+  target.innerHTML = state[key].map((leg, index) => {
+    if (kind === 'entry') {
+      return `
+        <div class="leg-row" data-kind="${kind}" data-index="${index}">
+          <div class="input-with-unit">
+            <span class="unit left">$</span>
+            <input type="number" step="0.01" class="leg-price" value="${safeNumber(leg.price)}" placeholder="Entry Price" />
+          </div>
+          <select class="leg-type" style="width: 100%;">
+            <option value="M" ${leg.type === 'M' ? 'selected' : ''}>Maker</option>
+            <option value="T" ${leg.type === 'T' ? 'selected' : ''}>Taker</option>
+          </select>
+          <div class="input-with-unit">
+            <input type="number" step="0.01" class="leg-weight" value="${safeNumber(leg.weight)}" placeholder="Risk Share" />
+            <span class="unit right">%</span>
+          </div>
+          <div class="input-with-unit">
+            <input type="number" step="0.1" class="leg-leverage" value="${safeNumber(leg.leverage || getVal('leverage') || 1)}" placeholder="Lev" />
+            <span class="unit right">x</span>
+          </div>
+          <button type="button" class="tool-btn leg-delete danger-text" style="color:var(--muted); border-color:var(--line);">✕</button>
+        </div>
+      `;
+    }
+    return `
+      <div class="leg-row" data-kind="${kind}" data-index="${index}">
+        <div class="input-with-unit">
+          <span class="unit left">$</span>
+          <input type="number" step="0.01" class="leg-price" value="${safeNumber(leg.price)}" placeholder="Exit / Target Price" />
+        </div>
+        <select class="leg-type" style="width: 100%;">
+          <option value="M" ${leg.type === 'M' ? 'selected' : ''}>Maker</option>
+          <option value="T" ${leg.type === 'T' ? 'selected' : ''}>Taker</option>
+        </select>
+        <div class="input-with-unit">
+          <input type="number" step="0.01" class="leg-weight" value="${safeNumber(leg.weight)}" placeholder="Close %" />
+          <span class="unit right">%</span>
+        </div>
+        <select class="leg-status" style="width:100%;">
+          <option value="PLANNED" ${leg.status === 'FILLED' ? '' : 'selected'}>Planned</option>
+          <option value="FILLED" ${leg.status === 'FILLED' ? 'selected' : ''}>Filled</option>
+        </select>
+        <button type="button" class="tool-btn leg-delete danger-text" style="color:var(--muted); border-color:var(--line);">✕</button>
       </div>
-      <select class="leg-type" style="width: 100%;">
-        <option value="M" ${leg.type === 'M' ? 'selected' : ''}>Maker</option>
-        <option value="T" ${leg.type === 'T' ? 'selected' : ''}>Taker</option>
-      </select>
-      <div class="input-with-unit">
-        <input type="number" step="0.01" class="leg-weight" value="${safeNumber(leg.weight)}" placeholder="Weight" />
-        <span class="unit right">%</span>
-      </div>
-      <button type="button" class="tool-btn leg-delete danger-text" style="color:var(--muted); border-color:var(--line);">✕</button>
-    </div>
-  `).join('');
+    `;
+  }).join('');
 
   target.querySelectorAll('.leg-row').forEach(row => {
     const index = Number(row.dataset.index);
     row.querySelector('.leg-price').addEventListener('input', event => updateLeg(kind, index, 'price', event.target.value));
     row.querySelector('.leg-type').addEventListener('change', event => updateLeg(kind, index, 'type', event.target.value));
     row.querySelector('.leg-weight').addEventListener('input', event => updateLeg(kind, index, 'weight', event.target.value));
+    const lev = row.querySelector('.leg-leverage');
+    if (lev) lev.addEventListener('input', event => updateLeg(kind, index, 'leverage', event.target.value));
+    const status = row.querySelector('.leg-status');
+    if (status) status.addEventListener('change', event => updateLeg(kind, index, 'status', event.target.value));
     row.querySelector('.leg-delete').onclick = () => deleteLeg(kind, index);
   });
 }
 
 function updateLeg(kind, index, field, value) {
   const rows = kind === 'entry' ? state.draftEntries : state.draftExits;
-  rows[index][field] = field === 'type' ? value : Number(value || 0);
+  rows[index][field] = ['type','status'].includes(field) ? value : Number(value || 0);
   markDirty();
   updatePreview();
   persistDraft();
@@ -647,7 +686,7 @@ function updateLeg(kind, index, field, value) {
 function deleteLeg(kind, index) {
   const rows = kind === 'entry' ? state.draftEntries : state.draftExits;
   rows.splice(index, 1);
-  if (kind === 'entry' && !rows.length) rows.push({ price: 0, type: 'M', weight: 100 });
+  if (kind === 'entry' && !rows.length) rows.push({ price: 0, type: 'M', weight: 100, leverage: Math.max(1, Number(getVal('leverage') || 1)) });
   renderLegs(kind);
   markDirty();
   updatePreview();
@@ -661,8 +700,13 @@ function resetFormForce() {
 
   [
     'trade-id','context','thesis','review','tags','mistakes','live-notes',
-    'mark-price','adjustment','stop-price','target-price'
+    'mark-price','adjustment','stop-price','target-price','current-price','scalein-price'
   ].forEach(id => setVal(id, ''));
+  setVal('planner-mode', 'LADDER');
+  setVal('planner-legs', 3);
+  setVal('planner-weight-mode', 'BACKLOADED');
+  setVal('scalein-risk-share', 10);
+  setVal('scalein-type', 'T');
 
   setVal('trade-date', inputDate(new Date().toISOString()));
   setVal('status', 'OPEN');
@@ -676,10 +720,13 @@ function resetFormForce() {
   setVal('account-size', tpl.accountSize || Math.round(Number(state.db.meta.accountBalance || 10000)));
   setVal('risk-pct', tpl.riskPct || 0.5);
   setVal('leverage', tpl.leverage || 5);
+  setVal('planner-mode', tpl.plannerMode || 'LADDER');
+  setVal('planner-legs', tpl.plannerLegs || 3);
+  setVal('planner-weight-mode', tpl.plannerWeightMode || 'BACKLOADED');
   setVal('maker-fee', tpl.makerFee || 0.02);
   setVal('taker-fee', tpl.takerFee || 0.05);
 
-  state.draftEntries = [{ price: 0, type: 'M', weight: 100 }];
+  state.draftEntries = [{ price: 0, type: 'M', weight: 100, leverage: Math.max(1, Number(getVal('leverage') || 1)) }];
   state.draftExits = [];
   state.draftEntryCharts = [''];
   state.draftExitCharts = [''];
@@ -744,6 +791,10 @@ function readForm() {
     accountSize: Number(getVal('account-size') || 0),
     riskPct: Number(getVal('risk-pct') || 0),
     leverage: Number(getVal('leverage') || 0),
+    currentPrice: Number(getVal('current-price') || 0),
+    plannerMode: getVal('planner-mode') || 'LADDER',
+    plannerLegs: Number(getVal('planner-legs') || 3),
+    plannerWeightMode: getVal('planner-weight-mode') || 'BACKLOADED',
     makerFee: Number(getVal('maker-fee') || 0),
     takerFee: Number(getVal('taker-fee') || 0),
     stopPrice: Number(getVal('stop-price') || 0),
@@ -774,19 +825,19 @@ function handleSubmit(event) {
   const trade = readForm();
   
   if (trade.metrics.exitExceeds100) {
-    showModal({ type: 'ALERT', title: '계산 오류', desc: `청산 비중 합계가 100%를 초과할 수 없습니다. (현재: ${trade.metrics.exitPct}%)` });
+    showModal({ type: 'ALERT', title: '계산 오류', desc: `실제 체결(FILLED) 청산 비중 합계가 100%를 초과할 수 없습니다. (현재: ${trade.metrics.actualExitPct.toFixed(1)}%)` });
     return;
   }
   if (!trade.metrics.valid) {
-    showModal({ type: 'ALERT', title: '입력 누락', desc: '손절가, 진입 가격, 진입 비중(합계 100%)을 먼저 정확히 입력해주세요.' });
+    showModal({ type: 'ALERT', title: '입력 누락', desc: '손절가와 실제 진입 레그(가격 + Risk Share)를 먼저 입력해주세요.' });
     return;
   }
-  if (trade.status === 'CLOSED' && trade.metrics.remainingPct > 0) {
-    showModal({ type: 'ALERT', title: '상태 오류', desc: '포지션 잔량이 남아있는 상태에서 CLOSED로 저장할 수 없습니다.<br>청산 물량을 추가하거나 상태를 OPEN으로 변경하세요.' });
+  if (trade.status === 'CLOSED' && trade.metrics.actualExitPct < 100) {
+    showModal({ type: 'ALERT', title: '상태 오류', desc: 'CLOSED 저장 시에는 FILLED 청산 합계가 100%여야 합니다.' });
     return;
   }
-  if (trade.status === 'OPEN' && trade.metrics.remainingPct === 0) {
-    showModal({ type: 'ALERT', title: '상태 오류', desc: '모든 물량이 청산되었습니다. 상태를 CLOSED로 변경해주세요.' });
+  if (trade.status === 'OPEN' && trade.metrics.actualExitPct >= 100) {
+    showModal({ type: 'ALERT', title: '상태 오류', desc: '실제 체결(FILLED) 청산이 100% 완료되었습니다. 상태를 CLOSED로 변경해주세요.' });
     return;
   }
   
@@ -806,6 +857,9 @@ function handleSubmit(event) {
     accountSize: trade.accountSize,
     riskPct: trade.riskPct,
     leverage: trade.leverage,
+    plannerMode: trade.plannerMode,
+    plannerLegs: trade.plannerLegs,
+    plannerWeightMode: trade.plannerWeightMode,
     makerFee: trade.makerFee,
     takerFee: trade.takerFee
   };
@@ -861,6 +915,10 @@ function applyTradeToForm(trade, options = {}) {
   setVal('account-size', trade.accountSize);
   setVal('risk-pct', trade.riskPct);
   setVal('leverage', trade.leverage);
+  setVal('current-price', trade.currentPrice || '');
+  setVal('planner-mode', trade.plannerMode || 'LADDER');
+  setVal('planner-legs', trade.plannerLegs || 3);
+  setVal('planner-weight-mode', trade.plannerWeightMode || 'BACKLOADED');
   setVal('maker-fee', trade.makerFee);
   setVal('taker-fee', trade.takerFee);
   setVal('stop-price', trade.stopPrice || '');
@@ -899,15 +957,17 @@ function applyTradeToForm(trade, options = {}) {
 function updatePreview() {
   const trade = readForm();
   const metrics = trade.metrics;
-  
+
   renderCalcSummary(metrics, trade);
-  renderRiskPanel(metrics);
-  renderTradeEvaluation(metrics, trade); // 영수증 렌더링
+  renderRiskPanel(metrics, trade);
+  renderTradeEvaluation(metrics, trade);
+  renderPlannerSummary(trade);
+  renderScaleInSummary(trade);
+  renderTargetLadderSummary(metrics, trade);
 
   if(els['risk-bep']) els['risk-bep'].textContent = metrics.breakEvenPrice > 0 ? safeNumber(metrics.breakEvenPrice.toFixed(4)) : '0.00';
 }
 
-// ✨ 통합된 영수증(Receipt) 평가 패널 렌더링
 function renderTradeEvaluation(metrics, trade) {
   if (!els['eval-status-badge']) return;
 
@@ -921,8 +981,8 @@ function renderTradeEvaluation(metrics, trade) {
   els['eval-bep'].textContent = metrics.breakEvenPrice > 0 ? safeNumber(metrics.breakEvenPrice.toFixed(4)) : '0.00';
   els['eval-fees'].textContent = `-${moneyAbs(metrics.totalFees)}`;
   
-  const displayPnl = isClosed ? metrics.netPnl : (metrics.exitPct > 0 ? metrics.projectedPnl : metrics.unrealizedPnl);
-  const displayR = isClosed ? metrics.r : (metrics.exitPct > 0 ? metrics.projectedR : metrics.unrealizedR);
+  const displayPnl = isClosed ? metrics.netPnl : (metrics.hasProjection ? metrics.projectedPnl : metrics.unrealizedPnl);
+  const displayR = isClosed ? metrics.r : (metrics.hasProjection ? metrics.projectedR : metrics.unrealizedR);
   
   els['eval-pnl'].textContent = money(displayPnl);
   els['eval-pnl'].className = `eval-value ${displayPnl > 0 ? 'positive' : displayPnl < 0 ? 'negative' : ''}`;
@@ -940,13 +1000,14 @@ function renderTradeEvaluation(metrics, trade) {
 function renderCalcSummary(metrics, trade) {
   let warnHtml = '';
   if (metrics.directionError) warnHtml += '<div class="warn-text">⚠️ 방향과 손절 위치가 충돌합니다.</div>';
-  if (metrics.exitExceeds100) warnHtml += `<div class="warn-text" style="color:var(--red);">⚠️ 청산 비중 합계가 100%를 초과합니다. (${metrics.exitPct}%)</div>`;
+  if (metrics.exitExceeds100) warnHtml += `<div class="warn-text" style="color:var(--red);">⚠️ 실제 청산(FILLED) 비중 합계가 100%를 초과합니다. (${metrics.actualExitPct.toFixed(1)}%)</div>`;
   if (trade.status === 'OPEN' && metrics.missingMarkPrice) warnHtml += '<div class="warn-text">⚠️ 현재가(Mark Price)가 없어 미실현 손익이 0으로 처리됩니다.</div>';
+  if (metrics.actualRiskPctOfBudget > 100) warnHtml += `<div class="warn-text" style="color:var(--red);">⚠️ 허용 리스크를 ${metrics.actualRiskPctOfBudget.toFixed(1)}% 사용 중입니다. (초과 ${moneyAbs(metrics.overRiskDollar)})</div>`;
 
   if (!metrics.valid && !metrics.exitExceeds100) {
     setHtml('calc-summary', `
       <div class="summary-invalid" style="color:var(--muted); font-weight:600;">
-        손절가, 진입 가격, 진입 비중(합계 100%)을 확인해 주세요.
+        손절가와 실제 진입 레그(가격 + Risk Share)를 확인해 주세요.
         ${warnHtml}
       </div>
     `);
@@ -955,16 +1016,17 @@ function renderCalcSummary(metrics, trade) {
 
   const summaryRows = [
     ['Avg Entry', money(metrics.avgEntry)],
-    ['Avg Exit', metrics.avgExit ? money(metrics.avgExit) : '—'],
+    ['Weighted Lev', `${metrics.weightedLeverage.toFixed(2)}x`],
     ['Qty', qty(metrics.qty)],
+    ['Used Risk', moneyAbs(metrics.actualRiskUsed)],
     ['Realized', money(metrics.realizedPnl), metrics.realizedPnl],
     ['Unrealized', money(metrics.unrealizedPnl), metrics.unrealizedPnl],
     ['Net PnL', money(metrics.pnl), metrics.pnl],
     ['Realized R', `${metrics.realizedR.toFixed(2)}R`, metrics.realizedR],
     ['Unrealized R', `${metrics.unrealizedR.toFixed(2)}R`, metrics.unrealizedR],
-    ['Exit %', `${metrics.exitPct.toFixed(1)}%`],
-    ['Residual Risk', money(metrics.residualRisk)],
-    ['Fee Drag', `${metrics.feePctOfGross.toFixed(1)}%`],
+    ['Filled Exit %', `${metrics.actualExitPct.toFixed(1)}%`],
+    ['Planned Exit %', `${metrics.plannedExitPct.toFixed(1)}%`],
+    ['Residual Risk', moneyAbs(metrics.residualRisk)],
   ];
 
   setHtml('calc-summary', `
@@ -980,18 +1042,142 @@ function renderCalcSummary(metrics, trade) {
   `);
 }
 
-function renderRiskPanel(metrics) {
+function renderRiskPanel(metrics, trade) {
   setText('risk-risk-dollar', moneyAbs(metrics.riskDollar));
-  setText('risk-projected-pnl', moneyAbs(metrics.projectedPnl));
+  setText('risk-projected-pnl', money(metrics.projectedPnl));
   setText('risk-projected-r', `${metrics.projectedR.toFixed(2)}R`);
   setText('risk-qty', qty(metrics.qty));
   setText('risk-margin', moneyAbs(metrics.margin));
+  setText('risk-notional', moneyAbs(metrics.notional));
   setText('risk-slider', `${metrics.sliderPct.toFixed(1)}%`);
   setText('risk-stop-distance', `${metrics.stopDistancePct.toFixed(2)}%`);
   setText('risk-fees', moneyAbs(metrics.totalFees));
   setText('risk-realized', money(metrics.realizedPnl));
   setText('risk-unrealized', money(metrics.unrealizedPnl));
   setText('risk-residual', moneyAbs(metrics.residualRisk));
+  setText('risk-actual-risk', moneyAbs(metrics.actualRiskUsed));
+  setText('risk-risk-usage', `${metrics.actualRiskPctOfBudget.toFixed(1)}%`);
+  setText('risk-weighted-lev', `${metrics.weightedLeverage.toFixed(2)}x`);
+  setText('risk-avg-entry', metrics.avgEntry ? safeNumber(metrics.avgEntry.toFixed(4)) : '0.00');
+  setText('risk-bep', metrics.breakEvenPrice ? safeNumber(metrics.breakEvenPrice.toFixed(4)) : '0.00');
+  setText('risk-remaining-risk', moneyAbs(metrics.availableRiskDollar));
+}
+
+function renderPlannerSummary(trade) {
+  if (!els['planner-summary']) return;
+  const suggestion = generatePlannerSuggestion(trade);
+  state.plannerSuggestion = suggestion.valid ? suggestion : null;
+  if (!suggestion.valid) {
+    setHtml('planner-summary', `<div class="summary-invalid" style="color:var(--muted); font-weight:600;">${escapeHtml(suggestion.reason || '추천 진입 플랜을 계산할 수 없습니다.')}</div>`);
+    return;
+  }
+
+  setHtml('planner-summary', `
+    <div style="display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:14px;">
+      <div style="font-weight:800; color:#0f172a;">추천 모드: ${escapeHtml(suggestion.plannerMode)} · ${escapeHtml(suggestion.plannerWeightMode)}</div>
+      <div style="font-size:12px; color:var(--muted); font-weight:700;">Risk ${moneyAbs(suggestion.metrics.riskDollar)} · Margin ${moneyAbs(suggestion.metrics.margin)} · Weighted Lev ${suggestion.metrics.weightedLeverage.toFixed(2)}x</div>
+    </div>
+    <div class="summary-grid">
+      ${suggestion.entries.map((leg, idx) => {
+        const d = suggestion.metrics.entryBreakdown[idx] || {};
+        return `
+          <div class="summary-item">
+            <div class="summary-label">LEG ${idx + 1}</div>
+            <div class="summary-value">${safeNumber(leg.price)}</div>
+            <div style="font-size:12px; color:var(--muted); font-weight:700; margin-top:6px;">Risk ${leg.weight.toFixed(1)}% · ${leg.leverage.toFixed(1)}x</div>
+            <div style="font-size:12px; color:#334155; margin-top:4px;">Qty ${qty(d.qty)} · Margin ${moneyAbs(d.margin)}</div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `);
+}
+
+function readScaleInCandidate() {
+  return {
+    price: Number(getVal('scalein-price') || 0),
+    weight: Number(getVal('scalein-risk-share') || 0),
+    leverage: Number(getVal('scalein-leverage') || getVal('leverage') || 1),
+    type: getVal('scalein-type') || 'T',
+  };
+}
+
+function renderScaleInSummary(trade) {
+  if (!els['scalein-summary']) return;
+  const candidate = readScaleInCandidate();
+  const scenario = calcScaleInScenario(trade, candidate);
+  if (!scenario.valid) {
+    setHtml('scalein-summary', `<div class="summary-invalid" style="color:var(--muted); font-weight:600;">${escapeHtml(scenario.reason || '추가 진입 시뮬레이션을 계산할 수 없습니다.')}</div>`);
+    return;
+  }
+  const after = scenario.after;
+  const riskColor = after.actualRiskPctOfBudget > 100 ? 'negative' : 'positive';
+  setHtml('scalein-summary', `
+    <div class="summary-grid">
+      <div class="summary-item"><div class="summary-label">New Avg Entry</div><div class="summary-value">${safeNumber(after.avgEntry.toFixed(4))}</div></div>
+      <div class="summary-item"><div class="summary-label">Δ Qty</div><div class="summary-value">${qty(scenario.deltaQty)}</div></div>
+      <div class="summary-item"><div class="summary-label">Δ Margin</div><div class="summary-value">${moneyAbs(scenario.deltaMargin)}</div></div>
+      <div class="summary-item"><div class="summary-label">Risk Usage</div><div class="summary-value ${riskColor}">${after.actualRiskPctOfBudget.toFixed(1)}%</div></div>
+      <div class="summary-item"><div class="summary-label">Δ Risk</div><div class="summary-value ${scenario.deltaRisk > 0 ? 'negative' : ''}">${money(scenario.deltaRisk)}</div></div>
+      <div class="summary-item"><div class="summary-label">New BEP</div><div class="summary-value">${safeNumber(after.breakEvenPrice.toFixed(4))}</div></div>
+      <div class="summary-item"><div class="summary-label">Projected PnL</div><div class="summary-value ${after.projectedPnl >= 0 ? 'positive' : 'negative'}">${money(after.projectedPnl)}</div></div>
+      <div class="summary-item"><div class="summary-label">Projected R</div><div class="summary-value ${after.projectedR >= 0 ? 'positive' : 'negative'}">${after.projectedR.toFixed(2)}R</div></div>
+    </div>
+    <div style="margin-top:12px; font-size:12px; font-weight:700; color:${after.actualRiskPctOfBudget > 100 ? 'var(--red)' : 'var(--muted)'};">
+      ${after.actualRiskPctOfBudget > 100 ? `허용 리스크를 ${after.actualRiskPctOfBudget.toFixed(1)}% 사용하게 됩니다.` : `추가 진입 후에도 허용 리스크 안에서 유지됩니다.`}
+    </div>
+  `);
+}
+
+function renderTargetLadderSummary(metrics, trade) {
+  if (!els['target-ladder-summary']) return;
+  if (!metrics.hasProjection || !metrics.projectionSteps.length) {
+    setHtml('target-ladder-summary', `<div class="summary-invalid" style="color:var(--muted); font-weight:600;">목표가(TP) 또는 Planned Exit 레그를 입력하면 단계별 수익/잔여 리스크를 표시합니다.</div>`);
+    return;
+  }
+  setHtml('target-ladder-summary', `
+    <div class="summary-grid">
+      ${metrics.projectionSteps.map(step => `
+        <div class="summary-item">
+          <div class="summary-label">${escapeHtml(step.label)}</div>
+          <div class="summary-value">${safeNumber(step.price.toFixed(4))}</div>
+          <div style="font-size:12px; color:var(--muted); font-weight:700; margin-top:6px;">Close ${step.closePct.toFixed(1)}% · Cum ${money(step.cumulativePnl)}</div>
+          <div style="font-size:12px; color:#334155; margin-top:4px;">${step.cumulativeR.toFixed(2)}R · Rem Risk ${moneyAbs(step.remainingRisk)}</div>
+        </div>
+      `).join('')}
+    </div>
+  `);
+}
+
+function applyPlannerSuggestion() {
+  const trade = readForm();
+  const suggestion = generatePlannerSuggestion(trade);
+  if (!suggestion.valid) {
+    showModal({ type: 'ALERT', title: '플래너 오류', desc: suggestion.reason || '추천 플랜을 계산할 수 없습니다.' });
+    return;
+  }
+  state.draftEntries = suggestion.entries.map(leg => ({ price: leg.price, type: leg.type, weight: leg.weight, leverage: leg.leverage }));
+  renderLegs('entry');
+  markDirty();
+  updatePreview();
+  persistDraft(true);
+  refreshJournalStatus('추천 진입 플랜 적용 완료');
+}
+
+function applyScaleIn() {
+  const trade = readForm();
+  const scenario = calcScaleInScenario(trade, readScaleInCandidate());
+  if (!scenario.valid) {
+    showModal({ type: 'ALERT', title: 'Scale-In 오류', desc: scenario.reason || '추가 진입 시뮬레이션을 계산할 수 없습니다.' });
+    return;
+  }
+  state.draftEntries.push({ ...scenario.candidate });
+  setVal('scalein-price', '');
+  renderLegs('entry');
+  markDirty();
+  updatePreview();
+  persistDraft(true);
+  refreshJournalStatus('추가 진입이 Execution Entries에 반영되었습니다.');
 }
 
 function metricCard(label, value, colorClass) {
@@ -1463,7 +1649,7 @@ function renderTimeline(type, rows) {
     <div style="position:relative; z-index:2; display:flex; flex-direction:column; align-items:center; gap:8px; flex:1;">
       <div style="width:16px; height:16px; border-radius:50%; background:${color}; border:3px solid #fff; box-shadow:0 0 0 2px ${color};"></div>
       <div style="font-size:11px; color:var(--muted); font-weight:800; margin-top:4px;">${type.toUpperCase()} ${idx + 1}</div>
-      <div class="mono" style="font-size:12px; font-weight:800; color:#0f172a;">${safeNumber(row.price)} / ${safeNumber(row.weight)}%</div>
+      <div class="mono" style="font-size:12px; font-weight:800; color:#0f172a;">${safeNumber(row.price)} / ${safeNumber(row.weight)}%${type === 'entry' ? ` / ${safeNumber(row.leverage || 1)}x` : `${row.status === 'FILLED' ? ' / FILLED' : ' / PLAN'}`}</div>
     </div>
   `).join('');
 }
@@ -1694,6 +1880,8 @@ function cloneRows(rows) {
     price: Number(row.price || 0),
     type: row.type === 'T' ? 'T' : 'M',
     weight: Number(row.weight || 0),
+    leverage: Math.max(1, Number(row.leverage || 1)),
+    status: row.status === 'FILLED' ? 'FILLED' : 'PLANNED',
   }));
 }
 

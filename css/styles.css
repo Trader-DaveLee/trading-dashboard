@@ -255,7 +255,7 @@ label span { display: block; margin-bottom: 10px; color: var(--muted); font-size
 .mini-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .mini-head h4 { margin: 0; color: var(--muted); font-size: 13px; font-weight: 800; text-transform: uppercase; }
 
-.leg-row { display: grid; grid-template-columns: 1.5fr 1fr 1.2fr auto; gap: 12px; margin-bottom: 12px; } 
+.leg-row { display: grid; grid-template-columns: 1.5fr 1fr 1.1fr 1fr auto; gap: 12px; margin-bottom: 12px; } 
 .summary-box { background: var(--accent-soft); border: 1px dashed #bfdbfe; border-radius: 16px; padding: 20px; }
 .summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 .summary-item { background: #fff; border: 1px solid #bfdbfe; border-radius: 12px; padding: 14px; }

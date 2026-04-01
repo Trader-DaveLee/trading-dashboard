@@ -8,7 +8,7 @@ export const LEGACY_STORAGE_KEYS = [
 export const DRAFT_KEY = 'trading_desk_dashboard_v3_draft';
 
 export const DEFAULT_DB = {
-  schemaVersion: 3,
+  schemaVersion: 4,
   meta: {
     tickers: ['BTCUSDT', 'ETHUSDT', 'SOLUSDT'],
     entrySetups: ['BREAKOUT', 'RECLAIM', 'RANGE SWEEP', 'TREND CONTINUATION'],
@@ -36,7 +36,7 @@ export function loadDB() {
       if (!raw) continue;
       const parsed = JSON.parse(raw);
       const migrated = migrateDB(parsed);
-      if (migrated.schemaVersion === 3) return migrated;
+      if (migrated.schemaVersion >= 3) return migrated;
     }
     return structuredClone(DEFAULT_DB);
   } catch {
@@ -70,9 +70,9 @@ export function parseImport(text) {
 export function migrateDB(input) {
   if (!input) return structuredClone(DEFAULT_DB);
 
-  if (input.schemaVersion === 3 && Array.isArray(input.trades)) {
+  if ((input.schemaVersion === 3 || input.schemaVersion === 4) && Array.isArray(input.trades)) {
     return {
-      schemaVersion: 3,
+      schemaVersion: 4,
       meta: normalizeMeta(input.meta),
       trades: input.trades.map(normalizeTrade),
     };
@@ -80,7 +80,7 @@ export function migrateDB(input) {
 
   if (Array.isArray(input)) {
     return {
-      schemaVersion: 3,
+      schemaVersion: 4,
       meta: structuredClone(DEFAULT_DB.meta),
       trades: input.map(fromV5Trade).map(normalizeTrade),
     };
@@ -88,7 +88,7 @@ export function migrateDB(input) {
 
   if (input.trades && Array.isArray(input.trades)) {
     return {
-      schemaVersion: 3,
+      schemaVersion: 4,
       meta: normalizeMeta(input.meta),
       trades: input.trades.map(fromV2Trade).map(normalizeTrade),
     };
@@ -161,9 +161,17 @@ function fromV5Trade(t) {
     accountSize: Number(t.acc || 10000),
     riskPct: Number(t.risk || 0.5),
     leverage: Number(t.lev || 5),
+    currentPrice: 0,
+    plannerMode: 'LADDER',
+    plannerLegs: 3,
+    plannerWeightMode: 'BACKLOADED',
     makerFee: Number(t.fM || 0.02),
     takerFee: Number(t.fT || 0.05),
     stopPrice: Number(t.sl || 0),
+    currentPrice: 0,
+    plannerMode: 'LADDER',
+    plannerLegs: 3,
+    plannerWeightMode: 'BACKLOADED',
     targetPrice: Number(t.targetPrice || 0), // ✨ 추가
     stopType: t.slT || 'M',
     adjustment: Number(t.fine || 0),
@@ -196,6 +204,10 @@ export function normalizeTrade(t = {}) {
     accountSize: Math.max(0, Number(t.accountSize || 10000)),
     riskPct: Math.max(0, Number(t.riskPct || 0.5)),
     leverage: Math.max(1, Number(t.leverage || 5)),
+    currentPrice: Number(t.currentPrice || t.markPrice || 0),
+    plannerMode: String(t.plannerMode || 'LADDER').trim().toUpperCase(),
+    plannerLegs: Math.max(1, Number(t.plannerLegs || 3)),
+    plannerWeightMode: String(t.plannerWeightMode || 'BACKLOADED').trim().toUpperCase(),
     makerFee: Math.max(0, Number(t.makerFee || 0.02)),
     takerFee: Math.max(0, Number(t.takerFee || 0.05)),
     stopPrice: Number(t.stopPrice || 0),
@@ -214,8 +226,8 @@ export function normalizeTrade(t = {}) {
     checkedRules: normalizeList(t.checkedRules),
 
     evidence: normalizeEvidence(t.evidence, t.artifacts, t.entryChart, t.exitChart),
-    entries: normalizeLegs(t.entries, true),
-    exits: normalizeLegs(t.exits, false),
+    entries: normalizeLegs(t.entries, { kind: 'entry', withDefault: true, defaultLeverage: Math.max(1, Number(t.leverage || 5)) }),
+    exits: normalizeLegs(t.exits, { kind: 'exit', withDefault: false, tradeStatus: String(t.status || 'OPEN').toUpperCase() }),
   };
 
   trade.metrics = recalcTrade(trade);
@@ -225,10 +237,11 @@ export function normalizeTrade(t = {}) {
 export function sanitizeUrl(url) {
   if (!url) return '';
   let trimmed = String(url).trim();
-  if (trimmed && !/^https?:\/\//i.test(trimmed)) {
+  if (!trimmed) return '';
+  if (!/^https?:\/\//i.test(trimmed)) {
     trimmed = 'https://' + trimmed;
   }
-  return trimmed;
+  return /^https?:\/\//i.test(trimmed) ? trimmed : '';
 }
 
 function normalizeEvidence(evidence, artifacts, legacyEntry, legacyExit) {
@@ -252,14 +265,17 @@ function normalizeEvidence(evidence, artifacts, legacyEntry, legacyExit) {
   };
 }
 
-function normalizeLegs(value, withDefault) {
+function normalizeLegs(value, options = {}) {
+  const { kind = 'entry', withDefault = false, defaultLeverage = 1, tradeStatus = 'OPEN' } = options;
   const rows = Array.isArray(value) ? value : [];
   const mapped = rows.map(row => ({
     price: Number(row.price || 0),
     type: String(row.type || 'M').toUpperCase() === 'T' ? 'T' : 'M',
     weight: Math.max(0, Number(row.weight || 0)),
+    leverage: kind === 'entry' ? Math.max(1, Number(row.leverage || defaultLeverage || 1)) : undefined,
+    status: kind === 'exit' ? String(row.status || (tradeStatus === 'CLOSED' ? 'FILLED' : 'PLANNED')).toUpperCase() : undefined,
   }));
-  if (!mapped.length && withDefault) return [{ price: 0, type: 'M', weight: 100 }];
+  if (!mapped.length && withDefault) return [{ price: 0, type: 'M', weight: 100, leverage: Math.max(1, Number(defaultLeverage || 1)) }];
   return mapped;
 }
 

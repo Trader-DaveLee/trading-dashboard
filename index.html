@@ -172,23 +172,59 @@
               <div class="field-grid cols-4 compact-panel execution-grid">
                 <label><span>매매용 시드 ($)</span><input id="account-size" type="number" step="1" value="10000" /></label>
                 <label><span>리스크 (%)</span><input id="risk-pct" type="number" step="0.01" value="0.5" /></label>
-                <label><span>레버리지</span><input id="leverage" type="number" step="0.1" value="5" /></label>
+                <label><span>기본 레버리지</span><input id="leverage" type="number" step="0.1" value="5" /></label>
+                <label><span>현재가 (Now)</span><input id="current-price" type="number" step="0.01" /></label>
                 <label><span>손절가 (SL)</span><input id="stop-price" type="number" step="0.01" /></label>
                 <label><span>목표가 (TP)</span><input id="target-price" type="number" step="0.01" placeholder="예상 목표가" /></label>
                 <label><span>Mark Price</span><input id="mark-price" type="number" step="0.01" /></label>
+                <label><span>Planner Mode</span>
+                  <select id="planner-mode">
+                    <option value="SINGLE">SINGLE</option>
+                    <option value="LADDER">LADDER</option>
+                    <option value="LADDER_TIGHT">LADDER TIGHT</option>
+                    <option value="LADDER_DEEP">LADDER DEEP</option>
+                  </select>
+                </label>
+                <label><span>Planner Legs</span>
+                  <select id="planner-legs">
+                    <option value="1">1 Leg</option>
+                    <option value="2">2 Legs</option>
+                    <option value="3" selected>3 Legs</option>
+                    <option value="4">4 Legs</option>
+                  </select>
+                </label>
+                <label><span>Risk Share Mode</span>
+                  <select id="planner-weight-mode">
+                    <option value="EQUAL">EQUAL</option>
+                    <option value="FRONTLOADED">FRONTLOADED</option>
+                    <option value="BACKLOADED" selected>BACKLOADED</option>
+                  </select>
+                </label>
                 <label><span>Maker Fee (%)</span><input id="maker-fee" type="number" step="0.001" value="0.02" /></label>
                 <label><span>Taker Fee (%)</span><input id="taker-fee" type="number" step="0.001" value="0.05" /></label>
                 <label><span>미세 보정 (+/- $)</span><input id="adjustment" type="number" step="0.01" value="0" /></label>
                 <label><span>손절 체결 방식</span><select id="stop-type"><option value="M">Maker</option><option value="T">Taker</option></select></label>
               </div>
 
+              <div class="mini-head" style="margin-top:24px; align-items:flex-start; gap:12px; flex-wrap:wrap;">
+                <div>
+                  <h4>AUTO ENTRY PLANNER</h4>
+                  <div class="muted-caption" style="margin-top:6px;">현재가·손절가·목표가를 기준으로 추천 진입 레그와 수량/레버리지를 계산합니다.</div>
+                </div>
+                <div class="inline-actions">
+                  <button type="button" id="btn-generate-plan" class="tool-btn btn-sm">추천안 재계산</button>
+                  <button type="button" id="btn-apply-plan" class="tool-btn btn-sm primary-btn">추천안 적용</button>
+                </div>
+              </div>
+              <div id="planner-summary" class="summary-box">현재가, 손절가, 리스크를 입력하면 추천 진입 구조가 표시됩니다.</div>
+
               <div class="field-grid cols-1" style="margin-top: 32px; gap: 32px;">
                 <div>
-                  <div class="mini-head"><h4>SCALING-IN (진입 합계 100%)</h4><button type="button" id="add-entry" class="tool-btn btn-sm">＋ 추가</button></div>
+                  <div class="mini-head"><h4>EXECUTION ENTRIES (실제 체결 / Risk Share %)</h4><button type="button" id="add-entry" class="tool-btn btn-sm">＋ 추가</button></div>
                   <div id="entries" class="stack" style="gap:8px;"></div>
                 </div>
                 <div>
-                  <div class="mini-head"><h4>SCALING-OUT (청산 합계 최대 100%)</h4><button type="button" id="add-exit" class="tool-btn btn-sm">＋ 추가</button></div>
+                  <div class="mini-head"><h4>TARGET / FILLED EXITS (OPEN=Planned · FILLED=실제 체결)</h4><button type="button" id="add-exit" class="tool-btn btn-sm">＋ 추가</button></div>
                   <div id="exits" class="stack" style="gap:8px;"></div>
                 </div>
               </div>
@@ -316,20 +352,41 @@
           </article>
 
           <article class="card compact-card risk-summary-card">
-            <div class="section-head"><div><h3>Risk Planner</h3><p>자동 주문 설계 엔진</p></div></div>
+            <div class="section-head"><div><h3>Risk Planner</h3><p>자동 주문 설계 · 포지션 상태 · Scale-In 시뮬레이터</p></div></div>
             <div class="detail-box risk-box">
               <div class="kv">
                 <div>허용 손실 (Risk)</div><div id="risk-risk-dollar" class="mono negative">$0</div>
+                <div>사용 중 리스크</div><div id="risk-actual-risk" class="mono negative">$0</div>
+                <div>리스크 사용률</div><div id="risk-risk-usage" class="mono">0.0%</div>
                 <div>예상 수익 (Reward)</div><div id="risk-projected-pnl" class="mono positive">$0</div>
                 <div>예상 R-Multiple</div><div id="risk-projected-r" class="mono">0.00R</div>
-                
+                <div>잔여 리스크</div><div id="risk-remaining-risk" class="mono">$0</div>
                 <div style="grid-column: 1 / -1; height: 1px; background: var(--line); margin: 8px 0;"></div>
-                
-                <div>추천 진입 수량</div><div id="risk-qty" class="mono" style="font-size:16px; color:var(--accent); font-weight:900;">0.00000</div>
+                <div>총 진입 수량</div><div id="risk-qty" class="mono" style="font-size:16px; color:var(--accent); font-weight:900;">0.00000</div>
                 <div>필요 증거금</div><div id="risk-margin" class="mono">$0</div>
                 <div>포지션 사용률</div><div id="risk-slider" class="mono">0.0%</div>
+                <div>가중 레버리지</div><div id="risk-weighted-lev" class="mono">1.00x</div>
+                <div>평균 진입가</div><div id="risk-avg-entry" class="mono">0.00</div>
+                <div>본절가 (BEP)</div><div id="risk-bep" class="mono">0.00</div>
+                <div style="grid-column: 1 / -1; height: 1px; background: var(--line); margin: 8px 0;"></div>
+                <div>총 노출금액</div><div id="risk-notional" class="mono">$0</div>
+                <div>손절 거리</div><div id="risk-stop-distance" class="mono">0.0%</div>
+                <div>누적 수수료</div><div id="risk-fees" class="mono">$0</div>
+                <div>실현 PnL</div><div id="risk-realized" class="mono">$0</div>
+                <div>미실현 PnL</div><div id="risk-unrealized" class="mono">$0</div>
+                <div>잔여 포지션 리스크</div><div id="risk-residual" class="mono">$0</div>
               </div>
             </div>
+            <div class="mini-head" style="margin-top:16px;"><h4>SCALE-IN SIMULATOR</h4><button type="button" id="btn-apply-scalein" class="tool-btn btn-sm primary-btn">추가진입 적용</button></div>
+            <div class="field-grid cols-4 compact-panel" style="padding:16px; margin-top:12px;">
+              <label><span>추가 진입가</span><input id="scalein-price" type="number" step="0.01" /></label>
+              <label><span>추가 Risk Share (%)</span><input id="scalein-risk-share" type="number" step="0.1" value="10" /></label>
+              <label><span>추가 레버리지</span><input id="scalein-leverage" type="number" step="0.1" value="5" /></label>
+              <label><span>수수료 타입</span><select id="scalein-type"><option value="M">Maker</option><option value="T" selected>Taker</option></select></label>
+            </div>
+            <div id="scalein-summary" class="summary-box" style="margin-top:12px;">추가 진입가와 리스크 비중을 입력하면 평균단가/리스크/목표 수익 변화가 즉시 표시됩니다.</div>
+            <div class="mini-head" style="margin-top:16px;"><h4>TARGET PROJECTION</h4></div>
+            <div id="target-ladder-summary" class="summary-box" style="margin-top:12px;">목표가 또는 Target / Filled Exit 레그를 입력하면 단계별 프로젝션이 표시됩니다.</div>
           </article>
 
           <article class="card compact-card">
