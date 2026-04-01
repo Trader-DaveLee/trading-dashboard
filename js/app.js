@@ -15,6 +15,8 @@ const state = {
   filteredTrades: [],
   draftEntries: [{ price: 0, type: 'M', weight: 100 }],
   draftExits: [],
+  draftEntryCharts: [], // ✨ 진입 차트 관리
+  draftExitCharts: [],  // ✨ 종료 차트 관리
   draftLiveCharts: [],
   dirty: false,
 };
@@ -29,8 +31,9 @@ const ID_LIST = [
   'realtime-clock','quick-launch-grid','btn-manage-quick-links','today-console','eod-memo',
   'view-journal','trade-form','trade-id','trade-date','btn-now','ticker','btn-manage-ticker','status','session','side','setup-entry','btn-manage-setup-entry','setup-exit','btn-manage-setup-exit',
   'account-size','risk-pct','leverage','maker-fee','taker-fee','stop-price','mark-price','stop-type','adjustment',
-  'context','thesis','review','chart-entry','chart-exit','tags','mistakes',
+  'context','thesis','review','tags','mistakes',
   'add-entry','entries','add-exit','exits','calc-summary','quick-tags','quick-mistakes','live-notes','btn-insert-time','add-live-chart','live-charts-container',
+  'add-entry-chart','entry-charts-container','add-exit-chart','exit-charts-container','post-trade-summary', // ✨ 추가된 ID
   'bal-cash','bal-crypto','bal-usdt','bal-stock','bal-total','balance-type','balance-memo','btn-update-balance','balance-history',
   'duplicate-trade','reset-form','delete-trade','grade','deep-review-r',
   'desk-rules','master-checklist-list','new-check-input','btn-add-check','trade-checklist-container',
@@ -280,73 +283,51 @@ function bindEvents() {
   if(els['list-manage-close']) els['list-manage-close'].onclick = () => els['list-manage-modal'].classList.remove('show');
   if(els['ql-close']) els['ql-close'].onclick = () => els['ql-modal'].classList.remove('show');
 
-  els['btn-manage-ticker'].onclick = () => openListManager('tickers', '티커', 'upper');
-  els['btn-manage-setup-entry'].onclick = () => openListManager('entrySetups', 'Entry Setup', 'upper');
-  els['btn-manage-setup-exit'].onclick = () => openListManager('exitSetups', 'Exit Setup', 'upper');
+  if(els['btn-manage-ticker']) els['btn-manage-ticker'].onclick = () => openListManager('tickers', '티커', 'upper');
+  if(els['btn-manage-setup-entry']) els['btn-manage-setup-entry'].onclick = () => openListManager('entrySetups', 'Entry Setup', 'upper');
+  if(els['btn-manage-setup-exit']) els['btn-manage-setup-exit'].onclick = () => openListManager('exitSetups', 'Exit Setup', 'upper');
   if(els['btn-manage-quick-links']) els['btn-manage-quick-links'].onclick = () => openQuickLinkManager();
 
-  els['btn-now'].onclick = () => {
-    setVal('trade-date', inputDate(new Date().toISOString()));
-    markDirty();
-    updatePreview();
-  };
+  if(els['btn-now']) els['btn-now'].onclick = () => { setVal('trade-date', inputDate(new Date().toISOString())); markDirty(); updatePreview(); };
+  if(els['prev-month']) els['prev-month'].onclick = () => { state.month.setMonth(state.month.getMonth() - 1); renderCalendar(); };
+  if(els['next-month']) els['next-month'].onclick = () => { state.month.setMonth(state.month.getMonth() + 1); renderCalendar(); };
 
-  els['prev-month'].onclick = () => {
-    state.month.setMonth(state.month.getMonth() - 1);
-    renderCalendar();
-  };
-  els['next-month'].onclick = () => {
-    state.month.setMonth(state.month.getMonth() + 1);
-    renderCalendar();
-  };
-
-  els['add-entry'].onclick = () => {
-    state.draftEntries.push({ price: 0, type: 'M', weight: 0 });
-    renderLegs('entry');
-    updatePreview();
-  };
-  els['add-exit'].onclick = () => {
-    state.draftExits.push({ price: 0, type: 'M', weight: 0 });
-    renderLegs('exit');
-    updatePreview();
-  };
+  if(els['add-entry']) els['add-entry'].onclick = () => { state.draftEntries.push({ price: 0, type: 'M', weight: 0 }); renderLegs('entry'); updatePreview(); };
+  if(els['add-exit']) els['add-exit'].onclick = () => { state.draftExits.push({ price: 0, type: 'M', weight: 0 }); renderLegs('exit'); updatePreview(); };
   
-  els['add-live-chart'].onclick = () => {
-    state.draftLiveCharts.push('');
-    renderLiveCharts();
-    updatePreview();
-  };
+  if(els['add-live-chart']) els['add-live-chart'].onclick = () => { state.draftLiveCharts.push(''); renderChartInputs('live'); updatePreview(); };
+  if(els['add-entry-chart']) els['add-entry-chart'].onclick = () => { state.draftEntryCharts.push(''); renderChartInputs('entry'); updatePreview(); };
+  if(els['add-exit-chart']) els['add-exit-chart'].onclick = () => { state.draftExitCharts.push(''); renderChartInputs('exit'); updatePreview(); };
 
-  els['reset-form'].onclick = resetForm;
-  els['delete-trade'].onclick = deleteTrade;
-  els['duplicate-trade'].onclick = duplicateTrade;
-  els['trade-form'].addEventListener('submit', handleSubmit);
+  if(els['reset-form']) els['reset-form'].onclick = resetForm;
+  if(els['delete-trade']) els['delete-trade'].onclick = deleteTrade;
+  if(els['duplicate-trade']) els['duplicate-trade'].onclick = duplicateTrade;
+  if(els['trade-form']) els['trade-form'].addEventListener('submit', handleSubmit);
 
-  els['force-save-draft'].onclick = () => {
-    persistDraft(true);
-    saveDB(state.db);
-    refreshJournalStatus('임시저장 완료');
-  };
-
-  els['export-json'].onclick = () => exportDB(state.db);
-  els['import-json-btn'].onclick = () => els['import-json'].click();
-  els['import-json'].onchange = handleImport;
+  if(els['force-save-draft']) els['force-save-draft'].onclick = () => { persistDraft(true); saveDB(state.db); refreshJournalStatus('임시저장 완료'); };
+  if(els['export-json']) els['export-json'].onclick = () => exportDB(state.db);
+  if(els['import-json-btn']) els['import-json-btn'].onclick = () => els['import-json'].click();
+  if(els['import-json']) els['import-json'].onchange = handleImport;
 
   if(els['overview-search']) els['overview-search'].onclick = () => renderOverview();
-  els['overview-clear'].onclick = () => { setVal('overview-from', ''); setVal('overview-to', ''); renderOverview(); };
+  if(els['overview-clear']) els['overview-clear'].onclick = () => { setVal('overview-from', ''); setVal('overview-to', ''); renderOverview(); };
 
   const filterIds = ['q','f-from','f-to','f-status','f-side','f-session','f-setup','f-tag','f-mistake','f-grade','sort'];
-  filterIds.forEach(id => els[id].addEventListener('input', renderLibrary));
-  filterIds.forEach(id => els[id].addEventListener('change', renderLibrary));
-  els['clear-filters'].onclick = clearFilters;
+  filterIds.forEach(id => {
+    if(els[id]) {
+      els[id].addEventListener('input', renderLibrary);
+      els[id].addEventListener('change', renderLibrary);
+    }
+  });
+  if(els['clear-filters']) els['clear-filters'].onclick = clearFilters;
 
-  els['prev-trade'].onclick = () => stepSelectedTrade(-1);
-  els['next-trade'].onclick = () => stepSelectedTrade(1);
-  els['filter-same-setup'].onclick = filterBySelectedSetup;
-  els['filter-same-ticker'].onclick = filterBySelectedTicker;
-  els['clear-quick-filter'].onclick = clearQuickFilter;
+  if(els['prev-trade']) els['prev-trade'].onclick = () => stepSelectedTrade(-1);
+  if(els['next-trade']) els['next-trade'].onclick = () => stepSelectedTrade(1);
+  if(els['filter-same-setup']) els['filter-same-setup'].onclick = filterBySelectedSetup;
+  if(els['filter-same-ticker']) els['filter-same-ticker'].onclick = filterBySelectedTicker;
+  if(els['clear-quick-filter']) els['clear-quick-filter'].onclick = clearQuickFilter;
 
-  els['btn-insert-time'].onclick = () => insertLiveNote('');
+  if(els['btn-insert-time']) els['btn-insert-time'].onclick = () => insertLiveNote('');
   document.querySelectorAll('.btn-live-action').forEach(btn => {
     btn.onclick = () => insertLiveNote(btn.dataset.text || '');
   });
@@ -361,9 +342,7 @@ function bindEvents() {
   if(els['btn-update-balance']) els['btn-update-balance'].onclick = updateBalance;
   
   document.querySelectorAll('textarea.auto-resize').forEach(ta => {
-    ta.addEventListener('input', function() {
-      autoResize(this);
-    });
+    ta.addEventListener('input', function() { autoResize(this); });
   });
 
   if(els['desk-rules']) {
@@ -391,8 +370,7 @@ function bindEvents() {
   [
     'trade-date','ticker','status','session','side','setup-entry','setup-exit',
     'account-size','risk-pct','leverage','maker-fee','taker-fee','stop-price','mark-price','stop-type','adjustment',
-    'context','thesis','review','chart-entry','chart-exit',
-    'tags','mistakes','grade','live-notes'
+    'context','thesis','review','tags','mistakes','grade','live-notes'
   ].forEach(id => {
     if (!els[id]) return;
     els[id].addEventListener('input', handleFormMutation);
@@ -430,6 +408,7 @@ function bindKeyboardShortcuts() {
 }
 
 function renderNav() {
+  if(!els['nav']) return;
   els['nav'].innerHTML = views.map(view => `
     <button type="button" class="${state.view === view ? 'active' : ''}" data-view="${view}">
       ${titleCase(view)}
@@ -446,7 +425,7 @@ function renderNav() {
 
 function renderViews() {
   views.forEach(view => {
-    els[`view-${view}`].classList.toggle('active', state.view === view);
+    if(els[`view-${view}`]) els[`view-${view}`].classList.toggle('active', state.view === view);
   });
   renderNav();
   
@@ -538,21 +517,21 @@ function renderDropdowns() {
 }
 
 function populateSelect(id, rows) {
+  if(!els[id]) return;
   const current = getVal(id);
   els[id].innerHTML = rows.map(value => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`).join('');
   if (rows.includes(current)) els[id].value = current;
 }
 
 function renderQuickChips() {
-  els['quick-tags'].innerHTML = state.db.meta.tagPresets.map(tag => `<button type="button" class="chip-btn" data-tag="${escapeHtml(tag)}">#${escapeHtml(tag)}</button>`).join('');
-  els['quick-mistakes'].innerHTML = state.db.meta.mistakePresets.map(tag => `<button type="button" class="chip-btn" data-mistake="${escapeHtml(tag)}">${escapeHtml(tag)}</button>`).join('');
-
-  els['quick-tags'].querySelectorAll('button').forEach(btn => {
-    btn.onclick = () => appendCsvValue('tags', btn.dataset.tag);
-  });
-  els['quick-mistakes'].querySelectorAll('button').forEach(btn => {
-    btn.onclick = () => appendCsvValue('mistakes', btn.dataset.mistake);
-  });
+  if(els['quick-tags']) {
+    els['quick-tags'].innerHTML = state.db.meta.tagPresets.map(tag => `<button type="button" class="chip-btn" data-tag="${escapeHtml(tag)}">#${escapeHtml(tag)}</button>`).join('');
+    els['quick-tags'].querySelectorAll('button').forEach(btn => btn.onclick = () => appendCsvValue('tags', btn.dataset.tag));
+  }
+  if(els['quick-mistakes']) {
+    els['quick-mistakes'].innerHTML = state.db.meta.mistakePresets.map(tag => `<button type="button" class="chip-btn" data-mistake="${escapeHtml(tag)}">${escapeHtml(tag)}</button>`).join('');
+    els['quick-mistakes'].querySelectorAll('button').forEach(btn => btn.onclick = () => appendCsvValue('mistakes', btn.dataset.mistake));
+  }
 }
 
 function hydrateInitialForm() {
@@ -565,13 +544,18 @@ function hydrateInitialForm() {
   setVal('taker-fee', tpl.takerFee || 0.05);
   
   setVal('desk-rules', state.db.meta.rules || '');
+  setTimeout(() => autoResize(els['desk-rules']), 0);
   
   state.draftEntries = [{ price: 0, type: 'M', weight: 100 }];
   state.draftExits = [];
+  state.draftEntryCharts = [''];
+  state.draftExitCharts = [''];
   state.draftLiveCharts = [];
   renderLegs('entry');
   renderLegs('exit');
-  renderLiveCharts();
+  renderChartInputs('entry');
+  renderChartInputs('exit');
+  renderChartInputs('live');
   renderTradeChecklist([]);
   calcTotalBalance();
 }
@@ -585,26 +569,33 @@ function restoreDraftIfPresent() {
   }
 }
 
-function renderLiveCharts() {
-  const container = els['live-charts-container'];
+// ✨ 공통 차트 인풋 렌더링 (Entry, Exit, Live)
+function renderChartInputs(type) {
+  let arr, containerId;
+  if(type === 'entry') { arr = state.draftEntryCharts; containerId = 'entry-charts-container'; }
+  else if(type === 'exit') { arr = state.draftExitCharts; containerId = 'exit-charts-container'; }
+  else { arr = state.draftLiveCharts; containerId = 'live-charts-container'; }
+  
+  const container = els[containerId];
   if (!container) return;
-  container.innerHTML = state.draftLiveCharts.map((url, idx) => `
-    <div style="display:flex; gap:8px;">
-      <input type="text" class="live-chart-input" value="${escapeAttr(url)}" placeholder="https://www.tradingview.com/x/... 등 링크 입력" data-index="${idx}" />
-      <button type="button" class="tool-btn btn-del-live-chart danger-text" data-index="${idx}">✕</button>
+
+  container.innerHTML = arr.map((url, idx) => `
+    <div class="input-group flex-group" style="margin-bottom:8px;">
+      <input type="text" class="${type}-chart-input" value="${escapeAttr(url)}" placeholder="https://www.tradingview.com/x/... 링크 입력" data-index="${idx}" style="flex:1;" />
+      <button type="button" class="tool-btn btn-del-${type}-chart danger-text fixed-btn" data-index="${idx}">✕</button>
     </div>
   `).join('');
 
-  container.querySelectorAll('.live-chart-input').forEach(input => {
+  container.querySelectorAll(`.${type}-chart-input`).forEach(input => {
     input.oninput = (e) => {
-      state.draftLiveCharts[e.target.dataset.index] = e.target.value;
+      arr[e.target.dataset.index] = e.target.value;
       markDirty(); persistDraft();
     };
   });
-  container.querySelectorAll('.btn-del-live-chart').forEach(btn => {
+  container.querySelectorAll(`.btn-del-${type}-chart`).forEach(btn => {
     btn.onclick = (e) => {
-      state.draftLiveCharts.splice(e.target.dataset.index, 1);
-      renderLiveCharts();
+      arr.splice(e.target.dataset.index, 1);
+      renderChartInputs(type);
       markDirty(); persistDraft();
     };
   });
@@ -613,6 +604,7 @@ function renderLiveCharts() {
 function renderLegs(kind) {
   const key = kind === 'entry' ? 'draftEntries' : 'draftExits';
   const target = els[kind === 'entry' ? 'entries' : 'exits'];
+  if(!target) return;
   target.innerHTML = state[key].map((leg, index) => `
     <div class="leg-row" data-kind="${kind}" data-index="${index}">
       <div class="input-with-unit">
@@ -664,7 +656,7 @@ function resetFormForce() {
   state.dirty = false;
 
   [
-    'trade-id','context','thesis','review','chart-entry','chart-exit','tags','mistakes','live-notes',
+    'trade-id','context','thesis','review','tags','mistakes','live-notes',
     'mark-price','adjustment','stop-price'
   ].forEach(id => setVal(id, ''));
 
@@ -685,10 +677,15 @@ function resetFormForce() {
 
   state.draftEntries = [{ price: 0, type: 'M', weight: 100 }];
   state.draftExits = [];
+  state.draftEntryCharts = [''];
+  state.draftExitCharts = [''];
   state.draftLiveCharts = [];
+  
   renderLegs('entry');
   renderLegs('exit');
-  renderLiveCharts();
+  renderChartInputs('entry');
+  renderChartInputs('exit');
+  renderChartInputs('live');
   renderTradeChecklist([]);
   
   setTimeout(() => {
@@ -757,8 +754,8 @@ function readForm() {
     mistakes: splitCsv(getVal('mistakes')),
     checkedRules: getCheckedRules(),
     evidence: {
-      entryChart: getVal('chart-entry'),
-      exitChart: getVal('chart-exit'),
+      entryCharts: state.draftEntryCharts.filter(Boolean),
+      exitCharts: state.draftExitCharts.filter(Boolean),
       liveCharts: state.draftLiveCharts.filter(Boolean),
     },
     entries: cloneRows(state.draftEntries),
@@ -871,16 +868,18 @@ function applyTradeToForm(trade, options = {}) {
   setVal('live-notes', trade.liveNotes || '');
   setVal('tags', (trade.tags || []).join(', '));
   setVal('mistakes', (trade.mistakes || []).join(', '));
-  setVal('chart-entry', trade.evidence?.entryChart || '');
-  setVal('chart-exit', trade.evidence?.exitChart || '');
   
+  state.draftEntryCharts = Array.isArray(trade.evidence?.entryCharts) && trade.evidence.entryCharts.length ? [...trade.evidence.entryCharts] : [''];
+  state.draftExitCharts = Array.isArray(trade.evidence?.exitCharts) && trade.evidence.exitCharts.length ? [...trade.evidence.exitCharts] : [''];
   state.draftLiveCharts = Array.isArray(trade.evidence?.liveCharts) ? [...trade.evidence.liveCharts] : [];
   state.draftEntries = cloneRows(trade.entries || [{ price: 0, type: 'M', weight: 100 }]);
   state.draftExits = cloneRows(trade.exits || []);
   
   renderLegs('entry');
   renderLegs('exit');
-  renderLiveCharts();
+  renderChartInputs('entry');
+  renderChartInputs('exit');
+  renderChartInputs('live');
   renderTradeChecklist(trade.checkedRules || []); 
   
   setTimeout(() => {
@@ -895,7 +894,50 @@ function updatePreview() {
   const metrics = trade.metrics;
   renderCalcSummary(metrics, trade);
   renderRiskPanel(metrics);
+  renderPostTradeSummary(metrics, trade);
   setText('deep-review-r', `${metrics.r.toFixed(2)}R`);
+}
+
+// ✨ Post-Trade Review 요약 정보 렌더링
+function renderPostTradeSummary(metrics, trade) {
+  const container = els['post-trade-summary'];
+  if (!container) return;
+  if (trade.status !== 'CLOSED' || !metrics.valid) {
+    container.style.display = 'none';
+    return;
+  }
+  container.style.display = 'grid';
+
+  const isWin = metrics.netPnl > 0;
+  // 현재 폼을 제외한 전체 폐제(Closed) 거래 계산 (승률 영향 파악용)
+  const otherClosed = state.db.trades.filter(t => t.status === 'CLOSED' && t.id !== trade.id);
+  const oldWins = otherClosed.filter(t => t.metrics.pnl > 0).length;
+  const oldTotal = otherClosed.length;
+  const oldWinRate = oldTotal ? (oldWins / oldTotal) * 100 : 0;
+  
+  const newWins = oldWins + (isWin ? 1 : 0);
+  const newTotal = oldTotal + 1;
+  const newWinRate = (newWins / newTotal) * 100;
+  const winRateImpact = newWinRate - oldWinRate;
+
+  setHtml('post-trade-summary', `
+    <div class="post-trade-kpi-item">
+      <label>투입 시드 (Risked)</label>
+      <span class="mono">${moneyAbs(metrics.margin)}</span>
+    </div>
+    <div class="post-trade-kpi-item">
+      <label>수수료 (Fees)</label>
+      <span class="mono negative">-${moneyAbs(metrics.totalFees)}</span>
+    </div>
+    <div class="post-trade-kpi-item">
+      <label>최종 손익 (Net PnL)</label>
+      <span class="mono ${metrics.netPnl > 0 ? 'positive' : 'negative'}">${money(metrics.netPnl)}</span>
+    </div>
+    <div class="post-trade-kpi-item">
+      <label>계좌 승률 변화</label>
+      <span class="mono ${winRateImpact > 0 ? 'positive' : winRateImpact < 0 ? 'negative' : ''}">${winRateImpact > 0 ? '+' : ''}${winRateImpact.toFixed(2)}%</span>
+    </div>
+  `);
 }
 
 function renderCalcSummary(metrics, trade) {
@@ -1430,8 +1472,8 @@ function renderTradeDetail(trade) {
     <div style="margin-top:24px;">
       <h4 style="margin:0 0 8px; font-size:14px; font-weight:800;">Evidence (Charts)</h4>
       <div style="display:flex; gap:8px; flex-wrap:wrap;">
-        ${trade.evidence?.entryChart ? `<a href="${escapeAttr(trade.evidence.entryChart)}" target="_blank" style="padding:8px 16px; background:#e0e7ff; color:var(--accent); border-radius:8px; text-decoration:none; font-weight:700; font-size:12px;">Entry Chart 📈</a>` : ''}
-        ${trade.evidence?.exitChart ? `<a href="${escapeAttr(trade.evidence.exitChart)}" target="_blank" style="padding:8px 16px; background:#e0e7ff; color:var(--accent); border-radius:8px; text-decoration:none; font-weight:700; font-size:12px;">Exit Chart 📈</a>` : ''}
+        ${(trade.evidence?.entryCharts || []).map((url, idx) => `<a href="${escapeAttr(url)}" target="_blank" style="padding:8px 16px; background:#e0e7ff; color:var(--accent); border-radius:8px; text-decoration:none; font-weight:700; font-size:12px;">Entry Chart ${idx+1} 📈</a>`).join('')}
+        ${(trade.evidence?.exitCharts || []).map((url, idx) => `<a href="${escapeAttr(url)}" target="_blank" style="padding:8px 16px; background:#e0e7ff; color:var(--accent); border-radius:8px; text-decoration:none; font-weight:700; font-size:12px;">Exit Chart ${idx+1} 📈</a>`).join('')}
         ${(trade.evidence?.liveCharts || []).map((url, idx) => `<a href="${escapeAttr(url)}" target="_blank" style="padding:8px 16px; background:#f1f5f9; color:var(--muted); border:1px solid var(--line); border-radius:8px; text-decoration:none; font-weight:700; font-size:12px;">Live Chart ${idx + 1} 🔍</a>`).join('')}
       </div>
     </div>
@@ -1496,7 +1538,10 @@ function renderPlaybook() {
 
   let html = '';
   rows.forEach(trade => {
-    const chartUrl = trade.evidence?.exitChart || trade.evidence?.entryChart;
+    const exitC = Array.isArray(trade.evidence?.exitCharts) ? trade.evidence.exitCharts[0] : null;
+    const entryC = Array.isArray(trade.evidence?.entryCharts) ? trade.evidence.entryCharts[0] : null;
+    const chartUrl = exitC || entryC;
+    
     let imgHtml = '';
     if (chartUrl) {
       if (chartUrl.match(/\.(jpeg|jpg|gif|png|webp)$/i)) {
