@@ -67,17 +67,30 @@
         </article>
       </div>
 
-      <article class="card overview-calendar-card" style="margin-bottom: 24px;">
-        <div class="section-head">
-          <div><h3>월간 캘린더 (Heatmap)</h3><p>일별 순손익 및 클릭하여 해당 일자 복기</p></div>
-          <div class="inline-actions">
-            <button id="prev-month" class="tool-btn">◀</button>
-            <strong id="calendar-title" class="calendar-title"></strong>
-            <button id="next-month" class="tool-btn">▶</button>
+      <div class="overview-calendar-grid" style="margin-bottom: 24px;">
+        <article class="card overview-calendar-card overview-panel-fill">
+          <div class="section-head">
+            <div><h3>월간 캘린더 (Heatmap)</h3><p>일별 순손익 및 클릭하여 해당 일자 복기</p></div>
+            <div class="inline-actions">
+              <button id="prev-month" class="tool-btn">◀</button>
+              <strong id="calendar-title" class="calendar-title"></strong>
+              <button id="next-month" class="tool-btn">▶</button>
+            </div>
           </div>
-        </div>
-        <div id="calendar" class="calendar calendar-large"></div>
-      </article>
+          <div id="calendar" class="calendar calendar-large"></div>
+        </article>
+
+        <article class="card overview-history-card overview-panel-fill">
+          <div class="section-head history-head">
+            <div><h3>최근 히스토리</h3><p>Library로 가지 않고 최근 체결과 손익 흐름을 빠르게 확인</p></div>
+            <div class="inline-actions history-toggle">
+              <button id="overview-history-trades-btn" class="tool-btn active">매매</button>
+              <button id="overview-history-pnl-btn" class="tool-btn">손익</button>
+            </div>
+          </div>
+          <div id="overview-history-list" class="overview-history-list"></div>
+        </article>
+      </div>
 
       <div class="grid grid-2" style="margin-bottom:24px;">
         <article class="card chart-card">

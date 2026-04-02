@@ -20,6 +20,7 @@ const state = {
   draftExitCharts: [],
   draftLiveCharts: [],
   dirty: false,
+  overviewHistoryMode: 'trades',
 };
 
 const views = ['overview', 'journal', 'library', 'playbook'];
@@ -28,7 +29,7 @@ let draftTimer = null;
 
 const ID_LIST = [
   'nav','force-save-draft','export-json','import-json-btn','import-json','journal-status','draft-saved-at',
-  'view-overview','metrics','overview-from','overview-to','overview-clear','overview-search','prev-month','calendar-title','next-month','calendar','equity-chart','balance-chart','setup-chart','mistake-list','research-notes','overview-portfolio',
+  'view-overview','metrics','overview-from','overview-to','overview-clear','overview-search','prev-month','calendar-title','next-month','calendar','equity-chart','balance-chart','setup-chart','mistake-list','research-notes','overview-portfolio','overview-history-list','overview-history-trades-btn','overview-history-pnl-btn',
   'realtime-clock','quick-launch-grid','btn-manage-quick-links','journal-sidebar','journal-pretrade-phase','journal-risk-phase','risk-planner-card','pretrade-brief','btn-context-structure','btn-context-catalyst','btn-thesis-trigger','btn-thesis-invalidation','planner-mode-note',
   'view-journal','trade-form','trade-id','trade-date','btn-now','ticker','btn-manage-ticker','status','status-toggle','side','setup-entry','btn-manage-setup-entry','setup-exit','btn-manage-setup-exit',
   'account-size','risk-pct','leverage','current-price','planner-mode','planner-legs','planner-weight-mode','btn-generate-plan','btn-apply-plan','planner-summary','maker-fee','taker-fee','stop-price','target-price','stop-type','price-map-distance-summary',
@@ -52,6 +53,9 @@ window.__desk = {
   selectTrade: id => selectTrade(id),
   applySameSetupFilter: () => filterBySelectedSetup(),
   applySameTickerFilter: () => filterBySelectedTicker(),
+  openTradeInJournal: id => openSelectedInJournal(id),
+  deleteTradeById: id => deleteTradeById(id),
+  openHistoryDate: dateKey => openHistoryDate(dateKey),
 };
 
 function getLocalDateKey(dateObj) {
@@ -68,6 +72,14 @@ window.__desk_jump_date = (dateString) => {
   renderViews();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 };
+
+function openHistoryDate(dateString) {
+  setVal('f-from', dateString);
+  setVal('f-to', dateString);
+  state.view = 'library';
+  renderViews();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
 
 window.__desk_del_balance = (id) => {
   showModal({ type: 'CONFIRM', title: '잔고 내역 삭제', desc: '이 잔고 기록을 삭제하시겠습니까?' }, (res) => {
@@ -338,6 +350,8 @@ function bindEvents() {
 
   if(els['overview-search']) els['overview-search'].onclick = () => renderOverview();
   if(els['overview-clear']) els['overview-clear'].onclick = () => { setVal('overview-from', ''); setVal('overview-to', ''); renderOverview(); };
+  if(els['overview-history-trades-btn']) els['overview-history-trades-btn'].onclick = () => setOverviewHistoryMode('trades');
+  if(els['overview-history-pnl-btn']) els['overview-history-pnl-btn'].onclick = () => setOverviewHistoryMode('pnl');
 
   const filterIds = ['q','f-from','f-to','f-status','f-side','f-setup','f-tag','f-mistake','f-grade','sort'];
   filterIds.forEach(id => {
@@ -810,11 +824,17 @@ function duplicateTrade() {
 function deleteTrade() {
   const id = getVal('trade-id');
   if (!id) return;
+  deleteTradeById(id, { resetCurrent: true });
+}
+
+function deleteTradeById(id, options = {}) {
+  if (!id) return;
   showModal({ type: 'CONFIRM', title: '트레이드 삭제', desc: '이 트레이드를 영구적으로 삭제하시겠습니까?' }, (res) => {
     if (!res) return;
     state.db.trades = state.db.trades.filter(trade => trade.id !== id);
+    if (state.selectedTradeId === id) state.selectedTradeId = state.db.trades[0]?.id || null;
     saveDB(state.db);
-    resetFormForce();
+    if (options.resetCurrent || getVal('trade-id') === id) resetFormForce();
     render();
     refreshJournalStatus('트레이드 삭제 완료');
   });
@@ -1045,18 +1065,42 @@ function renderPriceMapDistanceSummary(trade) {
   const current = Number(trade.currentPrice || 0);
   const stop = Number(trade.stopPrice || 0);
   const target = Number(trade.targetPrice || 0);
+  const lev = Math.max(1, Number(trade.leverage || 1));
+  const metrics = trade.metrics || { projectedPnl: 0, projectedR: 0 };
   if (!current || !stop) {
-    setHtml('price-map-distance-summary', '현재가, 손절가, 목표가를 입력하면 거리 비율이 자동 계산됩니다.');
+    setHtml('price-map-distance-summary', '현재가, 손절가, 목표가를 입력하면 거리 비율과 손익 시나리오가 자동 계산됩니다.');
     return;
   }
-  const stopPct = current ? Math.abs((stop - current) / current) * 100 : 0;
-  const targetPct = current && target ? Math.abs((target - current) / current) * 100 : 0;
-  const stopDir = stop > current ? '+' : '-';
-  const targetDir = target ? (target > current ? '+' : '-') : '';
+  const stopMovePct = ((stop - current) / current) * 100;
+  const stopBps = stopMovePct * 100;
+  const targetMovePct = target ? ((target - current) / current) * 100 : 0;
+  const targetBps = targetMovePct * 100;
+  const rr = target ? Math.abs(target - current) / Math.max(0.0000001, Math.abs(current - stop)) : 0;
+  const leveredStopImpact = Math.abs(stopMovePct) * lev;
+  const projectedNet = Number(metrics.projectedPnl || 0);
+  const projectedR = Number(metrics.projectedR || 0);
   setHtml('price-map-distance-summary', `
-    <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center;">
-      <span class="subtle-pill">현재가 대비 손절 거리 ${stopDir}${stopPct.toFixed(2)}%</span>
-      <span class="subtle-pill">현재가 대비 목표 거리 ${target ? `${targetDir}${targetPct.toFixed(2)}%` : '미입력'}</span>
+    <div class="price-map-kpis">
+      <div class="price-map-kpi">
+        <span class="label">손절 거리</span>
+        <strong>${stopMovePct >= 0 ? '+' : ''}${stopMovePct.toFixed(2)}%</strong>
+        <span class="meta">${stopBps >= 0 ? '+' : ''}${stopBps.toFixed(0)}bp · ${lev.toFixed(1)}x 기준 체감 ${leveredStopImpact.toFixed(2)}%</span>
+      </div>
+      <div class="price-map-kpi">
+        <span class="label">목표 거리</span>
+        <strong>${target ? `${targetMovePct >= 0 ? '+' : ''}${targetMovePct.toFixed(2)}%` : '미입력'}</strong>
+        <span class="meta">${target ? `${targetBps >= 0 ? '+' : ''}${targetBps.toFixed(0)}bp` : '목표가 입력 필요'}</span>
+      </div>
+      <div class="price-map-kpi">
+        <span class="label">목표 RR</span>
+        <strong>${target ? `${rr.toFixed(2)}R` : '미계산'}</strong>
+        <span class="meta">현재가·손절가·목표가 기준 이론 RR</span>
+      </div>
+      <div class="price-map-kpi">
+        <span class="label">수수료 차감 후 예상 순손익</span>
+        <strong class="${projectedNet > 0 ? 'positive' : projectedNet < 0 ? 'negative' : ''}">${target ? money(projectedNet) : '미계산'}</strong>
+        <span class="meta">${target ? `Projected ${projectedR.toFixed(2)}R` : 'Entry/Target 구조 입력 시 반영'}</span>
+      </div>
     </div>
   `);
 }
@@ -1310,9 +1354,91 @@ function renderOverview() {
   setHtml('research-notes', notes.length ? notes.join('') : emptyState('데이터가 축적되면 인사이트가 나타납니다.'));
 
   renderCalendar();
+  renderOverviewHistory();
   renderEquityChart(stats.closed);
   renderBalanceChart(); 
   renderOverviewPortfolio();
+}
+
+function setOverviewHistoryMode(mode) {
+  state.overviewHistoryMode = mode === 'pnl' ? 'pnl' : 'trades';
+  renderOverviewHistory();
+}
+
+function renderOverviewHistory() {
+  if (!els['overview-history-list']) return;
+  const isTrades = state.overviewHistoryMode !== 'pnl';
+  els['overview-history-trades-btn']?.classList.toggle('active', isTrades);
+  els['overview-history-pnl-btn']?.classList.toggle('active', !isTrades);
+
+  const trades = [...getOverviewTrades()].sort((a, b) => new Date(b.date) - new Date(a.date));
+  if (isTrades) {
+    if (!trades.length) {
+      setHtml('overview-history-list', '<div class="overview-history-empty">표시할 최근 매매가 없습니다.</div>');
+      return;
+    }
+    const html = trades.slice(0, 18).map(trade => `
+      <div class="overview-history-item" data-trade-id="${trade.id}">
+        <div class="overview-history-main" data-action="open">
+          <div>
+            <div class="overview-history-title">
+              <span>${escapeHtml(trade.ticker)}</span>
+              <span class="badge ${trade.status === 'OPEN' ? 'badge-open' : 'badge-closed'}">${escapeHtml(trade.status)}</span>
+            </div>
+            <div class="overview-history-sub">
+              <span>${formatDateTime(trade.date)}</span>
+              <span>${escapeHtml(trade.side)}</span>
+              <span>${escapeHtml(trade.setupEntry || '—')}</span>
+            </div>
+          </div>
+          <div class="overview-history-metrics">
+            <strong class="mono ${trade.metrics.pnl > 0 ? 'positive' : trade.metrics.pnl < 0 ? 'negative' : ''}">${money(trade.metrics.pnl)}</strong>
+            <span class="mono ${trade.metrics.r > 0 ? 'positive' : trade.metrics.r < 0 ? 'negative' : ''}">${trade.metrics.r.toFixed(2)}R</span>
+          </div>
+        </div>
+        <div class="overview-history-actions">
+          <button type="button" class="tool-btn" data-action="edit">수정</button>
+          <button type="button" class="tool-btn danger-btn" data-action="delete">삭제</button>
+        </div>
+      </div>
+    `).join('');
+    setHtml('overview-history-list', html);
+    els['overview-history-list'].querySelectorAll('[data-trade-id]').forEach(item => {
+      const id = item.getAttribute('data-trade-id');
+      item.querySelector('[data-action="open"]')?.addEventListener('click', () => openSelectedInJournal(id));
+      item.querySelector('[data-action="edit"]')?.addEventListener('click', (e) => { e.stopPropagation(); openSelectedInJournal(id); });
+      item.querySelector('[data-action="delete"]')?.addEventListener('click', (e) => { e.stopPropagation(); deleteTradeById(id); });
+    });
+    return;
+  }
+
+  const dayMap = new Map();
+  trades.filter(t => t.status === 'CLOSED').forEach(trade => {
+    const key = getLocalDateKey(trade.date);
+    if (!dayMap.has(key)) dayMap.set(key, { key, pnl: 0, r: 0, count: 0 });
+    const row = dayMap.get(key);
+    row.pnl += Number(trade.metrics.pnl || 0);
+    row.r += Number(trade.metrics.r || 0);
+    row.count += 1;
+  });
+  const rows = [...dayMap.values()].sort((a,b)=> new Date(b.key)-new Date(a.key)).slice(0, 18);
+  if (!rows.length) {
+    setHtml('overview-history-list', '<div class="overview-history-empty">표시할 손익 히스토리가 없습니다.</div>');
+    return;
+  }
+  setHtml('overview-history-list', rows.map(row => `
+    <div class="overview-history-day" data-date-key="${row.key}">
+      <div>
+        <strong>${row.key}</strong>
+        <p>${row.count}건 · Avg ${(row.r / Math.max(1,row.count)).toFixed(2)}R</p>
+      </div>
+      <div class="overview-history-metrics">
+        <strong class="mono ${row.pnl > 0 ? 'positive' : row.pnl < 0 ? 'negative' : ''}">${money(row.pnl)}</strong>
+        <span class="mono ${row.r > 0 ? 'positive' : row.r < 0 ? 'negative' : ''}">${row.r.toFixed(2)}R</span>
+      </div>
+    </div>
+  `).join(''));
+  els['overview-history-list'].querySelectorAll('[data-date-key]').forEach(item => item.addEventListener('click', () => openHistoryDate(item.getAttribute('data-date-key'))));
 }
 
 function renderStackStats(id, rows, formatter) {
@@ -1663,8 +1789,8 @@ function renderTradeDetail(trade) {
   }
 
   setHtml('detail', `
-    <div class="detail-actions">
-      <button type="button" class="tool-btn" id="load-selected-into-journal">Journal로 불러오기</button>
+    <div class="detail-actions detail-actions-right">
+      <button type="button" class="tool-btn primary-btn detail-load-btn" id="load-selected-into-journal">Journal로 불러오기</button>
     </div>
     <div class="kv">
       <div>티커</div><div><strong>${escapeHtml(trade.ticker)}</strong> · ${escapeHtml(trade.side)} · ${escapeHtml(trade.status)}</div>
@@ -1676,10 +1802,9 @@ function renderTradeDetail(trade) {
       <div>Residual Risk</div><div class="mono">${moneyAbs(trade.metrics.residualRisk)} (${trade.metrics.remainingPct.toFixed(1)}% remaining)</div>
     </div>
 
-    <div style="margin-top:24px; padding:20px; background:#f8fafc; border:1px solid var(--line); border-radius:16px;">
-      <h4 style="margin:0 0 12px; font-size:13px; color:var(--muted); text-transform:uppercase;">Execution Ladder</h4>
-      <div style="display:flex; justify-content:space-between; align-items:center; position:relative; padding-bottom:10px;">
-        <div style="position:absolute; top:20px; left:10%; right:10%; height:2px; background:var(--line); z-index:1;"></div>
+    <div class="execution-ladder-card">
+      <h4 class="execution-ladder-header">Execution Ladder</h4>
+      <div class="execution-ladder-track">
         ${renderTimeline('entry', trade.entries)}
         ${renderTimeline('exit', trade.exits)}
       </div>
@@ -1722,18 +1847,20 @@ function renderTradeDetail(trade) {
 
 function renderTimeline(type, rows) {
   if (!rows.length) return `
-    <div style="position:relative; z-index:2; display:flex; flex-direction:column; align-items:center; gap:8px; flex:1;">
-      <div style="width:16px; height:16px; border-radius:50%; background:#fff; border:3px solid var(--line);"></div>
-      <div style="font-size:11px; color:var(--muted); font-weight:800;">${type.toUpperCase()}</div>
-      <div class="mono" style="font-size:12px;">—</div>
+    <div class="timeline-col">
+      <div class="timeline-dot"></div>
+      <div class="timeline-label">${type.toUpperCase()}</div>
+      <div class="timeline-meta mono">—</div>
     </div>
   `;
-  const color = type === 'entry' ? 'var(--accent)' : 'var(--yellow)';
   return rows.map((row, idx) => `
-    <div style="position:relative; z-index:2; display:flex; flex-direction:column; align-items:center; gap:8px; flex:1;">
-      <div style="width:16px; height:16px; border-radius:50%; background:${color}; border:3px solid #fff; box-shadow:0 0 0 2px ${color};"></div>
-      <div style="font-size:11px; color:var(--muted); font-weight:800; margin-top:4px;">${type.toUpperCase()} ${idx + 1}</div>
-      <div class="mono" style="font-size:12px; font-weight:800; color:#0f172a;">${safeNumber(row.price)} / ${safeNumber(row.weight)}%${type === 'entry' ? ` / ${safeNumber(row.leverage || 1)}x` : `${row.status === 'FILLED' ? ' / FILLED' : ' / PLAN'}`}</div>
+    <div class="timeline-col">
+      <div class="timeline-dot ${type === 'entry' ? 'entry' : 'exit'}"></div>
+      <div class="timeline-label">${type.toUpperCase()} ${idx + 1}</div>
+      <div class="timeline-meta mono">
+        ${safeNumber(row.price)}<br>
+        ${safeNumber(row.weight)}%${type === 'entry' ? `<br>${safeNumber(row.leverage || 1)}x` : `<br>${row.status === 'FILLED' ? 'FILLED' : 'PLAN'}`}
+      </div>
     </div>
   `).join('');
 }
