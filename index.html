@@ -342,15 +342,25 @@
               <div class="post-assessment-shell">
                 <div class="assessment-top">
                   <div class="eval-status-badge" id="eval-status-badge">OPEN (Projected)</div>
-                  <div class="eval-grade-wrapper">
-                    <label>Grade</label>
-                    <select id="grade" class="eval-grade-select">
-                      <option value="S">S (완벽 원칙)</option>
-                      <option value="A">A (우량 셋업)</option>
-                      <option value="B" selected>B (일반 셋업)</option>
-                      <option value="C">C (원칙 이탈)</option>
-                      <option value="D">D (뇌동 매매)</option>
-                    </select>
+                  <div class="assessment-top-controls">
+                    <div class="eval-time-wrapper">
+                      <label>종료 시간</label>
+                      <div class="input-group flex-group">
+                        <input id="trade-end-date" type="datetime-local" />
+                        <button type="button" id="btn-end-now" class="tool-btn fixed-btn">지금 종료</button>
+                      </div>
+                      <div id="holding-preview" class="muted-caption hold-preview">홀딩시간 —</div>
+                    </div>
+                    <div class="eval-grade-wrapper">
+                      <label>Grade</label>
+                      <select id="grade" class="eval-grade-select">
+                        <option value="S">S (완벽 원칙)</option>
+                        <option value="A">A (우량 셋업)</option>
+                        <option value="B" selected>B (일반 셋업)</option>
+                        <option value="C">C (원칙 이탈)</option>
+                        <option value="D">D (뇌동 매매)</option>
+                      </select>
+                    </div>
                   </div>
                 </div>
 
@@ -402,6 +412,7 @@
                 <button type="button" class="status-chip" data-value="CLOSED">CLOSED</button>
                 <select id="status" hidden><option value="OPEN">OPEN</option><option value="CLOSED">CLOSED</option></select>
               </div>
+              <button type="button" id="undo-journal" class="tool-btn">↶ 되돌리기</button>
               <button type="submit" class="tool-btn primary-btn">💾 Save & Update Trade</button>
               <button type="button" id="reset-form" class="tool-btn">초기화</button>
               <button type="button" id="duplicate-trade" class="tool-btn">복제</button>

@@ -21,6 +21,10 @@ const state = {
   draftLiveCharts: [],
   dirty: false,
   overviewHistoryMode: 'trades',
+  undoStack: [],
+  undoAnchor: null,
+  undoAnchorConsumed: false,
+  suspendUndo: false,
 };
 
 const views = ['overview', 'journal', 'library', 'playbook'];
@@ -31,14 +35,14 @@ const ID_LIST = [
   'nav','force-save-draft','export-json','import-json-btn','import-json','journal-status','draft-saved-at',
   'view-overview','metrics','overview-from','overview-to','overview-clear','overview-search','prev-month','calendar-title','next-month','calendar','equity-chart','balance-chart','setup-chart','mistake-list','research-notes','overview-portfolio','overview-history-list',
   'realtime-clock','quick-launch-grid','btn-manage-quick-links','journal-sidebar','journal-pretrade-phase','journal-risk-phase','risk-planner-card','pretrade-brief','btn-context-structure','btn-context-catalyst','btn-thesis-trigger','btn-thesis-invalidation','planner-mode-note',
-  'view-journal','trade-form','trade-id','trade-date','btn-now','ticker','btn-manage-ticker','status','status-toggle','side','setup-entry','btn-manage-setup-entry','setup-exit','btn-manage-setup-exit',
+  'view-journal','trade-form','trade-id','trade-date','trade-end-date','btn-now','btn-end-now','holding-preview','ticker','btn-manage-ticker','status','status-toggle','side','setup-entry','btn-manage-setup-entry','setup-exit','btn-manage-setup-exit',
   'account-size','risk-pct','leverage','current-price','planner-mode','planner-legs','planner-weight-mode','btn-generate-plan','btn-apply-plan','planner-summary','maker-fee','taker-fee','stop-price','target-price','stop-type','price-map-distance-summary',
   'context','thesis','review','tags','mistakes',
   'add-entry','entries','add-exit','exits','calc-summary','quick-tags','quick-mistakes','live-notes','btn-insert-time','add-live-chart','live-charts-container',
   'add-entry-chart','entry-charts-container','add-exit-chart','exit-charts-container',
   'eval-status-badge','assessment-risk-used','assessment-risk-budget','assessment-projected-pnl','assessment-final-pnl','assessment-projected-r','assessment-final-r','assessment-bep','assessment-residual','assessment-fees','assessment-account-impact','post-assessment-copy',
   'bal-cash','bal-crypto','bal-usdt','bal-stock','bal-total','balance-type','balance-memo','btn-update-balance','balance-history',
-  'duplicate-trade','reset-form','delete-trade','grade',
+  'duplicate-trade','reset-form','delete-trade','undo-journal','grade',
   'desk-rules','master-checklist-list','new-check-input','btn-add-check','trade-checklist-container',
   'risk-risk-dollar','risk-qty','risk-margin','risk-slider','risk-notional','risk-stop-distance','risk-fees','risk-realized','risk-unrealized','risk-residual','risk-actual-risk','risk-risk-usage','risk-weighted-lev','risk-avg-entry','risk-bep','risk-remaining-risk',
   'risk-projected-pnl','risk-projected-r',
@@ -107,6 +111,7 @@ function bootstrap() {
   safeCall('restoreDraftIfPresent', () => restoreDraftIfPresent());
   safeCall('startClock', () => startClock());
   safeCall('render', () => render());
+  safeCall('updateUndoButton', () => updateUndoButton());
   if (bootErrors.length === 0) refreshJournalStatus('시스템 정상');
 }
 
@@ -325,23 +330,31 @@ function bindEvents() {
   initJournalSidebarSync();
   initStatusToggle();
 
-  if(els['btn-now']) els['btn-now'].onclick = () => { setVal('trade-date', inputDate(nowIso())); markDirty(); updatePreview(); };
+  if(els['btn-now']) els['btn-now'].onclick = () => { pushUndoSnapshot(); setVal('trade-date', inputDate(nowIso())); markDirty(); updatePreview(); persistDraft(); };
+  if(els['btn-end-now']) els['btn-end-now'].onclick = () => { pushUndoSnapshot(); setVal('status', 'CLOSED'); if (typeof initStatusToggle === 'function') initStatusToggle(); setVal('trade-end-date', inputDate(nowIso())); markDirty(); updatePreview(); persistDraft(); };
   if(els['prev-month']) els['prev-month'].onclick = () => { state.month.setMonth(state.month.getMonth() - 1); renderCalendar(); };
   if(els['next-month']) els['next-month'].onclick = () => { state.month.setMonth(state.month.getMonth() + 1); renderCalendar(); };
 
-  if(els['add-entry']) els['add-entry'].onclick = () => { state.draftEntries.push({ price: 0, type: 'M', weight: 0, leverage: Math.max(1, Number(getVal('leverage') || 1)) }); renderLegs('entry'); updatePreview(); };
-  if(els['add-exit']) els['add-exit'].onclick = () => { state.draftExits.push({ price: 0, type: 'M', weight: 0, status: 'PLANNED' }); renderLegs('exit'); updatePreview(); };
+  if(els['add-entry']) els['add-entry'].onclick = () => { pushUndoSnapshot(); state.draftEntries.push({ price: 0, type: 'M', weight: 0, leverage: Math.max(1, Number(getVal('leverage') || 1)) }); renderLegs('entry'); updatePreview(); persistDraft(); };
+  if(els['add-exit']) els['add-exit'].onclick = () => { pushUndoSnapshot(); state.draftExits.push({ price: 0, type: 'M', weight: 0, status: 'PLANNED' }); renderLegs('exit'); updatePreview(); persistDraft(); };
   if(els['btn-generate-plan']) els['btn-generate-plan'].onclick = () => { updatePreview(); refreshJournalStatus('추천 플랜 재계산'); };
   if(els['btn-apply-plan']) els['btn-apply-plan'].onclick = applyPlannerSuggestion;
   
-  if(els['add-entry-chart']) els['add-entry-chart'].onclick = () => { state.draftEntryCharts.push(''); renderChartInputs('entry'); updatePreview(); };
-  if(els['add-exit-chart']) els['add-exit-chart'].onclick = () => { state.draftExitCharts.push(''); renderChartInputs('exit'); updatePreview(); };
-  if(els['add-live-chart']) els['add-live-chart'].onclick = () => { state.draftLiveCharts.push(''); renderChartInputs('live'); updatePreview(); };
+  if(els['add-entry-chart']) els['add-entry-chart'].onclick = () => { pushUndoSnapshot(); state.draftEntryCharts.push(''); renderChartInputs('entry'); updatePreview(); persistDraft(); };
+  if(els['add-exit-chart']) els['add-exit-chart'].onclick = () => { pushUndoSnapshot(); state.draftExitCharts.push(''); renderChartInputs('exit'); updatePreview(); persistDraft(); };
+  if(els['add-live-chart']) els['add-live-chart'].onclick = () => { pushUndoSnapshot(); state.draftLiveCharts.push(''); renderChartInputs('live'); updatePreview(); persistDraft(); };
 
   if(els['reset-form']) els['reset-form'].onclick = resetForm;
   if(els['delete-trade']) els['delete-trade'].onclick = deleteTrade;
-  if(els['duplicate-trade']) els['duplicate-trade'].onclick = duplicateTrade;
-  if(els['trade-form']) els['trade-form'].addEventListener('submit', handleSubmit);
+  if(els['duplicate-trade']) els['duplicate-trade'].onclick = () => { pushUndoSnapshot(); duplicateTrade(); };
+  if(els['undo-journal']) els['undo-journal'].onclick = undoJournal;
+  if(els['trade-form']) {
+    els['trade-form'].addEventListener('submit', handleSubmit);
+    els['trade-form'].addEventListener('keydown', handleJournalEnterKey);
+    els['trade-form'].addEventListener('focusin', handleJournalFocusIn);
+    els['trade-form'].addEventListener('input', handleJournalUndoInput, true);
+    els['trade-form'].addEventListener('change', handleJournalUndoInput, true);
+  }
 
   if(els['force-save-draft']) els['force-save-draft'].onclick = () => { persistDraft(true); saveDB(state.db); refreshJournalStatus('임시저장 완료'); };
   if(els['export-json']) els['export-json'].onclick = () => exportDB(state.db);
@@ -407,7 +420,7 @@ function bindEvents() {
   bindKeyboardShortcuts();
 
   [
-    'trade-date','ticker','status','side','setup-entry','setup-exit',
+    'trade-date','trade-end-date','ticker','status','side','setup-entry','setup-exit',
     'account-size','risk-pct','leverage','current-price','planner-mode','planner-legs','planner-weight-mode','btn-generate-plan','btn-apply-plan','planner-summary','maker-fee','taker-fee','stop-price','target-price','stop-type','price-map-distance-summary',
     'context','thesis','review','tags','mistakes','grade','live-notes'
   ].forEach(id => {
@@ -431,6 +444,110 @@ function handleFormMutation() {
   markDirty();
   updatePreview();
   persistDraft();
+}
+
+const JOURNAL_SNAPSHOT_FIELDS = [
+  'trade-id','trade-date','trade-end-date','ticker','status','side','setup-entry','setup-exit','grade',
+  'account-size','risk-pct','leverage','current-price','planner-mode','planner-legs','planner-weight-mode',
+  'maker-fee','taker-fee','stop-price','target-price','stop-type','context','thesis','review','live-notes','tags','mistakes'
+];
+
+function captureJournalSnapshot() {
+  return {
+    fields: Object.fromEntries(JOURNAL_SNAPSHOT_FIELDS.map(id => [id, getVal(id)])),
+    entries: cloneRows(state.draftEntries),
+    exits: cloneRows(state.draftExits),
+    entryCharts: [...state.draftEntryCharts],
+    exitCharts: [...state.draftExitCharts],
+    liveCharts: [...state.draftLiveCharts],
+    checkedRules: getCheckedRules(),
+  };
+}
+
+function sameSnapshot(a, b) {
+  return JSON.stringify(a || null) === JSON.stringify(b || null);
+}
+
+function pushUndoSnapshot(snapshot = null) {
+  if (state.suspendUndo) return;
+  const snap = snapshot || captureJournalSnapshot();
+  const last = state.undoStack[state.undoStack.length - 1];
+  if (sameSnapshot(last, snap)) return;
+  state.undoStack.push(snap);
+  if (state.undoStack.length > 60) state.undoStack.shift();
+  updateUndoButton();
+}
+
+function updateUndoButton() {
+  if (!els['undo-journal']) return;
+  const enabled = state.undoStack.length > 0;
+  els['undo-journal'].disabled = !enabled;
+  els['undo-journal'].classList.toggle('disabled', !enabled);
+}
+
+function applyJournalSnapshot(snapshot, options = {}) {
+  if (!snapshot) return;
+  state.suspendUndo = true;
+  JOURNAL_SNAPSHOT_FIELDS.forEach(id => setVal(id, snapshot.fields?.[id] ?? ''));
+  state.draftEntries = cloneRows(snapshot.entries || [{ price: 0, type: 'M', weight: 100, leverage: Math.max(1, Number(getVal('leverage') || 1)) }]);
+  state.draftExits = cloneRows(snapshot.exits || []);
+  state.draftEntryCharts = Array.isArray(snapshot.entryCharts) && snapshot.entryCharts.length ? [...snapshot.entryCharts] : [''];
+  state.draftExitCharts = Array.isArray(snapshot.exitCharts) && snapshot.exitCharts.length ? [...snapshot.exitCharts] : [''];
+  state.draftLiveCharts = Array.isArray(snapshot.liveCharts) ? [...snapshot.liveCharts] : [];
+  renderLegs('entry');
+  renderLegs('exit');
+  renderChartInputs('entry');
+  renderChartInputs('exit');
+  renderChartInputs('live');
+  renderTradeChecklist(snapshot.checkedRules || []);
+  if (typeof initStatusToggle === 'function') initStatusToggle();
+  document.querySelectorAll('textarea.auto-resize').forEach(ta => autoResize(ta));
+  state.suspendUndo = false;
+  updatePreview();
+  persistDraft(true);
+  if (options.markDirty !== false) markDirty();
+}
+
+function undoJournal() {
+  const snapshot = state.undoStack.pop();
+  if (!snapshot) return;
+  updateUndoButton();
+  applyJournalSnapshot(snapshot);
+  refreshJournalStatus('이전 입력으로 되돌렸습니다.');
+}
+
+function handleJournalFocusIn(event) {
+  if (state.suspendUndo) return;
+  const target = event.target;
+  const tag = (target?.tagName || '').toLowerCase();
+  if (!['input','textarea','select'].includes(tag)) return;
+  if (!target.closest('#trade-form')) return;
+  state.undoAnchor = captureJournalSnapshot();
+  state.undoAnchorConsumed = false;
+}
+
+function handleJournalUndoInput(event) {
+  if (state.suspendUndo) return;
+  const target = event.target;
+  if (!target?.closest?.('#trade-form')) return;
+  const tag = (target.tagName || '').toLowerCase();
+  if (!['input','textarea','select'].includes(tag)) return;
+  if (!state.undoAnchorConsumed && state.undoAnchor) {
+    pushUndoSnapshot(state.undoAnchor);
+    state.undoAnchorConsumed = true;
+  }
+}
+
+function handleJournalEnterKey(event) {
+  if (event.key !== 'Enter') return;
+  const target = event.target;
+  const tag = (target?.tagName || '').toLowerCase();
+  if (tag === 'textarea') return;
+  if (!['input','select'].includes(tag)) return;
+  if (target.classList.contains('entry-chart-input') || target.classList.contains('exit-chart-input') || target.classList.contains('live-chart-input')) return;
+  event.preventDefault();
+  target.dispatchEvent(new Event(tag === 'select' ? 'change' : 'input', { bubbles: true }));
+  handleFormMutation();
 }
 
 function bindKeyboardShortcuts() {
@@ -550,7 +667,7 @@ function renderTradeChecklist(checkedValues = []) {
   `).join('');
 
   els['trade-checklist-container'].querySelectorAll('input').forEach(chk => {
-    chk.addEventListener('change', handleFormMutation);
+    chk.addEventListener('change', () => { pushUndoSnapshot(); handleFormMutation(); });
   });
 }
 
@@ -630,6 +747,7 @@ function renderChartInputs(type) {
 
   container.querySelectorAll(`.btn-del-${type}-chart`).forEach(btn => {
     btn.onclick = (e) => {
+      pushUndoSnapshot();
       arr.splice(Number(e.target.dataset.index), 1);
       if (!arr.length) arr.push('');
       renderChartInputs(type);
@@ -751,6 +869,7 @@ function updateLeg(kind, index, field, value) {
 }
 
 function deleteLeg(kind, index) {
+  pushUndoSnapshot();
   const rows = kind === 'entry' ? state.draftEntries : state.draftExits;
   rows.splice(index, 1);
   if (kind === 'entry' && !rows.length) rows.push({ price: 0, type: 'M', weight: 100, leverage: Math.max(1, Number(getVal('leverage') || 1)) });
@@ -761,13 +880,14 @@ function deleteLeg(kind, index) {
 }
 
 function resetFormForce() {
+  if (!state.suspendUndo) pushUndoSnapshot();
   clearDraft();
   state.selectedTradeId = null;
   state.dirty = false;
 
   [
     'trade-id','context','thesis','review','tags','mistakes','live-notes',
-    'stop-price','target-price','current-price'
+    'stop-price','target-price','current-price','trade-end-date'
   ].forEach(id => setVal(id, ''));
   setVal('planner-mode', 'BALANCED');
   setVal('planner-legs', 3);
@@ -917,9 +1037,10 @@ function handleSubmit(event) {
 
   const existingIndex = state.db.trades.findIndex(row => row.id === trade.id);
   const existing = existingIndex >= 0 ? state.db.trades[existingIndex] : null;
+  const enteredClosedAt = getVal('trade-end-date') ? readDateInputAsIso(getVal('trade-end-date')) : '';
   trade.updatedAt = nowIso();
   if (trade.status === 'CLOSED') {
-    trade.closedAt = existing?.closedAt || nowIso();
+    trade.closedAt = enteredClosedAt || existing?.closedAt || nowIso();
   } else {
     trade.closedAt = '';
   }
@@ -981,6 +1102,7 @@ function persistDraft(force = false) {
 function applyTradeToForm(trade, options = {}) {
   setVal('trade-id', options.keepId === false ? '' : (trade.id || ''));
   setVal('trade-date', inputDate(trade.date));
+  setVal('trade-end-date', inputDate(trade.closedAt || ''));
   setVal('ticker', trade.ticker);
   setVal('status', trade.status);
   setVal('side', trade.side);
@@ -1036,6 +1158,7 @@ function updatePreview() {
   renderCalcSummary(metrics, trade);
   renderRiskPanel(metrics, trade);
   renderTradeEvaluation(metrics, trade);
+  renderHoldingPreview(trade);
   renderPlannerModeNote(trade);
   renderPriceMapDistanceSummary(trade);
   renderPlannerSummary(trade);
@@ -1044,6 +1167,15 @@ function updatePreview() {
   if(els['risk-bep']) els['risk-bep'].textContent = metrics.breakEvenPrice > 0 ? safeNumber(metrics.breakEvenPrice.toFixed(4)) : '0.00';
 }
 
+
+function renderHoldingPreview(trade) {
+  if (!els['holding-preview']) return;
+  const start = trade.date;
+  const end = trade.status === 'CLOSED' ? (getVal('trade-end-date') ? readDateInputAsIso(getVal('trade-end-date')) : (trade.closedAt || '')) : nowIso();
+  const duration = start ? formatHoldingDuration(start, end) : '—';
+  const endLabel = trade.status === 'CLOSED' ? (getVal('trade-end-date') ? formatDateTime(readDateInputAsIso(getVal('trade-end-date'))) : (trade.closedAt ? formatDateTime(trade.closedAt) : '종료 시간 미입력')) : 'OPEN 상태';
+  setText('holding-preview', `홀딩시간 ${duration} · ${endLabel}`);
+}
 
 function renderPreTradeBrief(trade) {
   if (!els['pretrade-brief']) return;
@@ -1139,7 +1271,9 @@ function initStatusToggle() {
   wrap.querySelectorAll('.status-chip').forEach(btn => {
     btn.onclick = () => {
       if (select.value === btn.dataset.value) return;
+      pushUndoSnapshot();
       select.value = btn.dataset.value;
+      if (btn.dataset.value === 'CLOSED' && !getVal('trade-end-date')) setVal('trade-end-date', inputDate(nowIso()));
       sync();
       handleFormMutation();
     };
@@ -1219,7 +1353,7 @@ function renderTradeEvaluation(metrics, trade) {
     : `현재 OPEN 상태이며 실제 청산 ${metrics.actualExitPct.toFixed(1)}%, 계획 청산 ${metrics.plannedExitPct.toFixed(1)}%가 설정되어 있습니다.`;
 
   let nextFocus = '다음 복기 포인트: 진입 논리와 무효화 기준이 실제 집행 과정에서도 유지됐는지 확인하세요.';
-  if (metrics.missingMarkPrice) nextFocus = '다음 복기 포인트: 현재가(Now / Mark)를 넣어 미실현 손익과 잔여 리스크를 실제 운영값으로 추적하세요.';
+  if (metrics.missingMarkPrice) nextFocus = '다음 복기 포인트: 현재가를 입력해 미실현 손익과 잔여 리스크를 실제 운영값으로 추적하세요.';
   else if (metrics.residualRisk > riskBudget * 0.5 && trade.status === 'OPEN') nextFocus = '다음 복기 포인트: 부분청산 또는 손절 상향 전환이 가능한 구간인지 재검토하세요.';
   else if ((trade.mistakes || []).length) nextFocus = `다음 복기 포인트: 기록된 실수(${trade.mistakes.join(', ')})가 계획 단계에서 예방 가능했는지 점검하세요.`;
   else if (isClosed && finalR > 0) nextFocus = '다음 복기 포인트: 수익이 난 이유가 계획의 우위 때문인지, 운 좋게 흘러간 거래인지 구분해 보세요.';
@@ -1327,6 +1461,18 @@ function renderPlannerSummary(trade) {
   `);
 }
 
+function applyPlannerSuggestion() {
+  if (!state.plannerSuggestion?.valid) {
+    updatePreview();
+    return;
+  }
+  pushUndoSnapshot();
+  state.draftEntries = cloneRows(state.plannerSuggestion.entries || []).map(row => ({ ...row, leverage: Math.max(1, Number(row.leverage || getVal('leverage') || 1)) }));
+  renderLegs('entry');
+  handleFormMutation();
+  refreshJournalStatus('추천안 적용 완료');
+}
+
 function metricCard(label, value, colorClass) {
   return `
     <div class="metric ${colorClass}">
@@ -1409,7 +1555,7 @@ function renderOverviewHistory() {
   const html = trades.slice(0, 24).map(trade => {
     const startAt = trade.date;
     const endAt = trade.closedAt || (trade.status === 'CLOSED' ? trade.updatedAt || trade.date : '');
-    const holding = trade.status === 'CLOSED' ? formatHoldingDuration(startAt, endAt) : '보유 중';
+    const holding = trade.status === 'CLOSED' ? formatHoldingDuration(startAt, endAt) : `${formatHoldingDuration(startAt, nowIso())} (진행중)`;
     const pnl = Number(trade.metrics.pnl || 0);
     const r = Number(trade.metrics.r || 0);
     return `
@@ -1821,6 +1967,8 @@ function renderTradeDetail(trade) {
     <div class="kv">
       <div>티커</div><div><strong>${escapeHtml(trade.ticker)}</strong> · ${escapeHtml(trade.side)} · ${escapeHtml(trade.status)}</div>
       <div>Setup</div><div>${escapeHtml(trade.setupEntry || '—')} → ${escapeHtml(trade.setupExit || '—')}</div>
+      <div>시작 / 종료</div><div>${formatDateTime(trade.date)} / ${trade.closedAt ? formatDateTime(trade.closedAt) : '—'}</div>
+      <div>홀딩시간</div><div>${trade.closedAt ? formatHoldingDuration(trade.date, trade.closedAt) : `${formatHoldingDuration(trade.date, nowIso())} (진행중)`}</div>
       <div>Grade</div><div><span class="badge ${trade.grade === 'S' || trade.grade === 'A' ? 'badge-good' : ''}">${escapeHtml(trade.grade)}</span></div>
       <div>Avg In / Avg Out</div><div class="mono">${moneyAbs(trade.metrics.avgEntry)} / ${trade.metrics.avgExit ? moneyAbs(trade.metrics.avgExit) : '—'}</div>
       <div>PnL / R</div><div class="mono ${trade.metrics.pnl > 0 ? 'positive' : trade.metrics.pnl < 0 ? 'negative' : ''}">${money(trade.metrics.pnl)} / ${trade.metrics.r.toFixed(2)}R</div>
@@ -2054,6 +2202,7 @@ function handleImport(event) {
 
 
 function insertLiveNote(prefix) {
+  pushUndoSnapshot();
   const current = getVal('live-notes');
   const stamp = `[${nowStamp()}] `;
   setVal('live-notes', `${current}${current && !current.endsWith('\n') ? '\n' : ''}${stamp}${prefix}`);
@@ -2063,6 +2212,7 @@ function insertLiveNote(prefix) {
 }
 
 function appendCsvValue(id, value) {
+  pushUndoSnapshot();
   const values = splitCsv(getVal(id));
   if (!values.includes(value)) values.push(value);
   setVal(id, values.join(', '));

@@ -559,6 +559,11 @@ tbody tr:hover { background: #f1f5f9; cursor: pointer; }
   box-shadow: var(--shadow-subtle);
 }
 .assessment-top { display: flex; justify-content: space-between; gap: 16px; align-items: center; margin-bottom: 18px; flex-wrap: wrap; }
+.assessment-top-controls { display:flex; align-items:flex-start; gap:16px; flex-wrap:wrap; }
+.eval-time-wrapper { display:flex; flex-direction:column; gap:8px; min-width:280px; }
+.eval-time-wrapper label { font-size:12px; font-weight:800; color:#64748b; }
+.hold-preview { font-size:11px; font-weight:700; color:#64748b; }
+.journal-actions-sticky .tool-btn.disabled, .journal-actions-sticky .tool-btn:disabled { opacity:0.45; cursor:not-allowed; transform:none; }
 .assessment-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
 .assessment-item { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 14px; }
 .assessment-item label { display: block; margin-bottom: 8px; color: var(--muted); font-size: 12px; font-weight: 800; }
