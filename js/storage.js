@@ -247,6 +247,8 @@ export function normalizeTrade(t = {}) {
     checkedRules: normalizeList(t.checkedRules),
 
     evidence: normalizeEvidence(t.evidence, t.artifacts, t.entryChart, t.exitChart),
+    closedAt: t.closedAt ? normalizeDate(t.closedAt) : '',
+    updatedAt: t.updatedAt ? normalizeDate(t.updatedAt) : '',
     entries: normalizeLegs(t.entries, { kind: 'entry', withDefault: true, defaultLeverage: Math.max(1, Number(t.leverage || 5)) }),
     exits: normalizeLegs(t.exits, { kind: 'exit', withDefault: false, tradeStatus: String(t.status || 'OPEN').toUpperCase() }),
   };

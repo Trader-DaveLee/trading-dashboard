@@ -81,14 +81,10 @@
         </article>
 
         <article class="card overview-history-card overview-panel-fill">
-          <div class="section-head history-head">
-            <div><h3>최근 히스토리</h3><p>Library로 가지 않고 최근 체결과 손익 흐름을 빠르게 확인</p></div>
-            <div class="inline-actions history-toggle">
-              <button id="overview-history-trades-btn" class="tool-btn active">매매</button>
-              <button id="overview-history-pnl-btn" class="tool-btn">손익</button>
-            </div>
+          <div class="section-head history-head compact-head">
+            <div><h3>최근 히스토리</h3></div>
           </div>
-          <div id="overview-history-list" class="overview-history-list"></div>
+          <div id="overview-history-list" class="overview-history-list compact-history-list"></div>
         </article>
       </div>
 
@@ -241,11 +237,11 @@
               </div>
 
               <div class="execution-section-group" style="margin-top:18px;">
-                <div class="mini-head"><h4>RISK BUDGET</h4><span class="muted-caption">이번 트레이드에 쓸 최대 손실과 기본 레버리지</span></div>
+                <div class="mini-head"><h4>RISK BUDGET</h4><span class="muted-caption">이번 트레이드에 쓸 최대 손실과 레버리지</span></div>
                 <div class="field-grid cols-3 compact-panel execution-grid">
                   <label><span>매매용 시드 ($)</span><input id="account-size" type="number" step="1" value="10000" /></label>
                   <label><span>리스크 (%)</span><input id="risk-pct" type="number" step="0.01" value="0.5" /></label>
-                  <label><span>기본 레버리지</span><input id="leverage" type="number" step="0.1" value="5" /></label>
+                  <label><span>레버리지</span><input id="leverage" type="number" step="0.1" value="5" /></label>
                 </div>
               </div>
 

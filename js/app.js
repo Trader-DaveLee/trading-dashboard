@@ -29,7 +29,7 @@ let draftTimer = null;
 
 const ID_LIST = [
   'nav','force-save-draft','export-json','import-json-btn','import-json','journal-status','draft-saved-at',
-  'view-overview','metrics','overview-from','overview-to','overview-clear','overview-search','prev-month','calendar-title','next-month','calendar','equity-chart','balance-chart','setup-chart','mistake-list','research-notes','overview-portfolio','overview-history-list','overview-history-trades-btn','overview-history-pnl-btn',
+  'view-overview','metrics','overview-from','overview-to','overview-clear','overview-search','prev-month','calendar-title','next-month','calendar','equity-chart','balance-chart','setup-chart','mistake-list','research-notes','overview-portfolio','overview-history-list',
   'realtime-clock','quick-launch-grid','btn-manage-quick-links','journal-sidebar','journal-pretrade-phase','journal-risk-phase','risk-planner-card','pretrade-brief','btn-context-structure','btn-context-catalyst','btn-thesis-trigger','btn-thesis-invalidation','planner-mode-note',
   'view-journal','trade-form','trade-id','trade-date','btn-now','ticker','btn-manage-ticker','status','status-toggle','side','setup-entry','btn-manage-setup-entry','setup-exit','btn-manage-setup-exit',
   'account-size','risk-pct','leverage','current-price','planner-mode','planner-legs','planner-weight-mode','btn-generate-plan','btn-apply-plan','planner-summary','maker-fee','taker-fee','stop-price','target-price','stop-type','price-map-distance-summary',
@@ -350,8 +350,6 @@ function bindEvents() {
 
   if(els['overview-search']) els['overview-search'].onclick = () => renderOverview();
   if(els['overview-clear']) els['overview-clear'].onclick = () => { setVal('overview-from', ''); setVal('overview-to', ''); renderOverview(); };
-  if(els['overview-history-trades-btn']) els['overview-history-trades-btn'].onclick = () => setOverviewHistoryMode('trades');
-  if(els['overview-history-pnl-btn']) els['overview-history-pnl-btn'].onclick = () => setOverviewHistoryMode('pnl');
 
   const filterIds = ['q','f-from','f-to','f-status','f-side','f-setup','f-tag','f-mistake','f-grade','sort'];
   filterIds.forEach(id => {
@@ -417,6 +415,16 @@ function bindEvents() {
     els[id].addEventListener('input', handleFormMutation);
     els[id].addEventListener('change', handleFormMutation);
   });
+
+  if (els['leverage']) {
+    const syncLeverage = () => {
+      const lev = Math.max(1, Number(getVal('leverage') || 1));
+      state.draftEntries = state.draftEntries.map(row => ({ ...row, leverage: lev }));
+      renderLegs('entry');
+      handleFormMutation();
+    };
+    els['leverage'].addEventListener('change', syncLeverage);
+  }
 }
 
 function handleFormMutation() {
@@ -908,6 +916,13 @@ function handleSubmit(event) {
   }
 
   const existingIndex = state.db.trades.findIndex(row => row.id === trade.id);
+  const existing = existingIndex >= 0 ? state.db.trades[existingIndex] : null;
+  trade.updatedAt = nowIso();
+  if (trade.status === 'CLOSED') {
+    trade.closedAt = existing?.closedAt || nowIso();
+  } else {
+    trade.closedAt = '';
+  }
   if (existingIndex >= 0) {
     state.db.trades[existingIndex] = trade;
   } else {
@@ -1084,7 +1099,7 @@ function renderPriceMapDistanceSummary(trade) {
       <div class="price-map-kpi">
         <span class="label">손절 거리</span>
         <strong>${stopMovePct >= 0 ? '+' : ''}${stopMovePct.toFixed(2)}%</strong>
-        <span class="meta">${stopBps >= 0 ? '+' : ''}${stopBps.toFixed(0)}bp · ${lev.toFixed(1)}x 기준 체감 ${leveredStopImpact.toFixed(2)}%</span>
+        <span class="meta">${stopBps >= 0 ? '+' : ''}${stopBps.toFixed(0)}bp · 레버리지 ${lev.toFixed(1)}x 기준 체감 ${leveredStopImpact.toFixed(2)}%</span>
       </div>
       <div class="price-map-kpi">
         <span class="label">목표 거리</span>
@@ -1361,84 +1376,84 @@ function renderOverview() {
 }
 
 function setOverviewHistoryMode(mode) {
-  state.overviewHistoryMode = mode === 'pnl' ? 'pnl' : 'trades';
+  state.overviewHistoryMode = 'trades';
   renderOverviewHistory();
+}
+
+function formatClockTime(date) {
+  if (!date) return '—';
+  const d = new Date(date);
+  if (Number.isNaN(d.getTime())) return '—';
+  return d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+}
+
+function formatHoldingDuration(start, end) {
+  const s = new Date(start);
+  const e = new Date(end);
+  if (Number.isNaN(s.getTime()) || Number.isNaN(e.getTime()) || e <= s) return '—';
+  const mins = Math.round((e - s) / 60000);
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  if (h <= 0) return `${m}분`;
+  return `${h}시간 ${m}분`;
 }
 
 function renderOverviewHistory() {
   if (!els['overview-history-list']) return;
-  const isTrades = state.overviewHistoryMode !== 'pnl';
-  els['overview-history-trades-btn']?.classList.toggle('active', isTrades);
-  els['overview-history-pnl-btn']?.classList.toggle('active', !isTrades);
-
   const trades = [...getOverviewTrades()].sort((a, b) => new Date(b.date) - new Date(a.date));
-  if (isTrades) {
-    if (!trades.length) {
-      setHtml('overview-history-list', '<div class="overview-history-empty">표시할 최근 매매가 없습니다.</div>');
-      return;
-    }
-    const html = trades.slice(0, 18).map(trade => `
-      <div class="overview-history-item" data-trade-id="${trade.id}">
-        <div class="overview-history-main" data-action="open">
-          <div>
-            <div class="overview-history-title">
-              <span>${escapeHtml(trade.ticker)}</span>
-              <span class="badge ${trade.status === 'OPEN' ? 'badge-open' : 'badge-closed'}">${escapeHtml(trade.status)}</span>
-            </div>
-            <div class="overview-history-sub">
-              <span>${formatDateTime(trade.date)}</span>
-              <span>${escapeHtml(trade.side)}</span>
-              <span>${escapeHtml(trade.setupEntry || '—')}</span>
-            </div>
-          </div>
-          <div class="overview-history-metrics">
-            <strong class="mono ${trade.metrics.pnl > 0 ? 'positive' : trade.metrics.pnl < 0 ? 'negative' : ''}">${money(trade.metrics.pnl)}</strong>
-            <span class="mono ${trade.metrics.r > 0 ? 'positive' : trade.metrics.r < 0 ? 'negative' : ''}">${trade.metrics.r.toFixed(2)}R</span>
-          </div>
-        </div>
-        <div class="overview-history-actions">
-          <button type="button" class="tool-btn" data-action="edit">수정</button>
-          <button type="button" class="tool-btn danger-btn" data-action="delete">삭제</button>
-        </div>
-      </div>
-    `).join('');
-    setHtml('overview-history-list', html);
-    els['overview-history-list'].querySelectorAll('[data-trade-id]').forEach(item => {
-      const id = item.getAttribute('data-trade-id');
-      item.querySelector('[data-action="open"]')?.addEventListener('click', () => openSelectedInJournal(id));
-      item.querySelector('[data-action="edit"]')?.addEventListener('click', (e) => { e.stopPropagation(); openSelectedInJournal(id); });
-      item.querySelector('[data-action="delete"]')?.addEventListener('click', (e) => { e.stopPropagation(); deleteTradeById(id); });
-    });
+  if (!trades.length) {
+    setHtml('overview-history-list', '<div class="overview-history-empty">표시할 최근 매매가 없습니다.</div>');
     return;
   }
 
-  const dayMap = new Map();
-  trades.filter(t => t.status === 'CLOSED').forEach(trade => {
-    const key = getLocalDateKey(trade.date);
-    if (!dayMap.has(key)) dayMap.set(key, { key, pnl: 0, r: 0, count: 0 });
-    const row = dayMap.get(key);
-    row.pnl += Number(trade.metrics.pnl || 0);
-    row.r += Number(trade.metrics.r || 0);
-    row.count += 1;
+  const html = trades.slice(0, 24).map(trade => {
+    const startAt = trade.date;
+    const endAt = trade.closedAt || (trade.status === 'CLOSED' ? trade.updatedAt || trade.date : '');
+    const holding = trade.status === 'CLOSED' ? formatHoldingDuration(startAt, endAt) : '보유 중';
+    const pnl = Number(trade.metrics.pnl || 0);
+    const r = Number(trade.metrics.r || 0);
+    return `
+      <div class="overview-history-item" data-trade-id="${trade.id}">
+        <div class="overview-history-compact-grid">
+          <div class="overview-history-main" data-action="open">
+            <div>
+              <div class="overview-history-title">
+                <span>${escapeHtml(trade.ticker)}</span>
+                <span class="badge ${trade.status === 'OPEN' ? 'badge-open' : 'badge-closed'}">${escapeHtml(trade.status)}</span>
+              </div>
+              <div class="overview-history-sub">
+                <span>${escapeHtml(trade.side)}</span>
+                <span>${escapeHtml(trade.setupEntry || '—')}</span>
+                <span>${escapeHtml(trade.setupExit || '—')}</span>
+              </div>
+              <div class="overview-history-timegrid">
+                <div class="overview-time-chip"><span class="label">시작시간</span><span class="value">${formatClockTime(startAt)}</span></div>
+                <div class="overview-time-chip"><span class="label">종료시간</span><span class="value">${trade.status === 'CLOSED' ? formatClockTime(endAt) : '—'}</span></div>
+                <div class="overview-time-chip"><span class="label">홀딩시간</span><span class="value">${holding}</span></div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="overview-history-metrics">
+              <strong class="mono ${pnl > 0 ? 'positive' : pnl < 0 ? 'negative' : ''}">${money(pnl)}</strong>
+              <span class="mono ${r > 0 ? 'positive' : r < 0 ? 'negative' : ''}">${r.toFixed(2)}R</span>
+            </div>
+            <div class="overview-history-actions">
+              <button type="button" class="tool-btn" data-action="edit">수정</button>
+              <button type="button" class="tool-btn danger-btn" data-action="delete">삭제</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+  setHtml('overview-history-list', html);
+  els['overview-history-list'].querySelectorAll('[data-trade-id]').forEach(item => {
+    const id = item.getAttribute('data-trade-id');
+    item.querySelector('[data-action="open"]')?.addEventListener('click', () => openSelectedInJournal(id));
+    item.querySelector('[data-action="edit"]')?.addEventListener('click', (e) => { e.stopPropagation(); openSelectedInJournal(id); });
+    item.querySelector('[data-action="delete"]')?.addEventListener('click', (e) => { e.stopPropagation(); deleteTradeById(id); });
   });
-  const rows = [...dayMap.values()].sort((a,b)=> new Date(b.key)-new Date(a.key)).slice(0, 18);
-  if (!rows.length) {
-    setHtml('overview-history-list', '<div class="overview-history-empty">표시할 손익 히스토리가 없습니다.</div>');
-    return;
-  }
-  setHtml('overview-history-list', rows.map(row => `
-    <div class="overview-history-day" data-date-key="${row.key}">
-      <div>
-        <strong>${row.key}</strong>
-        <p>${row.count}건 · Avg ${(row.r / Math.max(1,row.count)).toFixed(2)}R</p>
-      </div>
-      <div class="overview-history-metrics">
-        <strong class="mono ${row.pnl > 0 ? 'positive' : row.pnl < 0 ? 'negative' : ''}">${money(row.pnl)}</strong>
-        <span class="mono ${row.r > 0 ? 'positive' : row.r < 0 ? 'negative' : ''}">${row.r.toFixed(2)}R</span>
-      </div>
-    </div>
-  `).join(''));
-  els['overview-history-list'].querySelectorAll('[data-date-key]').forEach(item => item.addEventListener('click', () => openHistoryDate(item.getAttribute('data-date-key'))));
 }
 
 function renderStackStats(id, rows, formatter) {
@@ -1467,7 +1482,14 @@ function renderCalendar() {
     if (date.getFullYear() !== year || date.getMonth() !== month) return;
     const pad = n => String(n).padStart(2, '0');
     const key = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-    map.set(key, (map.get(key) || 0) + trade.metrics.pnl);
+    if (!map.has(key)) map.set(key, { pnl: 0, count: 0, wins: 0, closed: 0 });
+    const row = map.get(key);
+    row.pnl += Number(trade.metrics.pnl || 0);
+    row.count += 1;
+    if (trade.status === 'CLOSED') {
+      row.closed += 1;
+      if (Number(trade.metrics.pnl || 0) > 0) row.wins += 1;
+    }
   });
 
   const firstDay = new Date(year, month, 1);
@@ -1476,17 +1498,21 @@ function renderCalendar() {
   const cells = [];
   const pad = n => String(n).padStart(2, '0');
 
-  for (let i = 0; i < firstWeekday; i += 1) {
-    cells.push('<div class="day muted"></div>');
-  }
+  for (let i = 0; i < firstWeekday; i += 1) cells.push('<div class="day muted"></div>');
 
   for (let day = 1; day <= daysInMonth; day += 1) {
     const key = `${year}-${pad(month + 1)}-${pad(day)}`;
-    const pnl = map.get(key) || 0;
+    const row = map.get(key) || { pnl: 0, count: 0, wins: 0, closed: 0 };
+    const pnl = row.pnl || 0;
+    const winRate = row.closed ? (row.wins / row.closed) * 100 : 0;
     cells.push(`
       <div class="day ${pnl > 0 ? 'profit' : pnl < 0 ? 'loss' : ''}" onclick="window.__desk_jump_date('${key}')" title="${key} 매매기록 보기">
         <div class="num">${day}</div>
         <div class="pnl ${pnl > 0 ? 'positive' : pnl < 0 ? 'negative' : ''}">${pnl ? moneyCompact(pnl) : ''}</div>
+        <div class="calendar-day-stats">
+          <span>${row.count}건</span>
+          <span class="winrate ${winRate >= 50 ? 'positive' : row.closed ? 'negative' : ''}">${row.closed ? `승률 ${winRate.toFixed(0)}%` : '승률 —'}</span>
+        </div>
       </div>
     `);
   }
