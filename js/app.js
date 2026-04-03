@@ -854,8 +854,7 @@ function renderChartInputs(type) {
             ${CHART_TIMEFRAMES.map(tf => `<option value="${tf}" ${tf === timeframe ? 'selected' : ''}>${tf}</option>`).join('')}
           </select>
           <input type="text" class="${type}-chart-input" value="${escapeAttr(item?.url || '')}" placeholder="TradingView 링크를 붙여넣고 Enter를 누르세요" data-index="${idx}" />
-          ${safeUrl ? `<button type="button" class="chart-link-btn js-evidence-open" data-source="${escapeAttr(safeUrl)}" data-label="${escapeAttr(label)}">🔗 보기</button>` : '<span class="chart-link-btn disabled">링크 대기</span>'}
-          ${safeUrl ? `<a href="${escapeAttr(safeUrl)}" target="_blank" rel="noopener noreferrer" class="chart-link-btn subtle">↗</a>` : ''}
+          ${safeUrl ? `<a href="${escapeAttr(safeUrl)}" target="_blank" rel="noopener noreferrer" class="chart-link-btn">🔗 보기</a>` : '<span class="chart-link-btn disabled">링크 대기</span>'}
           <button type="button" class="tool-btn btn-del-${type}-chart danger-text fixed-btn" data-index="${idx}">✕</button>
         </div>
       </div>
