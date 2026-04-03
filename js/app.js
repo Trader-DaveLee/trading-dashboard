@@ -28,8 +28,6 @@ const state = {
   undoAnchor: null,
   undoAnchorConsumed: false,
   suspendUndo: false,
-  storageHydrated: false,
-  draftHydrated: false,
 };
 
 const views = ['overview', 'journal', 'library', 'playbook'];
@@ -117,7 +115,6 @@ function bootstrap() {
   safeCall('startClock', () => startClock());
   safeCall('render', () => render());
   safeCall('updateUndoButton', () => updateUndoButton());
-  safeCall('hydratePersistentState', () => hydratePersistentState());
   if (bootErrors.length === 0) refreshJournalStatus('시스템 정상');
 }
 
@@ -167,7 +164,6 @@ async function hydratePersistentState() {
 
     if (hydratedDb && JSON.stringify(hydratedDb) !== JSON.stringify(state.db)) {
       state.db = hydratedDb;
-      state.storageHydrated = true;
       initMeta();
       render();
       updatePreview();
@@ -175,7 +171,6 @@ async function hydratePersistentState() {
     }
 
     if (!loadDraft() && hydratedDraft?.trade) {
-      state.draftHydrated = true;
       applyTradeToForm(hydratedDraft.trade, { keepId: Boolean(hydratedDraft.trade.id) });
       if (hydratedDraft.savedAt) setText('draft-saved-at', `Draft ${formatDateTime(hydratedDraft.savedAt)} 저장`);
       updatePreview();
@@ -207,8 +202,8 @@ async function applyChartImageFile(type, index, file) {
   const dataUrl = await readFileAsDataUrl(file);
   setChartSource(type, index, dataUrl);
 }
-
 bootstrap();
+hydratePersistentState().catch(error => console.error('[post-bootstrap hydration]', error));
 
 function showModal({ type, title, desc, placeholder, val }, callback) {
   modalCallback = callback;
@@ -769,6 +764,7 @@ function renderChartInputs(type) {
 
   container.innerHTML = arr.map((rawUrl, idx) => {
     const safeUrl = sanitizeUrl(rawUrl || '');
+    const imageLike = isImageLikeUrl(safeUrl);
     const embeddedImage = isEmbeddedImageSource(safeUrl);
     const host = safeUrl ? (() => {
       if (embeddedImage) return 'embedded image';
@@ -782,13 +778,13 @@ function renderChartInputs(type) {
       <div class="chart-link-row evidence-dropzone" data-type="${type}" data-index="${idx}">
         <div class="input-group flex-group chart-link-input-group">
           <input type="text" class="${type}-chart-input" value="${displayValue}" placeholder="${placeholder}" data-index="${idx}" />
-          ${safeUrl ? `<a href="${escapeAttr(safeUrl)}" target="_blank" rel="noopener noreferrer" class="chart-link-btn">${embeddedImage ? '🖼️ 이미지 열기' : `🔗 ${escapeHtml(host)} 열기`}</a>` : '<span class="chart-link-btn disabled">링크/이미지 대기</span>'}
+          ${safeUrl ? `<a href="${escapeAttr(safeUrl)}" target="_blank" rel="noopener noreferrer" class="chart-link-btn">${imageLike ? '🖼️ 열기' : `🔗 ${escapeHtml(host)} 열기`}</a>` : '<span class="chart-link-btn disabled">링크/이미지 대기</span>'}
           <button type="button" class="tool-btn chart-file-btn fixed-btn" data-type="${type}" data-index="${idx}">파일</button>
           <input type="file" accept="image/*" class="chart-file-input" data-type="${type}" data-index="${idx}" hidden />
           <button type="button" class="tool-btn btn-del-${type}-chart danger-text fixed-btn" data-index="${idx}">✕</button>
         </div>
         <div class="chart-evidence-hint">Ctrl+V · 드래그 앤 드롭 · 파일 업로드 지원</div>
-        ${embeddedImage ? `<div class="chart-image-preview"><a href="${escapeAttr(safeUrl)}" target="_blank" rel="noopener noreferrer"><img src="${escapeAttr(safeUrl)}" alt="Chart evidence" class="chart-thumb" /></a></div>` : ''}
+        ${imageLike ? `<div class="chart-image-preview"><a href="${escapeAttr(safeUrl)}" target="_blank" rel="noopener noreferrer"><img src="${escapeAttr(safeUrl)}" alt="Chart evidence" class="chart-thumb" /></a></div>` : ''}
       </div>
     `;
   }).join('');
@@ -862,7 +858,6 @@ function renderChartInputs(type) {
     };
   });
 }
-
 
 function hydrateInitialForm() {
   const tpl = state.db.meta.lastTradeForm || {};
@@ -2116,10 +2111,10 @@ function renderTradeDetail(trade) {
 
     <div style="margin-top:24px;">
       <h4 style="margin:0 0 8px; font-size:14px; font-weight:800;">Evidence (Charts)</h4>
-      <div class="evidence-gallery">
-        ${renderEvidenceItems(trade.evidence?.entryCharts || [], 'Entry Chart')}
-        ${renderEvidenceItems(trade.evidence?.exitCharts || [], 'Exit Chart')}
-        ${renderEvidenceItems(trade.evidence?.liveCharts || [], 'Live Chart')}
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        ${(trade.evidence?.entryCharts || []).map((url, idx) => `<a href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer" class="evidence-link-chip">Entry Chart ${idx+1} 📈</a>`).join('')}
+        ${(trade.evidence?.exitCharts || []).map((url, idx) => `<a href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer" class="evidence-link-chip">Exit Chart ${idx+1} 📈</a>`).join('')}
+        ${(trade.evidence?.liveCharts || []).map((url, idx) => `<a href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer" class="evidence-link-chip muted">Live Chart ${idx + 1} 🔍</a>`).join('')}
       </div>
     </div>
   `);
@@ -2145,40 +2140,6 @@ function renderTimeline(type, rows) {
       </div>
     </div>
   `).join('');
-}
-
-
-function renderEvidenceItems(items = [], prefix = 'Chart') {
-  if (!items.length) return '';
-  return items.map((url, idx) => {
-    const safeUrl = sanitizeUrl(url);
-    if (!safeUrl) return '';
-    if (isEmbeddedImageSource(safeUrl)) {
-      return `<a href="${escapeAttr(safeUrl)}" target="_blank" rel="noopener noreferrer" class="evidence-thumb-link" title="${escapeHtml(prefix)} ${idx + 1}"><img src="${escapeAttr(safeUrl)}" alt="${escapeAttr(prefix)} ${idx + 1}" class="evidence-thumb" /></a>`;
-    }
-    return `<a href="${escapeAttr(safeUrl)}" target="_blank" rel="noopener noreferrer" class="evidence-link-chip">${escapeHtml(prefix)} ${idx+1} 📈</a>`;
-  }).join('');
-}
-
-function renderPlaybookEvidenceBlock(trade) {
-  const entryItems = Array.isArray(trade.evidence?.entryCharts) ? trade.evidence.entryCharts : [];
-  const exitItems = Array.isArray(trade.evidence?.exitCharts) ? trade.evidence.exitCharts : [];
-  const liveItems = Array.isArray(trade.evidence?.liveCharts) ? trade.evidence.liveCharts : [];
-  const all = [...entryItems, ...exitItems, ...liveItems].filter(item => sanitizeUrl(item));
-  if (!all.length) return '<div class="playbook-link-row"><span class="chip">차트 링크 없음</span></div>';
-  const imageThumbs = all.filter(isEmbeddedImageSource).slice(0, 4).map((url, idx) => `<a href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer" class="playbook-thumb-link"><img src="${escapeAttr(url)}" alt="Playbook chart ${idx + 1}" class="playbook-thumb" /></a>`).join('');
-  const linkButtons = [
-      ...entryItems.map((url, idx) => ({ label: `Entry ${idx + 1}`, url })),
-      ...exitItems.map((url, idx) => ({ label: `Exit ${idx + 1}`, url })),
-      ...liveItems.map((url, idx) => ({ label: `Live ${idx + 1}`, url })),
-    ]
-    .filter(item => sanitizeUrl(item.url) && !isEmbeddedImageSource(item.url))
-    .map(item => `<a href="${escapeAttr(sanitizeUrl(item.url))}" target="_blank" rel="noopener noreferrer" class="playbook-link-btn">📈 ${escapeHtml(item.label)}</a>`)
-    .join('');
-  return `
-    ${imageThumbs ? `<div class="playbook-thumb-grid">${imageThumbs}</div>` : ''}
-    ${linkButtons ? `<div class="playbook-link-row">${linkButtons}</div>` : ''}
-  `;
 }
 
 function renderDetailInsights(trade, rows) {
@@ -2217,7 +2178,16 @@ function renderPlaybook() {
     .filter(trade => (trade.grade === 'S' || trade.grade === 'A') && !(trade.mistakes || []).length)
     .sort((a, b) => b.metrics.r - a.metrics.r);
 
-  const buildPlaybookLinks = (trade) => renderPlaybookEvidenceBlock(trade);
+  const buildPlaybookLinks = (trade) => {
+    const items = [
+      ...(Array.isArray(trade.evidence?.entryCharts) ? trade.evidence.entryCharts.map((url, idx) => ({ label: `Entry ${idx + 1}`, url })) : []),
+      ...(Array.isArray(trade.evidence?.exitCharts) ? trade.evidence.exitCharts.map((url, idx) => ({ label: `Exit ${idx + 1}`, url })) : []),
+      ...(Array.isArray(trade.evidence?.liveCharts) ? trade.evidence.liveCharts.map((url, idx) => ({ label: `Live ${idx + 1}`, url })) : []),
+    ].filter(item => sanitizeUrl(item.url));
+
+    if (!items.length) return '<div class="playbook-link-row"><span class="chip">차트 링크 없음</span></div>';
+    return `<div class="playbook-link-row">${items.map(item => `<a href="${escapeAttr(sanitizeUrl(item.url))}" target="_blank" rel="noopener noreferrer" class="playbook-link-btn">📈 ${escapeHtml(item.label)}</a>`).join('')}</div>`;
+  };
 
   let html = '';
   rows.forEach(trade => {

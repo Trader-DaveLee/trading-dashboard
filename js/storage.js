@@ -75,11 +75,6 @@ export async function hydrateDBFromIndexedDB() {
     return null;
   }
 }
-}
-
-export function saveDB(db) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
-}
 
 export function exportDB(db) {
   const payload = { exportedAt: new Date().toISOString(), ...db };
@@ -110,7 +105,7 @@ export function parseImport(text) {
 export function migrateDB(input) {
   if (!input) return structuredClone(DEFAULT_DB);
 
-  if ((input.schemaVersion === 4 || input.schemaVersion === 3 || input.schemaVersion === 2) && Array.isArray(input.trades)) {
+  if ((input.schemaVersion === 5 || input.schemaVersion === 4 || input.schemaVersion === 3 || input.schemaVersion === 2) && Array.isArray(input.trades)) {
     return {
       schemaVersion: 5,
       meta: normalizeMeta(input.meta),
@@ -314,7 +309,6 @@ export function sanitizeUrl(url) {
   return /^https?:\/\//i.test(trimmed) ? trimmed : '';
 }
 
-
 function sanitizeEvidenceSource(value) {
   if (!value) return '';
   const raw = String(value).trim();
@@ -326,12 +320,12 @@ function sanitizeEvidenceSource(value) {
 function normalizeEvidence(evidence, artifacts, legacyEntry, legacyExit) {
   const fallback = Array.isArray(artifacts) ? artifacts : [];
   const obj = evidence && typeof evidence === 'object' ? evidence : {};
-
+  
   let entryArray = Array.isArray(obj.entryCharts) ? obj.entryCharts : [];
   if (entryArray.length === 0 && (obj.entryChart || fallback[0] || legacyEntry)) {
       entryArray = [obj.entryChart || fallback[0] || legacyEntry];
   }
-
+  
   let exitArray = Array.isArray(obj.exitCharts) ? obj.exitCharts : [];
   if (exitArray.length === 0 && (obj.exitChart || fallback[1] || legacyExit)) {
       exitArray = [obj.exitChart || fallback[1] || legacyExit];
@@ -343,7 +337,6 @@ function normalizeEvidence(evidence, artifacts, legacyEntry, legacyExit) {
     liveCharts: Array.isArray(obj.liveCharts) ? obj.liveCharts.map(v => sanitizeEvidenceSource(v)).filter(Boolean) : [],
   };
 }
-
 
 function normalizeLegs(value, options = {}) {
   const { kind = 'entry', withDefault = false, defaultLeverage = 1, tradeStatus = 'OPEN' } = options;
@@ -411,4 +404,3 @@ export function clearDraft() {
   localStorage.removeItem(DRAFT_KEY);
   idbDelete(IDB_DRAFT_KEY).catch(err => console.error('[IndexedDB clearDraft]', err));
 }
-
