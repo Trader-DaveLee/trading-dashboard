@@ -53,7 +53,7 @@ const ID_LIST = [
   'view-playbook','playbook-gallery',
   'app-modal','modal-title','modal-desc','modal-input','modal-btn-cancel','modal-btn-confirm',
   'list-manage-modal','list-manage-title','list-manage-input','list-manage-add','list-manage-items','list-manage-close',
-  'ql-modal','ql-name','ql-url','ql-icon','ql-add','ql-items','ql-close'
+  'ql-modal','ql-name','ql-url','ql-icon','ql-add','ql-items','ql-close','open-guide-btn','guide-modal','guide-close'
 ];
 
 window.__desk = {
@@ -227,6 +227,19 @@ function hideModal() {
   if(els['app-modal']) els['app-modal'].classList.remove('show');
 }
 
+
+function openGuideModal() {
+  if (!els['guide-modal']) return;
+  els['guide-modal'].classList.add('show');
+  document.body.classList.add('modal-open');
+}
+
+function closeGuideModal() {
+  if (!els['guide-modal']) return;
+  els['guide-modal'].classList.remove('show');
+  document.body.classList.remove('modal-open');
+}
+
 function autoResize(el) {
   if (!el) return;
   el.style.height = 'auto';
@@ -367,6 +380,10 @@ function bindEvents() {
   
   if(els['list-manage-close']) els['list-manage-close'].onclick = () => els['list-manage-modal'].classList.remove('show');
   if(els['ql-close']) els['ql-close'].onclick = () => els['ql-modal'].classList.remove('show');
+  if(els['open-guide-btn']) els['open-guide-btn'].onclick = () => openGuideModal();
+  if(els['guide-close']) els['guide-close'].onclick = () => closeGuideModal();
+  if(els['guide-modal']) els['guide-modal'].addEventListener('click', (e) => { if (e.target === els['guide-modal']) closeGuideModal(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && els['guide-modal']?.classList.contains('show')) closeGuideModal(); });
 
   if(els['btn-manage-ticker']) els['btn-manage-ticker'].onclick = () => openListManager('tickers', '티커', 'upper');
   if(els['btn-manage-setup-entry']) els['btn-manage-setup-entry'].onclick = () => openListManager('entrySetups', 'Entry Setup', 'upper');

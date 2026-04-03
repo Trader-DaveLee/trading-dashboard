@@ -710,3 +710,82 @@ tbody tr:hover { background: #f1f5f9; cursor: pointer; }
   object-fit: cover;
   display: block;
 }
+
+
+body.modal-open { overflow: hidden; }
+.guide-overlay { align-items: center; justify-content: center; }
+.guide-card {
+  width: min(960px, 94vw);
+  max-height: min(86vh, 920px);
+  padding: 0;
+  overflow: hidden;
+}
+.guide-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 28px 28px 20px;
+  border-bottom: 1px solid var(--line);
+  background: linear-gradient(180deg, rgba(37,99,235,0.06), rgba(37,99,235,0));
+}
+.guide-subtitle { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-body {
+  padding: 24px 28px 28px;
+  overflow-y: auto;
+  max-height: calc(min(86vh, 920px) - 96px);
+}
+.guide-section + .guide-section { margin-top: 24px; }
+.guide-section h4 {
+  margin: 0 0 10px;
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text);
+}
+.guide-section p, .guide-list li, .guide-steps li {
+  color: var(--muted);
+  line-height: 1.7;
+  font-size: 14px;
+}
+.guide-callout {
+  margin-top: 12px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1e3a8a;
+  font-size: 13px;
+  font-weight: 700;
+}
+.guide-steps { margin: 0; padding-left: 18px; }
+.guide-list { margin: 0; padding-left: 18px; }
+.guide-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.guide-tile {
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--panel);
+}
+.guide-tile strong { display: block; margin-bottom: 8px; font-size: 14px; color: var(--text); }
+.guide-tile p { margin: 0; font-size: 13px; }
+.guide-dual {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.guide-dual > div {
+  padding: 16px;
+  border-radius: 16px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+}
+.guide-dual strong { display:block; margin-bottom:8px; color: var(--text); }
+@media (max-width: 720px) {
+  .guide-head { padding: 20px 20px 16px; flex-direction: column; }
+  .guide-body { padding: 18px 20px 22px; }
+  .guide-grid, .guide-dual { grid-template-columns: 1fr; }
+}
