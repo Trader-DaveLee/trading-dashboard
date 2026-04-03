@@ -50,8 +50,7 @@ const ID_LIST = [
   'view-playbook','playbook-gallery',
   'app-modal','modal-title','modal-desc','modal-input','modal-btn-cancel','modal-btn-confirm',
   'list-manage-modal','list-manage-title','list-manage-input','list-manage-add','list-manage-items','list-manage-close',
-  'ql-modal','ql-name','ql-url','ql-icon','ql-add','ql-items','ql-close','open-guide-btn','guide-modal','guide-close',
-  'evidence-modal','evidence-modal-close','evidence-modal-title','evidence-modal-image-wrap','evidence-modal-image','evidence-modal-frame-wrap','evidence-modal-frame','evidence-modal-open-link'
+  'ql-modal','ql-name','ql-url','ql-icon','ql-add','ql-items','ql-close','open-guide-btn','guide-modal','guide-close'
 ];
 
 window.__desk = {
@@ -241,26 +240,7 @@ function setChartItem(type, index, patch) {
 function openEvidenceModal(source, label = 'Chart evidence') {
   const safeUrl = sanitizeUrl(source);
   if (!safeUrl) return;
-  if (!els['evidence-modal']) {
-    window.open(safeUrl, '_blank', 'noopener,noreferrer');
-    return;
-  }
-  setText('evidence-modal-title', label);
-  if (els['evidence-modal-open-link']) els['evidence-modal-open-link'].href = safeUrl;
-  if (els['evidence-modal-image-wrap']) els['evidence-modal-image-wrap'].style.display = 'none';
-  if (els['evidence-modal-frame-wrap']) els['evidence-modal-frame-wrap'].style.display = 'flex';
-  if (els['evidence-modal-image']) els['evidence-modal-image'].src = '';
-  if (els['evidence-modal-frame']) els['evidence-modal-frame'].src = safeUrl;
-  els['evidence-modal'].classList.add('show');
-  document.body.classList.add('modal-open');
-}
-
-function closeEvidenceModal() {
-  if (!els['evidence-modal']) return;
-  els['evidence-modal'].classList.remove('show');
-  document.body.classList.remove('modal-open');
-  if (els['evidence-modal-image']) els['evidence-modal-image'].src = '';
-  if (els['evidence-modal-frame']) els['evidence-modal-frame'].src = 'about:blank';
+  window.open(safeUrl, '_blank', 'noopener,noreferrer');
 }
 
 function bindEvidenceOpeners(scope = document) {
@@ -465,11 +445,8 @@ function bindEvents() {
   if(els['open-guide-btn']) els['open-guide-btn'].onclick = () => openGuideModal();
   if(els['guide-close']) els['guide-close'].onclick = () => closeGuideModal();
   if(els['guide-modal']) els['guide-modal'].addEventListener('click', (e) => { if (e.target === els['guide-modal']) closeGuideModal(); });
-  if(els['evidence-modal-close']) els['evidence-modal-close'].onclick = () => closeEvidenceModal();
-  if(els['evidence-modal']) els['evidence-modal'].addEventListener('click', (e) => { if (e.target === els['evidence-modal']) closeEvidenceModal(); });
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && els['guide-modal']?.classList.contains('show')) closeGuideModal();
-    if (e.key === 'Escape' && els['evidence-modal']?.classList.contains('show')) closeEvidenceModal();
   });
 
   if(els['btn-manage-ticker']) els['btn-manage-ticker'].onclick = () => openListManager('tickers', '티커', 'upper');
