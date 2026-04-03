@@ -312,6 +312,10 @@ label span { display: block; margin-bottom: 10px; color: var(--muted); font-size
 .input-help { display:block; margin-top:8px; color:var(--muted); font-size:11px; line-height:1.5; font-weight:700; }
 .chart-link-row { display:grid; gap:8px; }
 .chart-link-input-group { align-items:center; }
+
+.chart-link-grid { display:grid; grid-template-columns: 112px minmax(0,1fr) auto auto auto; gap:8px; }
+.chart-timeframe-select { min-width:112px; border:1px solid var(--line); background:#fff; color:var(--text); border-radius:10px; padding:10px 12px; font-weight:700; }
+.chart-link-input-group.chart-link-grid input { min-width:0; width:100%; }
 .chart-link-input-group input { flex:1; }
 .chart-link-btn { display:inline-flex; align-items:center; justify-content:center; gap:6px; min-width:120px; padding:10px 14px; border-radius:10px; border:1px solid #bfdbfe; background:#eff6ff; color:var(--accent); font-size:12px; font-weight:800; text-decoration:none; white-space:nowrap; }
 .chart-link-btn:hover { background:#dbeafe; color:var(--accent); }
@@ -476,8 +480,8 @@ tbody tr:hover { background: #f1f5f9; cursor: pointer; }
   .wide-btn, .btn-save-trade { width: 100%; padding: 14px; }
   .journal-actions-sticky { flex-direction: column; bottom: 80px; border-radius: 16px; padding:12px; width: 100%; }
   .trade-status-dock { width: 100%; justify-content: center; }
-  .chart-link-input-group { flex-wrap: wrap; }
-  .chart-link-btn { width: 100%; }
+  .chart-link-grid { grid-template-columns: 1fr; }
+  .chart-timeframe-select, .chart-link-btn { width:100%; }
   .leg-row { 
     grid-template-columns: 1fr 1fr; position: relative; padding: 16px 12px 12px; 
     border: 1px solid var(--accent-soft); border-radius: 12px; background: #fff; margin-bottom: 16px;

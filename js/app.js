@@ -6,9 +6,6 @@ import {
   loadDB, saveDB, exportDB, parseImport, normalizeTrade, sanitizeUrl,
   loadDraft, saveDraft, clearDraft, hydrateDBFromIndexedDB, hydrateDraftFromIndexedDB
 } from './storage.js';
-import {
-  readFileAsDataUrl, extractImageFileFromClipboardEvent, extractImageFilesFromClipboardEvent, extractImageFileFromDropEvent, extractImageFilesFromDropEvent, isEmbeddedImageSource, isImageLikeUrl
-} from './media.js';
 
 const state = {
   db: loadDB(),
@@ -187,57 +184,58 @@ function chartArrayByType(type) {
   return state.draftLiveCharts;
 }
 
+const CHART_TIMEFRAMES = ['Month','Week','Day','4H','2H','1H','30m','15m','5m','3m','1m'];
+const DEFAULT_TIMEFRAME = 'Day';
+
+function emptyChartItem() {
+  return { timeframe: DEFAULT_TIMEFRAME, url: '' };
+}
+
+function cloneChartItems(items) {
+  return Array.isArray(items)
+    ? items.map(item => {
+        if (item && typeof item === 'object') {
+          return { timeframe: CHART_TIMEFRAMES.includes(item.timeframe) ? item.timeframe : DEFAULT_TIMEFRAME, url: String(item.url || '').trim() };
+        }
+        return { timeframe: DEFAULT_TIMEFRAME, url: String(item || '').trim() };
+      })
+    : [];
+}
+
+function chartItemIsFilled(item) {
+  return !!sanitizeUrl(item?.url || '');
+}
+
+function normalizeChartDraftArray(items) {
+  const arr = cloneChartItems(items);
+  while (arr.length > 1 && !chartItemIsFilled(arr[arr.length - 1]) && !chartItemIsFilled(arr[arr.length - 2])) arr.pop();
+  if (!arr.length) arr.push(emptyChartItem());
+  if (chartItemIsFilled(arr[arr.length - 1])) arr.push(emptyChartItem());
+  return arr;
+}
+
 function compactChartArray(arr) {
-  while (arr.length > 1 && !String(arr[arr.length - 1] || '').trim() && !String(arr[arr.length - 2] || '').trim()) arr.pop();
-  if (!arr.length) arr.push('');
-  if (String(arr[arr.length - 1] || '').trim()) arr.push('');
+  const normalized = normalizeChartDraftArray(arr);
+  arr.splice(0, arr.length, ...normalized)
 }
 
-function setChartSource(type, index, value) {
+function chartRowLabel(type, timeframe) {
+  const prefix = type === 'entry' ? 'Entry' : type === 'exit' ? 'Exit' : 'Live';
+  return timeframe ? `${prefix} · ${timeframe}` : prefix;
+}
+
+function setChartItem(type, index, patch) {
   const arr = chartArrayByType(type);
-  arr[index] = value;
+  arr[index] = {
+    ...emptyChartItem(),
+    ...(arr[index] && typeof arr[index] === 'object' ? arr[index] : {}),
+    ...patch,
+  };
   compactChartArray(arr);
   renderChartInputs(type);
   markDirty();
   persistDraft();
   updatePreview();
-}
-
-function insertChartSources(type, index, sources) {
-  const arr = chartArrayByType(type);
-  const normalized = (sources || [])
-    .map(src => sanitizeUrl(src) || String(src || '').trim())
-    .filter(Boolean);
-  if (!normalized.length) return;
-
-  const hasCurrent = String(arr[index] || '').trim();
-  if (hasCurrent) {
-    arr.splice(index + 1, 0, ...normalized);
-  } else {
-    arr.splice(index, 1, ...normalized);
-  }
-
-  compactChartArray(arr);
-  renderChartInputs(type);
-  markDirty();
-  persistDraft();
-  updatePreview();
-}
-
-async function applyChartImageFile(type, index, file) {
-  if (!file) return;
-  await applyChartImageFiles(type, index, [file]);
-}
-
-async function applyChartImageFiles(type, index, files) {
-  const imageFiles = Array.from(files || []).filter(file => /^image\//i.test(file.type || ''));
-  if (!imageFiles.length) return;
-  pushUndoSnapshot();
-  const dataUrls = [];
-  for (const file of imageFiles) {
-    dataUrls.push(await readFileAsDataUrl(file));
-  }
-  insertChartSources(type, index, dataUrls);
 }
 
 function openEvidenceModal(source, label = 'Chart evidence') {
@@ -247,13 +245,12 @@ function openEvidenceModal(source, label = 'Chart evidence') {
     window.open(safeUrl, '_blank', 'noopener,noreferrer');
     return;
   }
-  const imageLike = isImageLikeUrl(safeUrl);
   setText('evidence-modal-title', label);
   if (els['evidence-modal-open-link']) els['evidence-modal-open-link'].href = safeUrl;
-  if (els['evidence-modal-image-wrap']) els['evidence-modal-image-wrap'].style.display = imageLike ? 'flex' : 'none';
-  if (els['evidence-modal-frame-wrap']) els['evidence-modal-frame-wrap'].style.display = imageLike ? 'none' : 'flex';
-  if (els['evidence-modal-image']) els['evidence-modal-image'].src = imageLike ? safeUrl : '';
-  if (els['evidence-modal-frame']) els['evidence-modal-frame'].src = imageLike ? 'about:blank' : safeUrl;
+  if (els['evidence-modal-image-wrap']) els['evidence-modal-image-wrap'].style.display = 'none';
+  if (els['evidence-modal-frame-wrap']) els['evidence-modal-frame-wrap'].style.display = 'flex';
+  if (els['evidence-modal-image']) els['evidence-modal-image'].src = '';
+  if (els['evidence-modal-frame']) els['evidence-modal-frame'].src = safeUrl;
   els['evidence-modal'].classList.add('show');
   document.body.classList.add('modal-open');
 }
@@ -284,9 +281,6 @@ function renderEvidenceItems(items, options = {}) {
   return `<div class="${cssClass}">${arr.map(item => {
     const safeUrl = sanitizeUrl(item.url);
     const label = escapeHtml(item.label || 'Chart');
-    if (isImageLikeUrl(safeUrl)) {
-      return `<button type="button" class="evidence-thumb-btn js-evidence-open" data-source="${escapeAttr(safeUrl)}" data-label="${escapeAttr(item.label || 'Chart')}" title="${label}"><img src="${escapeAttr(safeUrl)}" alt="${label}" class="evidence-thumb" /><span class="evidence-thumb-caption">${label}</span></button>`;
-    }
     return `<button type="button" class="evidence-link-chip js-evidence-open" data-source="${escapeAttr(safeUrl)}" data-label="${escapeAttr(item.label || 'Chart')}">📈 ${label}</button>`;
   }).join('')}</div>`;
 }
@@ -501,9 +495,9 @@ function bindEvents() {
   if(els['btn-generate-plan']) els['btn-generate-plan'].onclick = () => { updatePreview(); refreshJournalStatus('추천 플랜 재계산'); };
   if(els['btn-apply-plan']) els['btn-apply-plan'].onclick = applyPlannerSuggestion;
   
-  if(els['add-entry-chart']) els['add-entry-chart'].onclick = () => { pushUndoSnapshot(); state.draftEntryCharts.push(''); renderChartInputs('entry'); updatePreview(); persistDraft(); };
-  if(els['add-exit-chart']) els['add-exit-chart'].onclick = () => { pushUndoSnapshot(); state.draftExitCharts.push(''); renderChartInputs('exit'); updatePreview(); persistDraft(); };
-  if(els['add-live-chart']) els['add-live-chart'].onclick = () => { pushUndoSnapshot(); state.draftLiveCharts.push(''); renderChartInputs('live'); updatePreview(); persistDraft(); };
+  if(els['add-entry-chart']) els['add-entry-chart'].onclick = () => { pushUndoSnapshot(); state.draftEntryCharts.push(emptyChartItem()); renderChartInputs('entry'); updatePreview(); persistDraft(); };
+  if(els['add-exit-chart']) els['add-exit-chart'].onclick = () => { pushUndoSnapshot(); state.draftExitCharts.push(emptyChartItem()); renderChartInputs('exit'); updatePreview(); persistDraft(); };
+  if(els['add-live-chart']) els['add-live-chart'].onclick = () => { pushUndoSnapshot(); state.draftLiveCharts.push(emptyChartItem()); renderChartInputs('live'); updatePreview(); persistDraft(); };
 
   if(els['reset-form']) els['reset-form'].onclick = resetForm;
   if(els['delete-trade']) els['delete-trade'].onclick = deleteTrade;
@@ -618,9 +612,9 @@ function captureJournalSnapshot() {
     fields: Object.fromEntries(JOURNAL_SNAPSHOT_FIELDS.map(id => [id, getVal(id)])),
     entries: cloneRows(state.draftEntries),
     exits: cloneRows(state.draftExits),
-    entryCharts: [...state.draftEntryCharts],
-    exitCharts: [...state.draftExitCharts],
-    liveCharts: [...state.draftLiveCharts],
+    entryCharts: cloneChartItems(state.draftEntryCharts),
+    exitCharts: cloneChartItems(state.draftExitCharts),
+    liveCharts: cloneChartItems(state.draftLiveCharts),
     checkedRules: getCheckedRules(),
   };
 }
@@ -652,9 +646,9 @@ function applyJournalSnapshot(snapshot, options = {}) {
   JOURNAL_SNAPSHOT_FIELDS.forEach(id => setVal(id, snapshot.fields?.[id] ?? ''));
   state.draftEntries = cloneRows(snapshot.entries || [{ price: 0, type: 'M', weight: 100, leverage: Math.max(1, Number(getVal('leverage') || 1)) }]);
   state.draftExits = cloneRows(snapshot.exits || []);
-  state.draftEntryCharts = Array.isArray(snapshot.entryCharts) && snapshot.entryCharts.length ? [...snapshot.entryCharts] : [''];
-  state.draftExitCharts = Array.isArray(snapshot.exitCharts) && snapshot.exitCharts.length ? [...snapshot.exitCharts] : [''];
-  state.draftLiveCharts = Array.isArray(snapshot.liveCharts) ? [...snapshot.liveCharts] : [];
+  state.draftEntryCharts = normalizeChartDraftArray(snapshot.entryCharts);
+  state.draftExitCharts = normalizeChartDraftArray(snapshot.exitCharts);
+  state.draftLiveCharts = normalizeChartDraftArray(snapshot.liveCharts);
   renderLegs('entry');
   renderLegs('exit');
   renderChartInputs('entry');
@@ -872,102 +866,75 @@ function renderChartInputs(type) {
   if (!container) return;
   compactChartArray(arr);
 
-  container.innerHTML = arr.map((rawUrl, idx) => {
-    const safeUrl = sanitizeUrl(rawUrl || '');
-    const imageLike = isImageLikeUrl(safeUrl);
-    const embeddedImage = isEmbeddedImageSource(safeUrl);
-    const host = safeUrl ? (() => {
-      if (embeddedImage) return 'embedded image';
-      try { return new URL(safeUrl).hostname.replace('www.', ''); } catch { return 'link'; }
-    })() : '';
-    const displayValue = embeddedImage ? '' : escapeAttr(rawUrl || '');
-    const placeholder = embeddedImage
-      ? '이미지 첨부됨 - 붙여넣기 / 드롭 / 파일로 추가 가능'
-      : 'TradingView 링크, 이미지 URL 또는 차트 캡처를 붙여넣으세요';
-    const label = `${type === 'entry' ? 'Entry' : type === 'exit' ? 'Exit' : 'Live'} Chart ${idx + 1}`;
+  container.innerHTML = arr.map((item, idx) => {
+    const safeUrl = sanitizeUrl(item?.url || '');
+    const timeframe = CHART_TIMEFRAMES.includes(item?.timeframe) ? item.timeframe : DEFAULT_TIMEFRAME;
+    const label = chartRowLabel(type, timeframe);
     return `
-      <div class="chart-link-row evidence-dropzone" data-type="${type}" data-index="${idx}">
-        <div class="input-group flex-group chart-link-input-group">
-          <input type="text" class="${type}-chart-input" value="${displayValue}" placeholder="${placeholder}" data-index="${idx}" />
-          ${safeUrl ? `<button type="button" class="chart-link-btn js-evidence-open" data-source="${escapeAttr(safeUrl)}" data-label="${escapeAttr(label)}">${imageLike ? '🖼️ 보기' : `🔗 ${escapeHtml(host)} 보기`}</button>` : '<span class="chart-link-btn disabled">링크/이미지 대기</span>'}
+      <div class="chart-link-row" data-type="${type}" data-index="${idx}">
+        <div class="input-group flex-group chart-link-input-group chart-link-grid">
+          <select class="chart-timeframe-select" data-index="${idx}">
+            ${CHART_TIMEFRAMES.map(tf => `<option value="${tf}" ${tf === timeframe ? 'selected' : ''}>${tf}</option>`).join('')}
+          </select>
+          <input type="text" class="${type}-chart-input" value="${escapeAttr(item?.url || '')}" placeholder="TradingView 링크를 붙여넣고 Enter를 누르세요" data-index="${idx}" />
+          ${safeUrl ? `<button type="button" class="chart-link-btn js-evidence-open" data-source="${escapeAttr(safeUrl)}" data-label="${escapeAttr(label)}">🔗 보기</button>` : '<span class="chart-link-btn disabled">링크 대기</span>'}
           ${safeUrl ? `<a href="${escapeAttr(safeUrl)}" target="_blank" rel="noopener noreferrer" class="chart-link-btn subtle">↗</a>` : ''}
-          <button type="button" class="tool-btn chart-file-btn fixed-btn" data-type="${type}" data-index="${idx}">파일</button>
-          <input type="file" accept="image/*" class="chart-file-input" data-type="${type}" data-index="${idx}" hidden multiple />
           <button type="button" class="tool-btn btn-del-${type}-chart danger-text fixed-btn" data-index="${idx}">✕</button>
         </div>
-        <div class="chart-evidence-hint">Ctrl+V · 여러 장 드래그 앤 드롭 · 여러 파일 업로드 지원</div>
-        ${imageLike ? `<div class="chart-image-preview"><button type="button" class="chart-thumb-btn js-evidence-open" data-source="${escapeAttr(safeUrl)}" data-label="${escapeAttr(label)}"><img src="${escapeAttr(safeUrl)}" alt="Chart evidence" class="chart-thumb" /></button></div>` : ''}
       </div>
     `;
   }).join('');
 
+  container.querySelectorAll('.chart-timeframe-select').forEach(select => {
+    select.onchange = (e) => {
+      const idx = Number(e.target.dataset.index);
+      setChartItem(type, idx, { timeframe: e.target.value });
+    };
+  });
+
   container.querySelectorAll(`.${type}-chart-input`).forEach(input => {
     input.oninput = (e) => {
-      arr[Number(e.target.dataset.index)] = e.target.value;
-      markDirty(); persistDraft();
+      const idx = Number(e.target.dataset.index);
+      const current = arr[idx] || emptyChartItem();
+      arr[idx] = { ...current, url: e.target.value };
+      markDirty();
+      persistDraft();
     };
     input.onkeydown = (e) => {
       if (e.key !== 'Enter') return;
       e.preventDefault();
       const idx = Number(e.target.dataset.index);
-      const sanitized = sanitizeUrl(e.target.value) || e.target.value.trim();
-      setChartSource(type, idx, sanitized);
+      const sanitized = sanitizeUrl(e.target.value);
+      if (!sanitized) {
+        arr[idx] = { ...(arr[idx] || emptyChartItem()), url: '' };
+        renderChartInputs(type);
+        updatePreview();
+        persistDraft();
+        return;
+      }
+      setChartItem(type, idx, { url: sanitized });
     };
     input.onblur = (e) => {
       const idx = Number(e.target.dataset.index);
-      const sanitized = sanitizeUrl(e.target.value) || e.target.value.trim();
-      arr[idx] = sanitized;
+      const sanitized = sanitizeUrl(e.target.value);
+      arr[idx] = { ...(arr[idx] || emptyChartItem()), url: sanitized || '' };
       compactChartArray(arr);
-      markDirty(); persistDraft(); renderChartInputs(type);
+      markDirty();
+      persistDraft();
+      renderChartInputs(type);
+      updatePreview();
     };
-    input.onpaste = async (e) => {
-      const idx = Number(e.target.dataset.index);
-      const files = extractImageFilesFromClipboardEvent(e);
-      if (!files.length) return;
-      e.preventDefault();
-      await applyChartImageFiles(type, idx, files);
-    };
-  });
-
-  container.querySelectorAll('.chart-file-btn').forEach(btn => {
-    btn.onclick = () => btn.closest('.chart-link-row')?.querySelector('.chart-file-input')?.click();
-  });
-
-  container.querySelectorAll('.chart-file-input').forEach(fileInput => {
-    fileInput.onchange = async (e) => {
-      const idx = Number(e.target.dataset.index);
-      const files = Array.from(e.target.files || []);
-      if (!files.length) return;
-      await applyChartImageFiles(type, idx, files);
-      e.target.value = '';
-    };
-  });
-
-  container.querySelectorAll('.evidence-dropzone').forEach(zone => {
-    zone.addEventListener('dragover', (e) => {
-      const files = extractImageFilesFromDropEvent(e);
-      if (!files.length) return;
-      e.preventDefault();
-      zone.classList.add('drop-active');
-    });
-    zone.addEventListener('dragleave', () => zone.classList.remove('drop-active'));
-    zone.addEventListener('drop', async (e) => {
-      zone.classList.remove('drop-active');
-      const idx = Number(zone.dataset.index);
-      const files = extractImageFilesFromDropEvent(e);
-      if (!files.length) return;
-      e.preventDefault();
-      await applyChartImageFiles(type, idx, files);
-    });
   });
 
   container.querySelectorAll(`.btn-del-${type}-chart`).forEach(btn => {
     btn.onclick = (e) => {
       pushUndoSnapshot();
-      arr.splice(Number(e.target.dataset.index), 1);
+      arr.splice(Number(e.currentTarget.dataset.index), 1);
       compactChartArray(arr);
       renderChartInputs(type);
-      markDirty(); persistDraft(); updatePreview();
+      markDirty();
+      persistDraft();
+      updatePreview();
     };
   });
 
@@ -992,9 +959,9 @@ function hydrateInitialForm() {
   
   state.draftEntries = [{ price: 0, type: 'M', weight: 100, leverage: Math.max(1, Number(getVal('leverage') || 1)) }];
   state.draftExits = [];
-  state.draftEntryCharts = [''];
-  state.draftExitCharts = [''];
-  state.draftLiveCharts = [];
+  state.draftEntryCharts = [emptyChartItem()];
+  state.draftExitCharts = [emptyChartItem()];
+  state.draftLiveCharts = [emptyChartItem()];
   renderLegs('entry');
   renderLegs('exit');
   renderChartInputs('entry');
@@ -1131,9 +1098,9 @@ function resetFormForce() {
 
   state.draftEntries = [{ price: 0, type: 'M', weight: 100, leverage: Math.max(1, Number(getVal('leverage') || 1)) }];
   state.draftExits = [];
-  state.draftEntryCharts = [''];
-  state.draftExitCharts = [''];
-  state.draftLiveCharts = [];
+  state.draftEntryCharts = [emptyChartItem()];
+  state.draftExitCharts = [emptyChartItem()];
+  state.draftLiveCharts = [emptyChartItem()];
   
   renderLegs('entry');
   renderLegs('exit');
@@ -1217,9 +1184,9 @@ function readForm() {
     mistakes: splitCsv(getVal('mistakes')),
     checkedRules: getCheckedRules(),
     evidence: {
-      entryCharts: state.draftEntryCharts.filter(Boolean),
-      exitCharts: state.draftExitCharts.filter(Boolean),
-      liveCharts: state.draftLiveCharts.filter(Boolean),
+      entryCharts: state.draftEntryCharts.filter(chartItemIsFilled).map(item => ({ timeframe: item.timeframe || DEFAULT_TIMEFRAME, url: sanitizeUrl(item.url) })),
+      exitCharts: state.draftExitCharts.filter(chartItemIsFilled).map(item => ({ timeframe: item.timeframe || DEFAULT_TIMEFRAME, url: sanitizeUrl(item.url) })),
+      liveCharts: state.draftLiveCharts.filter(chartItemIsFilled).map(item => ({ timeframe: item.timeframe || DEFAULT_TIMEFRAME, url: sanitizeUrl(item.url) })),
     },
     entries: cloneRows(state.draftEntries),
     exits: cloneRows(state.draftExits),
@@ -1347,9 +1314,9 @@ function applyTradeToForm(trade, options = {}) {
   setVal('tags', (trade.tags || []).join(', '));
   setVal('mistakes', (trade.mistakes || []).join(', '));
   
-  state.draftEntryCharts = Array.isArray(trade.evidence?.entryCharts) && trade.evidence.entryCharts.length ? [...trade.evidence.entryCharts] : [''];
-  state.draftExitCharts = Array.isArray(trade.evidence?.exitCharts) && trade.evidence.exitCharts.length ? [...trade.evidence.exitCharts] : [''];
-  state.draftLiveCharts = Array.isArray(trade.evidence?.liveCharts) ? [...trade.evidence.liveCharts] : [];
+  state.draftEntryCharts = normalizeChartDraftArray(trade.evidence?.entryCharts);
+  state.draftExitCharts = normalizeChartDraftArray(trade.evidence?.exitCharts);
+  state.draftLiveCharts = normalizeChartDraftArray(trade.evidence?.liveCharts);
   state.draftEntries = cloneRows(trade.entries || [{ price: 0, type: 'M', weight: 100 }]);
   state.draftExits = cloneRows(trade.exits || []);
   
@@ -2227,9 +2194,9 @@ function renderTradeDetail(trade) {
     <div style="margin-top:24px;">
       <h4 style="margin:0 0 8px; font-size:14px; font-weight:800;">Evidence (Charts)</h4>
       ${renderEvidenceItems([
-        ...(trade.evidence?.entryCharts || []).map((url, idx) => ({ label: `Entry ${idx + 1}`, url })),
-        ...(trade.evidence?.exitCharts || []).map((url, idx) => ({ label: `Exit ${idx + 1}`, url })),
-        ...(trade.evidence?.liveCharts || []).map((url, idx) => ({ label: `Live ${idx + 1}`, url })),
+        ...(trade.evidence?.entryCharts || []).map((item, idx) => ({ label: chartRowLabel('entry', item?.timeframe || DEFAULT_TIMEFRAME), url: item?.url || item })),
+        ...(trade.evidence?.exitCharts || []).map((item, idx) => ({ label: chartRowLabel('exit', item?.timeframe || DEFAULT_TIMEFRAME), url: item?.url || item })),
+        ...(trade.evidence?.liveCharts || []).map((item, idx) => ({ label: chartRowLabel('live', item?.timeframe || DEFAULT_TIMEFRAME), url: item?.url || item })),
       ], { emptyText: '차트 증거 없음' })}
     </div>
   `);
@@ -2296,9 +2263,9 @@ function renderPlaybook() {
 
   const buildPlaybookLinks = (trade) => {
     const items = [
-      ...(Array.isArray(trade.evidence?.entryCharts) ? trade.evidence.entryCharts.map((url, idx) => ({ label: `Entry ${idx + 1}`, url })) : []),
-      ...(Array.isArray(trade.evidence?.exitCharts) ? trade.evidence.exitCharts.map((url, idx) => ({ label: `Exit ${idx + 1}`, url })) : []),
-      ...(Array.isArray(trade.evidence?.liveCharts) ? trade.evidence.liveCharts.map((url, idx) => ({ label: `Live ${idx + 1}`, url })) : []),
+      ...(Array.isArray(trade.evidence?.entryCharts) ? trade.evidence.entryCharts.map(item => ({ label: chartRowLabel('entry', item?.timeframe || DEFAULT_TIMEFRAME), url: item?.url || item })) : []),
+      ...(Array.isArray(trade.evidence?.exitCharts) ? trade.evidence.exitCharts.map(item => ({ label: chartRowLabel('exit', item?.timeframe || DEFAULT_TIMEFRAME), url: item?.url || item })) : []),
+      ...(Array.isArray(trade.evidence?.liveCharts) ? trade.evidence.liveCharts.map(item => ({ label: chartRowLabel('live', item?.timeframe || DEFAULT_TIMEFRAME), url: item?.url || item })) : []),
     ].filter(item => sanitizeUrl(item.url));
 
     return renderEvidenceItems(items, { emptyText: '차트 링크 없음', cssClass: 'playbook-link-row' });
