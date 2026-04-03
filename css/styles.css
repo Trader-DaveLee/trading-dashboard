@@ -645,3 +645,68 @@ tbody tr:hover { background: #f1f5f9; cursor: pointer; }
 .calendar-day-stats span { font-size:10px; font-weight:800; color:#64748b; }
 .calendar-day-stats .winrate.positive { color:#047857; }
 .calendar-day-stats .winrate.negative { color:#b91c1c; }
+
+
+.chart-evidence-hint {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 6px;
+}
+.evidence-dropzone {
+  border-radius: 12px;
+  transition: background 0.15s ease, outline-color 0.15s ease;
+}
+.evidence-dropzone.drop-active {
+  background: rgba(79, 140, 255, 0.08);
+  outline: 2px dashed rgba(79, 140, 255, 0.35);
+  outline-offset: 2px;
+}
+.chart-image-preview {
+  margin-top: 8px;
+}
+.chart-thumb {
+  width: 100%;
+  max-height: 140px;
+  object-fit: cover;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  display: block;
+}
+.evidence-gallery {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.evidence-thumb-link {
+  display: inline-flex;
+  width: 88px;
+  height: 64px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: #f8fafc;
+}
+.evidence-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.playbook-thumb-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+.playbook-thumb-link {
+  display: block;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: #f8fafc;
+}
+.playbook-thumb {
+  width: 100%;
+  height: 92px;
+  object-fit: cover;
+  display: block;
+}

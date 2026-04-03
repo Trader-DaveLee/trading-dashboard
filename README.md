@@ -1,48 +1,23 @@
-# Trading Desk Dashboard
+# Trading Desk Dashboard v6.6
 
-개인용 트레이딩 스타트 페이지 + 저널 + 리스크 설계 도구입니다.
+## 이번 업데이트
+- 저장소를 **LocalStorage 캐시 + IndexedDB 영속 저장소** 구조로 확장
+- 차트 증거(Entry/Exit/Live)에 **링크 입력 + 이미지 붙여넣기(Ctrl+V) + 드래그 앤 드롭 + 파일 선택** 지원
+- 차트 이미지(Data URL)도 트레이드 데이터와 함께 저장되며 Playbook/Library에서 미리보기 가능
+- 저장 레이어 일부 모듈화 (`idb.js`, `media.js`)로 향후 유지보수 기반 정리
 
-## 현재 핵심 구조
-- Overview: 첫 화면, 포트폴리오/퀵런치/성과 요약
-- Journal: Pre-Trade → Risk & Execution → Live Management → Post-Trade Assessment
-- Library: 과거 트레이드 검색/복기
-- Playbook: 재사용할 패턴 샘플 모음
+## 저장 구조
+- 빠른 부팅과 호환성을 위해 LocalStorage는 캐시 용도로 유지
+- 실제 영속 저장은 IndexedDB를 우선 사용
+- 브라우저가 지원하는 범위 내에서 더 많은 트레이드 및 차트 자료 저장 가능
 
-## Risk & Execution 개편 포인트
-- 현재가 / 손절가 / 목표가 / Mark Price를 기준으로 주문 설계
-- Planner Mode
-  - 단일 진입
-  - 균형 분할
-  - 눌림 분할 (Cost Averaging)
-  - 피라미딩 (추세 추가)
-- 진입 단계 수와 비중 스타일을 조합해 추천 진입 구조 계산
-- Execution Entries는 실제 체결 기준
-- Target / Filled Exits는 계획과 실제 청산을 함께 관리
-- Scale-In Simulator로 추가 진입 전후 평균단가/리스크/목표 수익 변화를 미리 확인 가능
+## 차트 증거 입력 방식
+- TradingView 링크를 붙여넣고 Enter
+- 이미지 파일을 드래그 앤 드롭
+- 이미지 캡처를 Ctrl+V로 바로 붙여넣기
+- `파일` 버튼으로 직접 업로드
 
-## Post-Trade Assessment
-- 사용 리스크 / 허용 리스크
-- 예상/최종 PnL
-- 예상/최종 R
-- 잔여 리스크 / BEP
-- 누적 수수료 / 계좌 영향
-- 자동 복기 문구
-
-## 구현 메모
-- LocalStorage 기반 저장
-- JSON import/export 지원
-- schemaVersion 4 사용
-- quickLinks, checklists, balanceHistory 등 meta 구조 포함
-
-## 다음 우선순위 후보
-1. plan vs execution 비교 레이어
-2. multiple target 고도화
-3. stop moved / BEP / trailing stop 이벤트 구조화
-4. import/migration 안전성 추가 강화
-
-
-## Latest cleanup
-- Removed session field from Journal and Library workflows.
-- Removed micro-adjustment input and sidebar scale-in/target projection cards.
-- Unified current price as the single live pricing input for planner and unrealized PnL.
-- Playbook now uses chart links only (no placeholder image blocks).
+## 향후 권장
+- Journal / Library / Overview 뷰 분리 리팩토링
+- 계획(Plan)과 실행(Execution) 완전 분리
+- 첨부 이미지 썸네일 정리 및 갤러리 모드 강화

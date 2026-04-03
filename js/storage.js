@@ -1,4 +1,5 @@
 import { recalcTrade } from './calc.js';
+import { idbGet, idbSet, idbDelete } from './idb.js';
 
 export const STORAGE_KEY = 'trading_desk_dashboard_v3';
 export const LEGACY_STORAGE_KEYS = [
@@ -6,9 +7,11 @@ export const LEGACY_STORAGE_KEYS = [
   'btc_trading_research_dashboard_v2'
 ];
 export const DRAFT_KEY = 'trading_desk_dashboard_v3_draft';
+const IDB_DB_KEY = 'main-db';
+const IDB_DRAFT_KEY = 'draft';
 
 export const DEFAULT_DB = {
-  schemaVersion: 4,
+  schemaVersion: 5,
   meta: {
     tickers: ['BTCUSDT', 'ETHUSDT', 'SOLUSDT'],
     entrySetups: ['BREAKOUT', 'RECLAIM', 'RANGE SWEEP', 'TREND CONTINUATION'],
@@ -42,6 +45,36 @@ export function loadDB() {
   } catch {
     return structuredClone(DEFAULT_DB);
   }
+}
+
+let indexedDbSaveTimer = null;
+let latestQueuedDB = null;
+
+export function saveDB(db) {
+  const snapshot = structuredClone(db);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
+  latestQueuedDB = snapshot;
+  if (indexedDbSaveTimer) clearTimeout(indexedDbSaveTimer);
+  indexedDbSaveTimer = setTimeout(() => {
+    const toSave = latestQueuedDB;
+    latestQueuedDB = null;
+    indexedDbSaveTimer = null;
+    idbSet(IDB_DB_KEY, toSave).catch(err => console.error('[IndexedDB saveDB]', err));
+  }, 120);
+}
+
+export async function hydrateDBFromIndexedDB() {
+  try {
+    const raw = await idbGet(IDB_DB_KEY);
+    if (!raw) return null;
+    const migrated = migrateDB(raw);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
+    return migrated;
+  } catch (error) {
+    console.error('[IndexedDB hydrateDBFromIndexedDB]', error);
+    return null;
+  }
+}
 }
 
 export function saveDB(db) {
@@ -79,7 +112,7 @@ export function migrateDB(input) {
 
   if ((input.schemaVersion === 4 || input.schemaVersion === 3 || input.schemaVersion === 2) && Array.isArray(input.trades)) {
     return {
-      schemaVersion: 4,
+      schemaVersion: 5,
       meta: normalizeMeta(input.meta),
       trades: input.trades.filter(Boolean).map(fromV2Trade).map(normalizeTrade),
     };
@@ -87,7 +120,7 @@ export function migrateDB(input) {
 
   if (Array.isArray(input)) {
     return {
-      schemaVersion: 4,
+      schemaVersion: 5,
       meta: structuredClone(DEFAULT_DB.meta),
       trades: input.filter(Boolean).map(fromV5Trade).map(normalizeTrade),
     };
@@ -95,7 +128,7 @@ export function migrateDB(input) {
 
   if (input && Array.isArray(input.trades)) {
     return {
-      schemaVersion: 4,
+      schemaVersion: 5,
       meta: normalizeMeta(input.meta),
       trades: input.trades.filter(Boolean).map(fromV2Trade).map(normalizeTrade),
     };
@@ -105,7 +138,7 @@ export function migrateDB(input) {
     const possibleTrades = Array.isArray(input.rows) ? input.rows : Array.isArray(input.items) ? input.items : null;
     if (possibleTrades) {
       return {
-        schemaVersion: 4,
+        schemaVersion: 5,
         meta: normalizeMeta(input.meta),
         trades: possibleTrades.filter(Boolean).map(fromV2Trade).map(normalizeTrade),
       };
@@ -274,32 +307,43 @@ export function sanitizeUrl(url) {
   if (!url) return '';
   let trimmed = String(url).trim();
   if (!trimmed) return '';
+  if (/^data:image\//i.test(trimmed) || /^blob:/i.test(trimmed)) return trimmed;
   if (!/^https?:\/\//i.test(trimmed)) {
     trimmed = 'https://' + trimmed;
   }
   return /^https?:\/\//i.test(trimmed) ? trimmed : '';
 }
 
+
+function sanitizeEvidenceSource(value) {
+  if (!value) return '';
+  const raw = String(value).trim();
+  if (!raw) return '';
+  if (/^data:image\//i.test(raw) || /^blob:/i.test(raw)) return raw;
+  return sanitizeUrl(raw);
+}
+
 function normalizeEvidence(evidence, artifacts, legacyEntry, legacyExit) {
   const fallback = Array.isArray(artifacts) ? artifacts : [];
   const obj = evidence && typeof evidence === 'object' ? evidence : {};
-  
+
   let entryArray = Array.isArray(obj.entryCharts) ? obj.entryCharts : [];
   if (entryArray.length === 0 && (obj.entryChart || fallback[0] || legacyEntry)) {
       entryArray = [obj.entryChart || fallback[0] || legacyEntry];
   }
-  
+
   let exitArray = Array.isArray(obj.exitCharts) ? obj.exitCharts : [];
   if (exitArray.length === 0 && (obj.exitChart || fallback[1] || legacyExit)) {
       exitArray = [obj.exitChart || fallback[1] || legacyExit];
   }
 
   return {
-    entryCharts: entryArray.map(v => sanitizeUrl(v)).filter(Boolean),
-    exitCharts: exitArray.map(v => sanitizeUrl(v)).filter(Boolean),
-    liveCharts: Array.isArray(obj.liveCharts) ? obj.liveCharts.map(v => sanitizeUrl(v)).filter(Boolean) : [],
+    entryCharts: entryArray.map(v => sanitizeEvidenceSource(v)).filter(Boolean),
+    exitCharts: exitArray.map(v => sanitizeEvidenceSource(v)).filter(Boolean),
+    liveCharts: Array.isArray(obj.liveCharts) ? obj.liveCharts.map(v => sanitizeEvidenceSource(v)).filter(Boolean) : [],
   };
 }
+
 
 function normalizeLegs(value, options = {}) {
   const { kind = 'entry', withDefault = false, defaultLeverage = 1, tradeStatus = 'OPEN' } = options;
@@ -344,10 +388,27 @@ export function loadDraft() {
   }
 }
 
+export async function hydrateDraftFromIndexedDB() {
+  try {
+    return await idbGet(IDB_DRAFT_KEY);
+  } catch (error) {
+    console.error('[IndexedDB hydrateDraftFromIndexedDB]', error);
+    return null;
+  }
+}
+
 export function saveDraft(draft) {
-  localStorage.setItem(DRAFT_KEY, JSON.stringify({ savedAt: new Date().toISOString(), ...draft }));
+  const payload = { savedAt: new Date().toISOString(), ...draft };
+  try {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(payload));
+  } catch (error) {
+    console.warn('[saveDraft localStorage]', error);
+  }
+  idbSet(IDB_DRAFT_KEY, payload).catch(err => console.error('[IndexedDB saveDraft]', err));
 }
 
 export function clearDraft() {
   localStorage.removeItem(DRAFT_KEY);
+  idbDelete(IDB_DRAFT_KEY).catch(err => console.error('[IndexedDB clearDraft]', err));
 }
+
