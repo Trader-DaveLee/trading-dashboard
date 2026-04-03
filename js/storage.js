@@ -309,32 +309,50 @@ export function sanitizeUrl(url) {
   return /^https?:\/\//i.test(trimmed) ? trimmed : '';
 }
 
-function sanitizeEvidenceSource(value) {
-  if (!value) return '';
+function normalizeEvidenceItem(value, defaultTimeframe = 'Day') {
+  if (!value) return null;
+
+  if (typeof value === 'object' && value !== null) {
+    const timeframeRaw = String(value.timeframe || defaultTimeframe).trim();
+    const timeframe = timeframeRaw || defaultTimeframe;
+    const url = sanitizeUrl(value.url || value.href || value.src || '');
+    return url ? { timeframe, url } : null;
+  }
+
   const raw = String(value).trim();
-  if (!raw) return '';
-  if (/^data:image\//i.test(raw) || /^blob:/i.test(raw)) return raw;
-  return sanitizeUrl(raw);
+  if (!raw || raw === '[object Object]' || raw === 'https://[object Object]') return null;
+  const url = sanitizeUrl(raw);
+  return url ? { timeframe: defaultTimeframe, url } : null;
+}
+
+function normalizeEvidenceArray(values, defaultTimeframe = 'Day') {
+  if (!Array.isArray(values)) return [];
+  return values.map(v => normalizeEvidenceItem(v, defaultTimeframe)).filter(Boolean);
+}
+
+function sanitizeEvidenceSource(value) {
+  const normalized = normalizeEvidenceItem(value);
+  return normalized ? normalized.url : '';
 }
 
 function normalizeEvidence(evidence, artifacts, legacyEntry, legacyExit) {
   const fallback = Array.isArray(artifacts) ? artifacts : [];
   const obj = evidence && typeof evidence === 'object' ? evidence : {};
-  
+
   let entryArray = Array.isArray(obj.entryCharts) ? obj.entryCharts : [];
   if (entryArray.length === 0 && (obj.entryChart || fallback[0] || legacyEntry)) {
       entryArray = [obj.entryChart || fallback[0] || legacyEntry];
   }
-  
+
   let exitArray = Array.isArray(obj.exitCharts) ? obj.exitCharts : [];
   if (exitArray.length === 0 && (obj.exitChart || fallback[1] || legacyExit)) {
       exitArray = [obj.exitChart || fallback[1] || legacyExit];
   }
 
   return {
-    entryCharts: entryArray.map(v => sanitizeEvidenceSource(v)).filter(Boolean),
-    exitCharts: exitArray.map(v => sanitizeEvidenceSource(v)).filter(Boolean),
-    liveCharts: Array.isArray(obj.liveCharts) ? obj.liveCharts.map(v => sanitizeEvidenceSource(v)).filter(Boolean) : [],
+    entryCharts: normalizeEvidenceArray(entryArray),
+    exitCharts: normalizeEvidenceArray(exitArray),
+    liveCharts: normalizeEvidenceArray(Array.isArray(obj.liveCharts) ? obj.liveCharts : []),
   };
 }
 
