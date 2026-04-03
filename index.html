@@ -731,6 +731,27 @@
     </div>
   </div>
 
+
+
+  <div id="evidence-modal" class="modal-overlay evidence-overlay">
+    <div class="modal-card evidence-card">
+      <div class="evidence-modal-head">
+        <div id="evidence-modal-title" class="modal-title">Chart evidence</div>
+        <div class="evidence-modal-actions">
+          <a id="evidence-modal-open-link" href="#" target="_blank" rel="noopener noreferrer" class="tool-btn">새 탭에서 열기</a>
+          <button id="evidence-modal-close" class="tool-btn">닫기</button>
+        </div>
+      </div>
+      <div id="evidence-modal-image-wrap" class="evidence-modal-image-wrap">
+        <img id="evidence-modal-image" src="" alt="Chart evidence preview" class="evidence-modal-image" />
+      </div>
+      <div id="evidence-modal-frame-wrap" class="evidence-modal-frame-wrap">
+        <iframe id="evidence-modal-frame" src="about:blank" class="evidence-modal-frame" loading="lazy"></iframe>
+        <div class="muted-caption evidence-frame-note">일부 외부 링크는 보안 정책 때문에 미리보기가 제한될 수 있습니다. 이 경우 “새 탭에서 열기”를 사용하세요.</div>
+      </div>
+    </div>
+  </div>
+
   <script type="module" src="./js/app.js"></script>
 </body>
 </html>

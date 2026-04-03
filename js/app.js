@@ -7,7 +7,7 @@ import {
   loadDraft, saveDraft, clearDraft, hydrateDBFromIndexedDB, hydrateDraftFromIndexedDB
 } from './storage.js';
 import {
-  readFileAsDataUrl, extractImageFileFromClipboardEvent, extractImageFileFromDropEvent, isEmbeddedImageSource, isImageLikeUrl
+  readFileAsDataUrl, extractImageFileFromClipboardEvent, extractImageFilesFromClipboardEvent, extractImageFileFromDropEvent, extractImageFilesFromDropEvent, isEmbeddedImageSource, isImageLikeUrl
 } from './media.js';
 
 const state = {
@@ -53,7 +53,8 @@ const ID_LIST = [
   'view-playbook','playbook-gallery',
   'app-modal','modal-title','modal-desc','modal-input','modal-btn-cancel','modal-btn-confirm',
   'list-manage-modal','list-manage-title','list-manage-input','list-manage-add','list-manage-items','list-manage-close',
-  'ql-modal','ql-name','ql-url','ql-icon','ql-add','ql-items','ql-close','open-guide-btn','guide-modal','guide-close'
+  'ql-modal','ql-name','ql-url','ql-icon','ql-add','ql-items','ql-close','open-guide-btn','guide-modal','guide-close',
+  'evidence-modal','evidence-modal-close','evidence-modal-title','evidence-modal-image-wrap','evidence-modal-image','evidence-modal-frame-wrap','evidence-modal-frame','evidence-modal-open-link'
 ];
 
 window.__desk = {
@@ -186,10 +187,37 @@ function chartArrayByType(type) {
   return state.draftLiveCharts;
 }
 
+function compactChartArray(arr) {
+  while (arr.length > 1 && !String(arr[arr.length - 1] || '').trim() && !String(arr[arr.length - 2] || '').trim()) arr.pop();
+  if (!arr.length) arr.push('');
+  if (String(arr[arr.length - 1] || '').trim()) arr.push('');
+}
+
 function setChartSource(type, index, value) {
   const arr = chartArrayByType(type);
   arr[index] = value;
-  if (index === arr.length - 1 && value) arr.push('');
+  compactChartArray(arr);
+  renderChartInputs(type);
+  markDirty();
+  persistDraft();
+  updatePreview();
+}
+
+function insertChartSources(type, index, sources) {
+  const arr = chartArrayByType(type);
+  const normalized = (sources || [])
+    .map(src => sanitizeUrl(src) || String(src || '').trim())
+    .filter(Boolean);
+  if (!normalized.length) return;
+
+  const hasCurrent = String(arr[index] || '').trim();
+  if (hasCurrent) {
+    arr.splice(index + 1, 0, ...normalized);
+  } else {
+    arr.splice(index, 1, ...normalized);
+  }
+
+  compactChartArray(arr);
   renderChartInputs(type);
   markDirty();
   persistDraft();
@@ -198,9 +226,69 @@ function setChartSource(type, index, value) {
 
 async function applyChartImageFile(type, index, file) {
   if (!file) return;
+  await applyChartImageFiles(type, index, [file]);
+}
+
+async function applyChartImageFiles(type, index, files) {
+  const imageFiles = Array.from(files || []).filter(file => /^image\//i.test(file.type || ''));
+  if (!imageFiles.length) return;
   pushUndoSnapshot();
-  const dataUrl = await readFileAsDataUrl(file);
-  setChartSource(type, index, dataUrl);
+  const dataUrls = [];
+  for (const file of imageFiles) {
+    dataUrls.push(await readFileAsDataUrl(file));
+  }
+  insertChartSources(type, index, dataUrls);
+}
+
+function openEvidenceModal(source, label = 'Chart evidence') {
+  const safeUrl = sanitizeUrl(source);
+  if (!safeUrl) return;
+  if (!els['evidence-modal']) {
+    window.open(safeUrl, '_blank', 'noopener,noreferrer');
+    return;
+  }
+  const imageLike = isImageLikeUrl(safeUrl);
+  setText('evidence-modal-title', label);
+  if (els['evidence-modal-open-link']) els['evidence-modal-open-link'].href = safeUrl;
+  if (els['evidence-modal-image-wrap']) els['evidence-modal-image-wrap'].style.display = imageLike ? 'flex' : 'none';
+  if (els['evidence-modal-frame-wrap']) els['evidence-modal-frame-wrap'].style.display = imageLike ? 'none' : 'flex';
+  if (els['evidence-modal-image']) els['evidence-modal-image'].src = imageLike ? safeUrl : '';
+  if (els['evidence-modal-frame']) els['evidence-modal-frame'].src = imageLike ? 'about:blank' : safeUrl;
+  els['evidence-modal'].classList.add('show');
+  document.body.classList.add('modal-open');
+}
+
+function closeEvidenceModal() {
+  if (!els['evidence-modal']) return;
+  els['evidence-modal'].classList.remove('show');
+  document.body.classList.remove('modal-open');
+  if (els['evidence-modal-image']) els['evidence-modal-image'].src = '';
+  if (els['evidence-modal-frame']) els['evidence-modal-frame'].src = 'about:blank';
+}
+
+function bindEvidenceOpeners(scope = document) {
+  scope.querySelectorAll('.js-evidence-open').forEach(btn => {
+    btn.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      openEvidenceModal(btn.dataset.source || '', btn.dataset.label || 'Chart evidence');
+    };
+  });
+}
+
+function renderEvidenceItems(items, options = {}) {
+  const emptyText = options.emptyText || '차트 증거 없음';
+  const cssClass = options.cssClass || 'evidence-gallery';
+  const arr = Array.isArray(items) ? items.filter(item => sanitizeUrl(item?.url)) : [];
+  if (!arr.length) return `<div class="${cssClass}"><span class="chip">${escapeHtml(emptyText)}</span></div>`;
+  return `<div class="${cssClass}">${arr.map(item => {
+    const safeUrl = sanitizeUrl(item.url);
+    const label = escapeHtml(item.label || 'Chart');
+    if (isImageLikeUrl(safeUrl)) {
+      return `<button type="button" class="evidence-thumb-btn js-evidence-open" data-source="${escapeAttr(safeUrl)}" data-label="${escapeAttr(item.label || 'Chart')}" title="${label}"><img src="${escapeAttr(safeUrl)}" alt="${label}" class="evidence-thumb" /><span class="evidence-thumb-caption">${label}</span></button>`;
+    }
+    return `<button type="button" class="evidence-link-chip js-evidence-open" data-source="${escapeAttr(safeUrl)}" data-label="${escapeAttr(item.label || 'Chart')}">📈 ${label}</button>`;
+  }).join('')}</div>`;
 }
 bootstrap();
 hydratePersistentState().catch(error => console.error('[post-bootstrap hydration]', error));
@@ -383,7 +471,12 @@ function bindEvents() {
   if(els['open-guide-btn']) els['open-guide-btn'].onclick = () => openGuideModal();
   if(els['guide-close']) els['guide-close'].onclick = () => closeGuideModal();
   if(els['guide-modal']) els['guide-modal'].addEventListener('click', (e) => { if (e.target === els['guide-modal']) closeGuideModal(); });
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && els['guide-modal']?.classList.contains('show')) closeGuideModal(); });
+  if(els['evidence-modal-close']) els['evidence-modal-close'].onclick = () => closeEvidenceModal();
+  if(els['evidence-modal']) els['evidence-modal'].addEventListener('click', (e) => { if (e.target === els['evidence-modal']) closeEvidenceModal(); });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && els['guide-modal']?.classList.contains('show')) closeGuideModal();
+    if (e.key === 'Escape' && els['evidence-modal']?.classList.contains('show')) closeEvidenceModal();
+  });
 
   if(els['btn-manage-ticker']) els['btn-manage-ticker'].onclick = () => openListManager('tickers', '티커', 'upper');
   if(els['btn-manage-setup-entry']) els['btn-manage-setup-entry'].onclick = () => openListManager('entrySetups', 'Entry Setup', 'upper');
@@ -777,7 +870,7 @@ function renderChartInputs(type) {
 
   const container = els[containerId];
   if (!container) return;
-  if (!arr.length) arr.push('');
+  compactChartArray(arr);
 
   container.innerHTML = arr.map((rawUrl, idx) => {
     const safeUrl = sanitizeUrl(rawUrl || '');
@@ -789,19 +882,21 @@ function renderChartInputs(type) {
     })() : '';
     const displayValue = embeddedImage ? '' : escapeAttr(rawUrl || '');
     const placeholder = embeddedImage
-      ? '이미지 첨부됨 - 붙여넣기 / 드롭 / 파일로 교체 가능'
-      : 'https://www.tradingview.com/x/... 링크 또는 이미지 붙여넣기';
+      ? '이미지 첨부됨 - 붙여넣기 / 드롭 / 파일로 추가 가능'
+      : 'TradingView 링크, 이미지 URL 또는 차트 캡처를 붙여넣으세요';
+    const label = `${type === 'entry' ? 'Entry' : type === 'exit' ? 'Exit' : 'Live'} Chart ${idx + 1}`;
     return `
       <div class="chart-link-row evidence-dropzone" data-type="${type}" data-index="${idx}">
         <div class="input-group flex-group chart-link-input-group">
           <input type="text" class="${type}-chart-input" value="${displayValue}" placeholder="${placeholder}" data-index="${idx}" />
-          ${safeUrl ? `<a href="${escapeAttr(safeUrl)}" target="_blank" rel="noopener noreferrer" class="chart-link-btn">${imageLike ? '🖼️ 열기' : `🔗 ${escapeHtml(host)} 열기`}</a>` : '<span class="chart-link-btn disabled">링크/이미지 대기</span>'}
+          ${safeUrl ? `<button type="button" class="chart-link-btn js-evidence-open" data-source="${escapeAttr(safeUrl)}" data-label="${escapeAttr(label)}">${imageLike ? '🖼️ 보기' : `🔗 ${escapeHtml(host)} 보기`}</button>` : '<span class="chart-link-btn disabled">링크/이미지 대기</span>'}
+          ${safeUrl ? `<a href="${escapeAttr(safeUrl)}" target="_blank" rel="noopener noreferrer" class="chart-link-btn subtle">↗</a>` : ''}
           <button type="button" class="tool-btn chart-file-btn fixed-btn" data-type="${type}" data-index="${idx}">파일</button>
-          <input type="file" accept="image/*" class="chart-file-input" data-type="${type}" data-index="${idx}" hidden />
+          <input type="file" accept="image/*" class="chart-file-input" data-type="${type}" data-index="${idx}" hidden multiple />
           <button type="button" class="tool-btn btn-del-${type}-chart danger-text fixed-btn" data-index="${idx}">✕</button>
         </div>
-        <div class="chart-evidence-hint">Ctrl+V · 드래그 앤 드롭 · 파일 업로드 지원</div>
-        ${imageLike ? `<div class="chart-image-preview"><a href="${escapeAttr(safeUrl)}" target="_blank" rel="noopener noreferrer"><img src="${escapeAttr(safeUrl)}" alt="Chart evidence" class="chart-thumb" /></a></div>` : ''}
+        <div class="chart-evidence-hint">Ctrl+V · 여러 장 드래그 앤 드롭 · 여러 파일 업로드 지원</div>
+        ${imageLike ? `<div class="chart-image-preview"><button type="button" class="chart-thumb-btn js-evidence-open" data-source="${escapeAttr(safeUrl)}" data-label="${escapeAttr(label)}"><img src="${escapeAttr(safeUrl)}" alt="Chart evidence" class="chart-thumb" /></button></div>` : ''}
       </div>
     `;
   }).join('');
@@ -822,14 +917,15 @@ function renderChartInputs(type) {
       const idx = Number(e.target.dataset.index);
       const sanitized = sanitizeUrl(e.target.value) || e.target.value.trim();
       arr[idx] = sanitized;
+      compactChartArray(arr);
       markDirty(); persistDraft(); renderChartInputs(type);
     };
     input.onpaste = async (e) => {
       const idx = Number(e.target.dataset.index);
-      const file = extractImageFileFromClipboardEvent(e);
-      if (!file) return;
+      const files = extractImageFilesFromClipboardEvent(e);
+      if (!files.length) return;
       e.preventDefault();
-      await applyChartImageFile(type, idx, file);
+      await applyChartImageFiles(type, idx, files);
     };
   });
 
@@ -840,17 +936,17 @@ function renderChartInputs(type) {
   container.querySelectorAll('.chart-file-input').forEach(fileInput => {
     fileInput.onchange = async (e) => {
       const idx = Number(e.target.dataset.index);
-      const file = e.target.files?.[0];
-      if (!file) return;
-      await applyChartImageFile(type, idx, file);
+      const files = Array.from(e.target.files || []);
+      if (!files.length) return;
+      await applyChartImageFiles(type, idx, files);
       e.target.value = '';
     };
   });
 
   container.querySelectorAll('.evidence-dropzone').forEach(zone => {
     zone.addEventListener('dragover', (e) => {
-      const file = extractImageFileFromDropEvent(e);
-      if (!file) return;
+      const files = extractImageFilesFromDropEvent(e);
+      if (!files.length) return;
       e.preventDefault();
       zone.classList.add('drop-active');
     });
@@ -858,10 +954,10 @@ function renderChartInputs(type) {
     zone.addEventListener('drop', async (e) => {
       zone.classList.remove('drop-active');
       const idx = Number(zone.dataset.index);
-      const file = extractImageFileFromDropEvent(e);
-      if (!file) return;
+      const files = extractImageFilesFromDropEvent(e);
+      if (!files.length) return;
       e.preventDefault();
-      await applyChartImageFile(type, idx, file);
+      await applyChartImageFiles(type, idx, files);
     });
   });
 
@@ -869,11 +965,13 @@ function renderChartInputs(type) {
     btn.onclick = (e) => {
       pushUndoSnapshot();
       arr.splice(Number(e.target.dataset.index), 1);
-      if (!arr.length) arr.push('');
+      compactChartArray(arr);
       renderChartInputs(type);
       markDirty(); persistDraft(); updatePreview();
     };
   });
+
+  bindEvidenceOpeners(container);
 }
 
 function hydrateInitialForm() {
@@ -2128,15 +2226,16 @@ function renderTradeDetail(trade) {
 
     <div style="margin-top:24px;">
       <h4 style="margin:0 0 8px; font-size:14px; font-weight:800;">Evidence (Charts)</h4>
-      <div style="display:flex; gap:8px; flex-wrap:wrap;">
-        ${(trade.evidence?.entryCharts || []).map((url, idx) => `<a href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer" class="evidence-link-chip">Entry Chart ${idx+1} 📈</a>`).join('')}
-        ${(trade.evidence?.exitCharts || []).map((url, idx) => `<a href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer" class="evidence-link-chip">Exit Chart ${idx+1} 📈</a>`).join('')}
-        ${(trade.evidence?.liveCharts || []).map((url, idx) => `<a href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer" class="evidence-link-chip muted">Live Chart ${idx + 1} 🔍</a>`).join('')}
-      </div>
+      ${renderEvidenceItems([
+        ...(trade.evidence?.entryCharts || []).map((url, idx) => ({ label: `Entry ${idx + 1}`, url })),
+        ...(trade.evidence?.exitCharts || []).map((url, idx) => ({ label: `Exit ${idx + 1}`, url })),
+        ...(trade.evidence?.liveCharts || []).map((url, idx) => ({ label: `Live ${idx + 1}`, url })),
+      ], { emptyText: '차트 증거 없음' })}
     </div>
   `);
 
   document.getElementById('load-selected-into-journal').onclick = () => openSelectedInJournal(trade.id);
+  bindEvidenceOpeners(els['detail']);
 }
 
 function renderTimeline(type, rows) {
@@ -2202,8 +2301,7 @@ function renderPlaybook() {
       ...(Array.isArray(trade.evidence?.liveCharts) ? trade.evidence.liveCharts.map((url, idx) => ({ label: `Live ${idx + 1}`, url })) : []),
     ].filter(item => sanitizeUrl(item.url));
 
-    if (!items.length) return '<div class="playbook-link-row"><span class="chip">차트 링크 없음</span></div>';
-    return `<div class="playbook-link-row">${items.map(item => `<a href="${escapeAttr(sanitizeUrl(item.url))}" target="_blank" rel="noopener noreferrer" class="playbook-link-btn">📈 ${escapeHtml(item.label)}</a>`).join('')}</div>`;
+    return renderEvidenceItems(items, { emptyText: '차트 링크 없음', cssClass: 'playbook-link-row' });
   };
 
   let html = '';
@@ -2227,9 +2325,11 @@ function renderPlaybook() {
 
   setHtml('playbook-gallery', rows.length ? html : emptyState('조건을 만족하는 S/A급 Playbook 샘플이 없습니다.'));
 
+  bindEvidenceOpeners(els['playbook-gallery']);
+
   els['playbook-gallery'].querySelectorAll('.playbook-card').forEach(card => {
     card.onclick = (e) => {
-      if (e.target.closest('a')) return;
+      if (e.target.closest('a, .js-evidence-open')) return;
       selectTrade(card.dataset.id);
       state.view = 'library';
       renderViews();

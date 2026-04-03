@@ -17,13 +17,23 @@ export function readFileAsDataUrl(file) {
   });
 }
 
-export function extractImageFileFromClipboardEvent(event) {
+export function extractImageFilesFromClipboardEvent(event) {
   const items = Array.from(event?.clipboardData?.items || []);
-  const item = items.find(it => it.kind === 'file' && /^image\//i.test(it.type));
-  return item ? item.getAsFile() : null;
+  return items
+    .filter(it => it.kind === 'file' && /^image\//i.test(it.type))
+    .map(it => it.getAsFile())
+    .filter(Boolean);
+}
+
+export function extractImageFileFromClipboardEvent(event) {
+  return extractImageFilesFromClipboardEvent(event)[0] || null;
+}
+
+export function extractImageFilesFromDropEvent(event) {
+  const files = Array.from(event?.dataTransfer?.files || []);
+  return files.filter(file => /^image\//i.test(file.type));
 }
 
 export function extractImageFileFromDropEvent(event) {
-  const files = Array.from(event?.dataTransfer?.files || []);
-  return files.find(file => /^image\//i.test(file.type)) || null;
+  return extractImageFilesFromDropEvent(event)[0] || null;
 }
