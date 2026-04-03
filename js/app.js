@@ -20,7 +20,6 @@ const state = {
   draftExitCharts: [],
   draftLiveCharts: [],
   dirty: false,
-  overviewHistoryMode: 'trades',
   undoStack: [],
   undoAnchor: null,
   undoAnchorConsumed: false,
@@ -154,9 +153,10 @@ function safeCall(name, fn, fallback = null) {
 }
 async function hydratePersistentState() {
   try {
+    const localDraft = loadDraft();
     const [hydratedDb, hydratedDraft] = await Promise.all([
-      hydrateDBFromIndexedDB(),
-      hydrateDraftFromIndexedDB()
+      hydrateDBFromIndexedDB(state.db),
+      hydrateDraftFromIndexedDB(localDraft)
     ]);
 
     if (hydratedDb && JSON.stringify(hydratedDb) !== JSON.stringify(state.db)) {
@@ -164,10 +164,10 @@ async function hydratePersistentState() {
       initMeta();
       render();
       updatePreview();
-      refreshJournalStatus('IndexedDB 동기화 완료');
+      refreshJournalStatus('저장소 동기화 완료');
     }
 
-    if (!loadDraft() && hydratedDraft?.trade) {
+    if (hydratedDraft?.trade && JSON.stringify(hydratedDraft) !== JSON.stringify(localDraft)) {
       applyTradeToForm(hydratedDraft.trade, { keepId: Boolean(hydratedDraft.trade.id) });
       if (hydratedDraft.savedAt) setText('draft-saved-at', `Draft ${formatDateTime(hydratedDraft.savedAt)} 저장`);
       updatePreview();
@@ -560,6 +560,13 @@ function bindEvents() {
     els[id].addEventListener('input', handleFormMutation);
     els[id].addEventListener('change', handleFormMutation);
   });
+
+  if (els['setup-entry']) {
+    els['setup-entry'].addEventListener('change', () => {
+      applySetupTemplateIfHelpful();
+      handleFormMutation();
+    });
+  }
 
   if (els['leverage']) {
     const syncLeverage = () => {
@@ -1413,6 +1420,59 @@ function renderPriceMapDistanceSummary(trade) {
   `);
 }
 
+function getPromptTemplate(group, key) {
+  const source = group === 'context' ? state.db.meta.contextPrompts : state.db.meta.thesisPrompts;
+  return String(source?.[key] || '').trim();
+}
+
+function getSetupTemplate(setupName = getVal('setup-entry')) {
+  const key = String(setupName || '').trim().toUpperCase();
+  return state.db.meta.setupTemplates?.[key] || null;
+}
+
+function applySetupTemplateIfHelpful() {
+  const template = getSetupTemplate();
+  if (!template) return;
+  let changed = false;
+
+  const setIfBlank = (id, value, isBlank) => {
+    if (!els[id]) return;
+    const current = getVal(id);
+    if (isBlank(current)) {
+      setVal(id, value);
+      changed = true;
+    }
+  };
+
+  setIfBlank('risk-pct', String(template.riskPct || ''), v => !String(v).trim() || Number(v) === 0);
+  setIfBlank('planner-mode', template.plannerMode || 'BALANCED', v => !String(v).trim() || String(v).toUpperCase() === 'BALANCED');
+  setIfBlank('planner-legs', String(template.plannerLegs || 3), v => !String(v).trim() || Number(v) <= 0);
+  setIfBlank('planner-weight-mode', template.plannerWeightMode || 'BACKLOADED', v => !String(v).trim() || String(v).toUpperCase() === 'BACKLOADED');
+  setIfBlank('stop-type', template.stopType || 'M', v => !String(v).trim() || String(v).toUpperCase() === 'M');
+
+  if (!getVal('context').trim() && template.contextPrompt) {
+    setVal('context', template.contextPrompt);
+    if (els['context']) autoResize(els['context']);
+    changed = true;
+  }
+  if (!getVal('thesis').trim() && template.thesisPrompt) {
+    setVal('thesis', template.thesisPrompt);
+    if (els['thesis']) autoResize(els['thesis']);
+    changed = true;
+  }
+  if (!getVal('tags').trim() && Array.isArray(template.tags) && template.tags.length) {
+    setVal('tags', template.tags.join(', '));
+    changed = true;
+  }
+  if (getCheckedRules().length === 0 && Array.isArray(template.checklistHints) && template.checklistHints.length) {
+    const allowed = new Set(template.checklistHints);
+    renderTradeChecklist(state.db.meta.checklists.filter(item => allowed.has(item)));
+    changed = true;
+  }
+
+  if (changed && els['planner-mode-note']) updatePlannerModeNote();
+}
+
 function appendTemplateToField(id, template) {
   const prev = getVal(id).trim();
   const next = prev ? `${prev}
@@ -1680,11 +1740,6 @@ function renderOverview() {
   renderEquityChart(stats.closed);
   renderBalanceChart(); 
   renderOverviewPortfolio();
-}
-
-function setOverviewHistoryMode(mode) {
-  state.overviewHistoryMode = 'trades';
-  renderOverviewHistory();
 }
 
 function formatClockTime(date) {
@@ -2476,7 +2531,18 @@ function nowIso() {
   return new Date().toISOString();
 }
 
+function parseLocalDateTime(value) {
+  const text = String(value || '').trim();
+  const match = text.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/);
+  if (!match) return null;
+  const [, y, mo, d, h, mi, s] = match;
+  const date = new Date(Number(y), Number(mo) - 1, Number(d), Number(h), Number(mi), Number(s || 0), 0);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
 function readDateInputAsIso(value) {
+  const local = parseLocalDateTime(value);
+  if (local) return local.toISOString();
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? nowIso() : date.toISOString();
 }
@@ -2484,8 +2550,8 @@ function readDateInputAsIso(value) {
 function inputDate(date) {
   const d = new Date(date);
   if (Number.isNaN(d.getTime())) return '';
-  const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
-  return local.toISOString().slice(0, 16);
+  const pad = value => String(value).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 function nowStamp() {
